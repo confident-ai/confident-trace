@@ -4,20 +4,17 @@ import hashlib
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import jsonschema
 import pytest
-from conftest import spans, validate_attributes
+from conftest import ROOT, begin, connection, response, spans, validate_attributes
+from conftest import accumulator as Accumulator
 from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 
 import confident_trace as ct
-from confident_trace import _genai as ai
-from confident_trace._content import ContentPolicy
-from confident_trace._extract import Accumulator, connection, response
-from confident_trace._instrumentation import begin
+from confident_trace._core.content import ContentPolicy
+from confident_trace._semconv import genai_v1_37_0 as ai
 
-ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = json.loads((ROOT / "spec/genai/1.37.0.json").read_text())
 VECTORS = json.loads((ROOT / "spec/genai-emission-vectors.json").read_text())
 
@@ -245,9 +242,8 @@ def test_registry_rebuilds_from_attributed_sources(tmp_path):
 
 
 def test_google_part_union_and_enum_response(telemetry):
+    from conftest import request
     from google.genai import types
-
-    from confident_trace._extract import request
 
     _, exporter = telemetry
     op = begin("google_genai", {"model": "gemini-test"})

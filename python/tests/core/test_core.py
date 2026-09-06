@@ -10,7 +10,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 import confident_trace as ct
-from confident_trace._content import ContentPolicy
+from confident_trace._core.content import ContentPolicy
 
 
 def test_nested_plain_otel_and_updates(telemetry):

@@ -1,8 +1,9 @@
 """Confident conventions on standard OpenTelemetry."""
 
-from ._runtime import SEMCONV_VERSION, flush, init, shutdown
-from ._runtime import VERSION as __version__
-from ._spans import span, update_trace
+from ._bootstrap import init
+from ._core.runtime import SEMCONV_VERSION, flush, shutdown
+from ._core.runtime import VERSION as __version__
+from ._core.spans import span, update_trace
 
 __all__ = [
     "SEMCONV_VERSION",

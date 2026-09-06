@@ -13,6 +13,7 @@ architecture; it does not mean every provider SDK creates OTel spans itself.
 | Google GenAI Python: `generate_content` / `generate_content_stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync/async surfaces; GenAI 1.37.0 inference attributes; mocked sync and async streaming tests |
 | An SDK/framework already emitting OTel with GenAI conventions | The SDK/framework's own instrumentation | Adds export to the shared SDK TracerProvider; does not enable the framework's instrumentation | Standard span export is supported; richer backend interpretation depends on emitted attributes/version. No framework-specific end-to-end certification in this release |
 | An external OTel instrumentor | That instrumentor | Exports its spans on the shared provider, unchanged | Transport interoperability; conventions and API coverage belong to the external instrumentor, not this release's 1.37.0 pin |
+| AWS Bedrock Runtime via Boto3 | Confident Trace wraps Botocore Converse calls | Automatically instruments installed Botocore | Sync Converse and ConverseStream, including real event-stream parsing tests |
 | Custom Python functions | Confident Trace's optional `@span` | No automatic discovery of arbitrary functions | Sync, async, generators, async generators tested |
 
 ### SDK wrapping (automatic instrumentation)
@@ -85,8 +86,38 @@ upstream adoption when these guarantees can be configured through public hooks.
 References:
 - https://github.com/open-telemetry/semantic-conventions/tree/v1.37.0/docs/gen-ai
 - https://github.com/open-telemetry/opentelemetry-python-genai
-- https://github.com/DataDog/dd-trace-py/blob/main/ddtrace/contrib/internal/openai/patch.py
 
-Datadog was reviewed for patch ownership and stream lifecycle patterns. No Datadog
-source was copied; there is no Datadog dependency or custom writer/agent layer.
+## Bedrock Runtime details
 
+`init()` includes `bedrock` in its default instrumentation selection. The wrapper
+filters Botocore `_make_api_call` to the `bedrock-runtime` service and `Converse` /
+`ConverseStream` operations. Other AWS calls are passed through. It captures model
+IDs, inference settings, system/messages, tool requests/results, reported usage,
+response request IDs, finish reasons, and an explicitly configured guardrail ID.
+It does not infer a resolved model name from an inference-profile ID.
+
+Streaming preserves the response dictionary and wraps only its `stream` value.
+Events are observed as the application reads them. Spans end on exhaustion,
+stream close, errors, or wrapper collection. Close a stream after stopping early.
+Content is bounded and redacted under the same policy as other providers.
+
+Boto3 is synchronous; native async clients are outside this release. Calls made
+through `asyncio.to_thread` retain normal context propagation, but cancelling the
+await does not cancel a running Boto3 call. AgentCore support is tracked separately
+in the [roadmap](../ROADMAP.md).
+
+### Upstream assessment
+
+Reviewed the upstream [Botocore Bedrock extension](https://github.com/open-telemetry/opentelemetry-python-contrib/blob/main/instrumentation/opentelemetry-instrumentation-botocore/src/opentelemetry/instrumentation/botocore/extensions/bedrock.py)
+on 2026-09-06. It covers Converse and InvokeModel operations but uses legacy
+`gen_ai.system` and event-based content paths. The [GenAI migration tracker](https://github.com/open-telemetry/opentelemetry-python-genai/issues/141)
+also identifies overlap with Botocore instrumentation. This package keeps its
+small Converse wrapper to use the pinned attribute representation and shared
+bounded content policy. No upstream instrumentor source was copied.
+
+Do not enable overlapping Bedrock instrumentors. Existing wrapt wrappers are
+skipped; this is not universal duplicate detection. Independently emitted OTel
+spans continue through the shared provider unchanged.
+
+Bedrock input-token totals include reported cache-read and cache-write counts,
+as specified by [AWS prompt caching](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html).

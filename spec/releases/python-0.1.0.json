@@ -46,6 +46,13 @@
         "1.17.3",
         "2.4.0"
       ]
+    },
+    "Boto3 / Botocore": {
+      "supported": ">=1.40,<2 (compatible pair selected by Boto3)",
+      "tested": [
+        "1.40.0",
+        "1.43.89"
+      ]
     }
   },
   "instrumentation": [
@@ -63,6 +70,11 @@
       "name": "Google GenAI",
       "surfaces": "generate_content; generate_content_stream",
       "validation": "Sync, async, streaming; mocked SDK transports"
+    },
+    {
+      "name": "AWS Bedrock Runtime (Boto3)",
+      "surfaces": "converse; converse_stream",
+      "validation": "Sync and event streaming; stubbed SDK and real EventStream parser tests"
     },
     {
       "name": "Custom @span",
@@ -85,6 +97,8 @@
     "Cache and reasoning token breakdown attributes from later conventions are not emitted. Input/output totals include available provider-reported components.",
     "No inference of conversations from prompts. Explicit thread_id and provider conversation identifiers populate gen_ai.conversation.id without changing trace parentage.",
     "No automatic framework setup or universal duplicate detection; disable overlapping provider instrumentation when using an external instrumentor.",
-    "Unknown fields and enum values in third-party spans pass through unchanged. Registry completeness is not an implementation-coverage claim."
+    "Unknown fields and enum values in third-party spans pass through unchanged. Registry completeness is not an implementation-coverage claim.",
+    "Bedrock supports Boto3 Converse/ConverseStream only. AgentCore, InvokeModel, InvokeModelWithResponseStream, and native async clients are not included. Async applications can offload Boto3 with asyncio.to_thread; cancellation does not cancel the worker request.",
+    "Bedrock input totals include provider-reported uncached, cache-read, and cache-write tokens. Resolved model IDs and session IDs are not inferred. Guardrail ID is emitted only when supplied; despite the broad 1.37.0 Bedrock requirement, unguarded calls have no guardrail ID to report."
   ]
 }

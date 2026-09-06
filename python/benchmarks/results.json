@@ -4,13 +4,13 @@
   "sdk_version": "0.1.0",
   "genai_version": "1.37.0",
   "note": "Microseconds per invocation; stream measurements exclude network. 20 chunks per provider stream.",
-  "disabled_call_us": 0.10813330009113997,
-  "disabled_stream_us": 0.296287500532344,
-  "disabled_provider_stream_us": 3.5812909773085266,
-  "non_recording_call_us": 14.068975002737716,
-  "non_recording_stream_us": 29.60255829966627,
-  "non_recording_provider_stream_us": 67.24095798563212,
-  "recording_call_us": 52.96368330018595,
-  "recording_stream_us": 45.88314169959631,
-  "recording_provider_stream_us": 619.2697920196224
+  "disabled_call_us": 0.10287500044796616,
+  "disabled_stream_us": 0.28950409905519336,
+  "disabled_provider_stream_us": 3.607417020248249,
+  "non_recording_call_us": 14.061616599792615,
+  "non_recording_stream_us": 22.396733300411142,
+  "non_recording_provider_stream_us": 62.75041701155715,
+  "recording_call_us": 39.553975002490915,
+  "recording_stream_us": 43.12803329958115,
+  "recording_provider_stream_us": 586.0455420042854
 }

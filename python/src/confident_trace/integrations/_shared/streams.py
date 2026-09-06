@@ -6,7 +6,7 @@ import weakref
 
 import wrapt
 
-from ._spans import safe
+from ..._core.safety import safe
 
 
 class Stream(wrapt.ObjectProxy):
@@ -37,7 +37,7 @@ class Stream(wrapt.ObjectProxy):
             if (
                 self._self_factory
                 and getattr(op, "capture_result", True)
-                and end.value is not None
+                and (end.value is not None)
             ):
                 safe(op.output, end.value)
             op.end()
@@ -45,26 +45,6 @@ class Stream(wrapt.ObjectProxy):
         except BaseException as error:
             op.end(error)
             raise
-
-    @property
-    def text_stream(self):
-        from ._extract import get
-
-        def texts():
-            for event in self:
-                delta = get(event, "delta", {})
-                text = get(delta, "text")
-                if type(text) is str:
-                    yield text
-
-        return texts()
-
-    def get_final_message(self):
-        from ._extract import response
-
-        value = self._drive(self.__wrapped__.get_final_message)
-        safe(response, self._operation(), value, "anthropic")
-        return value
 
     def __iter__(self):
         return self
@@ -110,26 +90,6 @@ class AsyncStream(Stream):
         except BaseException as error:
             op.end(error)
             raise
-
-    @property
-    def text_stream(self):
-        from ._extract import get
-
-        async def texts():
-            async for event in self:
-                delta = get(event, "delta", {})
-                text = get(delta, "text")
-                if type(text) is str:
-                    yield text
-
-        return texts()
-
-    async def get_final_message(self):
-        from ._extract import response
-
-        value = await self._adrive(self.__wrapped__.get_final_message)
-        safe(response, self._operation(), value, "anthropic")
-        return value
 
     def __aiter__(self):
         return self

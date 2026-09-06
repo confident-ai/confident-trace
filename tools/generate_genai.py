@@ -132,7 +132,7 @@ def main():
     assert source_hash == registry["upstream"]["source_checksum_sha256"]
     code, doc = render(registry, release)
     outputs = {
-        ROOT / "python/src/confident_trace/_genai.py": code,
+        ROOT / "python/src/confident_trace/_semconv/genai_v1_37_0.py": code,
         ROOT / "python/docs/compatibility.md": doc,
     }
     for path, data in outputs.items():

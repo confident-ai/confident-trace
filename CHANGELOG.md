@@ -2,6 +2,15 @@
 
 ## 0.1.0
 
+Organized Python instrumentation into provider-owned integration packages, with
+shared lifecycle and bounded stream accumulation. Public APIs and telemetry
+remain unchanged. See the Python architecture guide for extension points.
+
+Added AWS Bedrock Runtime Converse/ConverseStream instrumentation for Boto3,
+including bounded event streaming, tool content, examples, and SDK compatibility
+tests. AgentCore, ADK, and Microsoft agent integrations are documented in the
+roadmap as required future work.
+
 Initial Python release: automatic OpenAI, Anthropic, and Google GenAI tracing over
 standard OTel, optional `@span` for custom steps/tools, environment configuration,
 HTTP/gRPC export, and bounded content capture. No separate turn API.

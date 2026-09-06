@@ -2,22 +2,9 @@ import json
 
 import httpx
 import pytest
-from conftest import spans
+from conftest import enable, spans
 
 import confident_trace as ct
-
-
-def enable(telemetry, name):
-    provider, exporter = telemetry
-    ct.shutdown()
-    # shutdown closes the original in-memory exporter; use a fresh one.
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-        InMemorySpanExporter,
-    )
-
-    exporter = InMemorySpanExporter()
-    ct.init(tracer_provider=provider, exporter=exporter, instrumentations=(name,))
-    return exporter
 
 
 def test_openai_chat(telemetry):
@@ -129,180 +116,6 @@ def test_openai_stream(telemetry):
     assert "hello" in captured[0].attributes["gen_ai.output.messages"]
 
 
-def test_anthropic(telemetry):
-    from anthropic import Anthropic, _base_client
-
-    httpx = getattr(_base_client, "httpx2", None) or _base_client.httpx
-    exporter = enable(telemetry, "anthropic")
-    body = {
-        "id": "m1",
-        "type": "message",
-        "role": "assistant",
-        "model": "claude-test",
-        "content": [{"type": "text", "text": "hello"}],
-        "stop_reason": "end_turn",
-        "usage": {"input_tokens": 2, "output_tokens": 1},
-    }
-    with Anthropic(
-        api_key="test",
-        http_client=httpx.Client(
-            transport=httpx.MockTransport(lambda r: httpx.Response(200, json=body))
-        ),
-    ) as client:
-        result = client.messages.create(model="claude-test", messages=[], max_tokens=5)
-    assert result.content[0].text == "hello"
-    assert spans(exporter)[0].attributes["gen_ai.provider.name"] == "anthropic"
-
-
-def test_google_genai(telemetry):
-    from google import genai
-    from google.genai import types
-
-    exporter = enable(telemetry, "google_genai")
-    body = {
-        "candidates": [{"content": {"role": "model", "parts": [{"text": "hello"}]}}],
-        "usageMetadata": {"promptTokenCount": 2, "candidatesTokenCount": 1},
-        "modelVersion": "gemini-test",
-    }
-    transport = httpx.MockTransport(lambda r: httpx.Response(200, json=body))
-    with genai.Client(
-        api_key="test",
-        http_options=types.HttpOptions(client_args={"transport": transport}),
-    ) as client:
-        result = client.models.generate_content(model="gemini-test", contents="hi")
-    assert result.text == "hello"
-    assert spans(exporter)[0].attributes["gen_ai.usage.input_tokens"] == 2
-
-
-def anthropic_wire():
-    events = [
-        (
-            "message_start",
-            {
-                "type": "message_start",
-                "message": {
-                    "id": "m1",
-                    "type": "message",
-                    "role": "assistant",
-                    "model": "claude-test",
-                    "content": [],
-                    "usage": {"input_tokens": 2, "output_tokens": 0},
-                },
-            },
-        ),
-        (
-            "content_block_start",
-            {
-                "type": "content_block_start",
-                "index": 0,
-                "content_block": {"type": "text", "text": ""},
-            },
-        ),
-        (
-            "content_block_delta",
-            {
-                "type": "content_block_delta",
-                "index": 0,
-                "delta": {"type": "text_delta", "text": "hello"},
-            },
-        ),
-        ("content_block_stop", {"type": "content_block_stop", "index": 0}),
-        (
-            "message_delta",
-            {
-                "type": "message_delta",
-                "delta": {"stop_reason": "end_turn", "stop_sequence": None},
-                "usage": {"output_tokens": 1},
-            },
-        ),
-        ("message_stop", {"type": "message_stop"}),
-    ]
-    return "".join(
-        f"event: {name}\ndata: {json.dumps(body)}\n\n" for name, body in events
-    )
-
-
-def test_anthropic_stream_helper(telemetry):
-    from anthropic import Anthropic, _base_client
-
-    httpx = getattr(_base_client, "httpx2", None) or _base_client.httpx
-    exporter = enable(telemetry, "anthropic")
-    with Anthropic(
-        api_key="test",
-        http_client=httpx.Client(
-            transport=httpx.MockTransport(
-                lambda r: httpx.Response(
-                    200,
-                    text=anthropic_wire(),
-                    headers={"content-type": "text/event-stream"},
-                )
-            )
-        ),
-    ) as client:
-        with client.messages.stream(
-            model="claude-test", messages=[], max_tokens=5
-        ) as stream:
-            assert list(stream.text_stream) == ["hello"]
-            assert stream.get_final_message().content[0].text == "hello"
-    captured = spans(exporter)
-    assert len(captured) == 1
-    assert captured[0].attributes["gen_ai.usage.output_tokens"] == 1
-    assert "hello" in captured[0].attributes["gen_ai.output.messages"]
-
-
-@pytest.mark.asyncio
-async def test_anthropic_async_stream_helper(telemetry):
-    from anthropic import AsyncAnthropic, _base_client
-
-    httpx = getattr(_base_client, "httpx2", None) or _base_client.httpx
-    exporter = enable(telemetry, "anthropic")
-    async with AsyncAnthropic(
-        api_key="test",
-        http_client=httpx.AsyncClient(
-            transport=httpx.MockTransport(
-                lambda r: httpx.Response(
-                    200,
-                    text=anthropic_wire(),
-                    headers={"content-type": "text/event-stream"},
-                )
-            )
-        ),
-    ) as client:
-        async with client.messages.stream(
-            model="claude-test", messages=[], max_tokens=5
-        ) as stream:
-            assert [text async for text in stream.text_stream] == ["hello"]
-    assert len(spans(exporter)) == 1
-
-
-@pytest.mark.asyncio
-async def test_google_async_stream(telemetry):
-    from google import genai
-    from google.genai import types
-
-    exporter = enable(telemetry, "google_genai")
-    body = {
-        "candidates": [{"content": {"role": "model", "parts": [{"text": "hello"}]}}],
-        "usageMetadata": {"promptTokenCount": 2, "candidatesTokenCount": 1},
-    }
-    transport = httpx.MockTransport(
-        lambda r: httpx.Response(
-            200,
-            text="data: " + json.dumps(body) + "\n\n",
-            headers={"content-type": "text/event-stream"},
-        )
-    )
-    async with genai.Client(
-        api_key="test",
-        http_options=types.HttpOptions(async_client_args={"transport": transport}),
-    ).aio as client:
-        stream = await client.models.generate_content_stream(
-            model="gemini-test", contents="hi"
-        )
-        assert [chunk.text async for chunk in stream] == ["hello"]
-    assert len(spans(exporter)) == 1
-
-
 def test_provider_exception_is_not_retried(telemetry):
     from openai import BadRequestError, OpenAI
 
@@ -371,7 +184,7 @@ def test_openai_stream_lifecycle_with_transport(telemetry, ending):
     ) as client:
         stream = client.chat.completions.create(model="test", messages=[], stream=True)
         assert next(stream).choices[0].delta.content == "partial"
-        assert body.advanced == 1  # Instrumentation never consumes ahead.
+        assert body.advanced == 1
         if ending == "error":
             with pytest.raises(httpx.ReadError) as caught:
                 next(stream)
@@ -437,35 +250,3 @@ async def test_openai_stream_cancellation_preserves_partial_content(telemetry):
         json.loads(captured[0].attributes["gen_ai.output.messages"])[0]["finish_reason"]
         == ""
     )
-
-
-@pytest.mark.asyncio
-async def test_anthropic_async_create_stream(telemetry):
-    from anthropic import AsyncAnthropic, _base_client
-
-    transport_api = getattr(_base_client, "httpx2", None) or _base_client.httpx
-    exporter = enable(telemetry, "anthropic")
-    async with AsyncAnthropic(
-        api_key="test",
-        http_client=transport_api.AsyncClient(
-            transport=transport_api.MockTransport(
-                lambda r: transport_api.Response(
-                    200,
-                    text=anthropic_wire(),
-                    headers={"content-type": "text/event-stream"},
-                )
-            )
-        ),
-    ) as client:
-        stream = await client.messages.create(
-            model="claude-test", messages=[], max_tokens=5, stream=True
-        )
-        events = [event async for event in stream]
-        assert events[-1].type == "message_stop"
-        await stream.close()
-    captured = spans(exporter)
-    assert len(captured) == 1
-    assert captured[0].attributes["gen_ai.usage.output_tokens"] == 1
-    output = json.loads(captured[0].attributes["gen_ai.output.messages"])
-    assert output[0]["parts"][0]["content"] == "hello"
-    assert output[0]["finish_reason"] == "stop"

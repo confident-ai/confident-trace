@@ -1,0 +1,113 @@
+{
+  "genai_version": "1.37.0",
+  "request": {
+    "modelId": "test",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "toolResult": {
+              "toolUseId": "t1",
+              "content": [
+                {
+                  "json": {
+                    "weather": "sunny"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "image": {
+              "source": {
+                "bytes": "binary-secret"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "guardrailConfig": {
+      "guardrailIdentifier": "guardrail-1",
+      "guardrailVersion": "1"
+    },
+    "system": [
+      {
+        "text": "help"
+      }
+    ]
+  },
+  "response": {
+    "output": {
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "toolUse": {
+              "toolUseId": "t2",
+              "name": "lookup",
+              "input": {
+                "city": "Macau"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "stopReason": "tool_use",
+    "usage": {
+      "inputTokens": 5,
+      "outputTokens": 2,
+      "cacheReadInputTokens": 10,
+      "cacheWriteInputTokens": 4
+    }
+  },
+  "expected_attributes": {
+    "aws.bedrock.guardrail.id": "guardrail-1",
+    "gen_ai.usage.input_tokens": 19,
+    "gen_ai.usage.output_tokens": 2,
+    "gen_ai.response.finish_reasons": [
+      "tool_call"
+    ]
+  },
+  "expected_input": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "type": "tool_call_response",
+          "id": "t1",
+          "response": [
+            {
+              "type": "json",
+              "content": {
+                "weather": "sunny"
+              }
+            }
+          ]
+        },
+        {
+          "type": "unsupported",
+          "content_omitted": true
+        }
+      ]
+    }
+  ],
+  "expected_output": [
+    {
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "tool_call",
+          "id": "t2",
+          "name": "lookup",
+          "arguments": {
+            "city": "Macau"
+          }
+        }
+      ],
+      "finish_reason": "tool_call"
+    }
+  ]
+}

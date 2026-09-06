@@ -15,9 +15,9 @@ from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.util.re import parse_env_headers
 
-from ._content import ContentPolicy
-from ._genai import SCHEMA_URL
-from ._genai import SEMCONV_VERSION as SEMCONV_VERSION
+from .._semconv.genai_v1_37_0 import SCHEMA_URL
+from .._semconv.genai_v1_37_0 import SEMCONV_VERSION as SEMCONV_VERSION
+from .content import ContentPolicy
 
 VERSION = "0.1.0"
 log = logging.getLogger("confident_trace")
@@ -108,7 +108,7 @@ def init(
     capture_content=True,
     max_content_bytes=16384,
     redact=None,
-    instrumentations=("openai", "anthropic", "google_genai"),
+    _install=None,
 ):
     """Initialize once. Explicit values override OTel environment configuration.
 
@@ -206,9 +206,7 @@ def init(
                 processor,
             )
             _runtime = runtime
-            from ._instrumentation import instrument
-
-            runtime.undo = instrument(instrumentations)
+            runtime.undo = _install(runtime) if _install else []
             return runtime
         except Exception:
             if processor:

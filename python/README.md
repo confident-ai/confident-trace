@@ -37,7 +37,7 @@ Version 0.1.0 is the initial release; the API may change before 1.0.0. See the r
 
 ## What is supported?
 
-- **Automatically instrumented SDK calls:** OpenAI, Anthropic, and Google GenAI.
+- **Automatically instrumented SDK calls:** OpenAI, Anthropic, Google GenAI, and AWS Bedrock Runtime (Boto3).
   We wrap their supported Python methods and emit OTel spans ourselves.
 - **Existing OTel spans:** we export spans an SDK/framework or external instrumentor
   already emits through the shared provider. Framework instrumentation must already
@@ -127,3 +127,8 @@ supported surfaces, convention versions, release requirements, and portable rece
 Licensed under the [Apache License 2.0](LICENSE). The license is included in both
 the wheel and source distribution. Bundled OpenTelemetry material retains its
 third-party attribution.
+
+Bedrock examples: [Converse](examples/bedrock/converse.py), [streaming](examples/bedrock/streaming.py), and [asyncio thread offload](examples/bedrock/async_converse.py).
+Boto3 uses its normal AWS credential chain. Native async AWS clients are not instrumented.
+
+For implementation layout and adding integrations, see the [architecture guide](docs/architecture.md).

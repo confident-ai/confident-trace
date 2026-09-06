@@ -4,7 +4,7 @@ Run from the repository root. Install Confident Trace and the provider you use:
 
 ```sh
 pip install -e ./python
-pip install openai        # or: anthropic / google-genai
+pip install openai        # or: anthropic / google-genai / boto3
 export CONFIDENT_API_KEY='your-confident-api-key'
 ```
 
@@ -16,7 +16,7 @@ Set the provider's API key and a model ID available to your account:
 | Anthropic | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
 | Google GenAI | `GOOGLE_API_KEY`, `GOOGLE_MODEL` |
 
-Every example has a synchronous and asynchronous version:
+OpenAI, Anthropic, and Google GenAI examples have synchronous and asynchronous versions:
 
 | Provider / API | Sync | Async |
 |---|---|---|
@@ -49,3 +49,17 @@ Additional examples: [conversation metadata](conversation.py),
 
 See the [compatibility matrix](../docs/compatibility.md) for exact supported SDK
 versions and API coverage. These examples call live provider APIs when run.
+
+## AWS Bedrock Runtime
+
+Install `boto3`. Set `CONFIDENT_API_KEY`, `AWS_DEFAULT_REGION`, and
+`BEDROCK_MODEL_ID` (a model ID or inference-profile identifier enabled for your
+account). Use the normal AWS credential chain, such as a profile or workload role.
+
+- [Converse](bedrock/converse.py)
+- [Converse streaming](bedrock/streaming.py)
+- [Asyncio thread offload](bedrock/async_converse.py)
+
+Boto3 is synchronous. The asyncio example offloads a Boto3 call to a worker thread;
+it is not native async instrumentation. Native async clients and AgentCore are
+separate integrations. Cancelling the await does not cancel the worker's request.

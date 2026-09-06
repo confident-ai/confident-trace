@@ -24,3 +24,6 @@ See [registry maintenance](spec/genai/README.md) for upstream provenance and rel
 Licensed under the [Apache License 2.0](LICENSE). The root `LICENSE` is the source
 of truth; `python/LICENSE` is an identical copy included in Python distributions.
 When updating the license, refresh that copy; CI checks that both files match.
+
+See the [integration roadmap](python/ROADMAP.md) for required AgentCore, Google ADK,
+Microsoft Agent Framework, and Microsoft Foundry work.

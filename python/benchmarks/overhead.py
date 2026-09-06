@@ -9,7 +9,8 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.sampling import ALWAYS_OFF
 
 import confident_trace as ct
-from confident_trace._instrumentation import wrapper
+from confident_trace.integrations._shared.lifecycle import wrapper
+from confident_trace.integrations.openai.instrumentation import begin, finish
 
 
 class Discard(SpanExporter):
@@ -33,7 +34,7 @@ def simulated_call(**kwargs):
     )
 
 
-instrumented_call = wrapper("openai")
+instrumented_call = wrapper(begin, finish)
 
 
 def provider_stream():

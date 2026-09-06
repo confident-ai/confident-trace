@@ -22,6 +22,7 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 | Anthropic | >=0.69,<2 | 0.69.0, 1.4.0 |
 | Google GenAI | >=1.40,<3 | 1.40.0, 2.22.0 |
 | wrapt | >=1.17,<3 | 1.17.3, 2.4.0 |
+| Boto3 / Botocore | >=1.40,<2 (compatible pair selected by Boto3) | 1.40.0, 1.43.89 |
 
 ## Instrumentation coverage
 
@@ -30,6 +31,7 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 | OpenAI | Chat Completions.create; Responses.create | Sync, async, streaming; mocked SDK transports |
 | Anthropic | Messages.create; Messages.stream | Sync, async, streaming; mocked SDK transports |
 | Google GenAI | generate_content; generate_content_stream | Sync, async, streaming; mocked SDK transports |
+| AWS Bedrock Runtime (Boto3) | converse; converse_stream | Sync and event streaming; stubbed SDK and real EventStream parser tests |
 | Custom @span | Steps and execute_tool | Sync, coroutines, generators, async generators |
 | Existing OTel instrumentation | Pass-through on shared TracerProvider | Original attributes, events and schema preserved; no framework certification |
 
@@ -45,5 +47,7 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 - No inference of conversations from prompts. Explicit thread_id and provider conversation identifiers populate gen_ai.conversation.id without changing trace parentage.
 - No automatic framework setup or universal duplicate detection; disable overlapping provider instrumentation when using an external instrumentor.
 - Unknown fields and enum values in third-party spans pass through unchanged. Registry completeness is not an implementation-coverage claim.
+- Bedrock supports Boto3 Converse/ConverseStream only. AgentCore, InvokeModel, InvokeModelWithResponseStream, and native async clients are not included. Async applications can offload Boto3 with asyncio.to_thread; cancellation does not cancel the worker request.
+- Bedrock input totals include provider-reported uncached, cache-read, and cache-write tokens. Resolved model IDs and session IDs are not inferred. Guardrail ID is emitted only when supplied; despite the broad 1.37.0 Bedrock requirement, unguarded calls have no guardrail ID to report.
 
 For automatic instrumentation versus existing OTel spans, see [integration guide](integrations.md).

@@ -10,8 +10,9 @@ from opentelemetry import context
 from opentelemetry import trace as otel
 from opentelemetry.trace import Status, StatusCode
 
-from . import _genai as ai
-from . import _runtime
+from .._semconv import genai_v1_37_0 as ai
+from . import runtime as _runtime
+from .safety import safe
 
 _ENTRY = context.create_key("confident_trace.entry")
 _FIELDS = {
@@ -25,13 +26,6 @@ _FIELDS = {
     "thread_id",
     "turn_id",
 }
-
-
-def safe(call, *args, **kwargs):
-    try:
-        return call(*args, **kwargs)
-    except Exception:
-        return None
 
 
 def content(span, key, value):
@@ -192,7 +186,7 @@ def _decorate_span(
                 rt = _runtime.current()
                 if not rt or not rt.active or _runtime.disabled():
                     return fn(*args, **kwargs)
-                from ._streams import AsyncStream, Stream
+                from ..integrations._shared.streams import AsyncStream, Stream
 
                 value = fn(*args, **kwargs)
 

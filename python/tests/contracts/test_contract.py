@@ -1,7 +1,6 @@
 import json
-from pathlib import Path
 
-from conftest import spans
+from conftest import ROOT, spans
 from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 
 import confident_trace as ct
@@ -9,9 +8,7 @@ import confident_trace as ct
 
 def test_shared_vectors_are_standard_otlp(telemetry):
     provider, exporter = telemetry
-    vectors = json.loads(
-        (Path(__file__).resolve().parents[2] / "spec/genai-vectors.json").read_text()
-    )
+    vectors = json.loads((ROOT / "spec/genai-vectors.json").read_text())
     assert vectors["emitted_semconv"] == ct.SEMCONV_VERSION
     for case in vectors["cases"]:
         with provider.get_tracer("third-party").start_as_current_span(
