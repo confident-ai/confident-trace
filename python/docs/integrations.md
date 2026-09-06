@@ -11,7 +11,7 @@ architecture; it does not mean every provider SDK creates OTel spans itself.
 | OpenAI Python: Chat Completions / Responses `create` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync, async, streaming; GenAI 1.37.0 inference attributes; mocked provider tests |
 | Anthropic Python: Messages `create` / `stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync, async, streaming; GenAI 1.37.0 inference attributes; mocked provider tests |
 | Google GenAI Python: `generate_content` / `generate_content_stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync/async surfaces; GenAI 1.37.0 inference attributes; mocked sync and async streaming tests |
-| An SDK/framework already emitting OTel with GenAI conventions | The SDK/framework's own instrumentation | Adds export to the shared SDK TracerProvider; does not enable the framework's instrumentation | Standard span export is supported; richer backend interpretation depends on emitted attributes/version. No framework-specific end-to-end certification in this release |
+| An SDK/framework already emitting OTel with GenAI conventions | The SDK/framework's own instrumentation | Adds export to the shared SDK TracerProvider; does not enable the framework's instrumentation | Standard span export is supported; richer backend interpretation depends on emitted attributes/version. See separately verified native integrations below |
 | An external OTel instrumentor | That instrumentor | Exports its spans on the shared provider, unchanged | Transport interoperability; conventions and API coverage belong to the external instrumentor, not this release's 1.37.0 pin |
 | AWS Bedrock Runtime via Boto3 | Confident Trace wraps Botocore Converse calls | Automatically instruments installed Botocore | Sync Converse and ConverseStream, including real event-stream parsing tests |
 | Custom Python functions | Confident Trace's optional `@span` | No automatic discovery of arbitrary functions | Sync, async, generators, async generators tested |
@@ -103,8 +103,7 @@ Content is bounded and redacted under the same policy as other providers.
 
 Boto3 is synchronous; native async clients are outside this release. Calls made
 through `asyncio.to_thread` retain normal context propagation, but cancelling the
-await does not cancel a running Boto3 call. AgentCore support is tracked separately
-in the [roadmap](../ROADMAP.md).
+await does not cancel a running Boto3 call. AgentCore request-boundary support is described below.
 
 ### Upstream assessment
 
@@ -121,3 +120,106 @@ spans continue through the shared provider unchanged.
 
 Bedrock input-token totals include reported cache-read and cache-write counts,
 as specified by [AWS prompt caching](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html).
+
+
+## Native Google ADK
+
+Install `pip install -e './python[google-adk]'` (tested with Google ADK **2.8.0**), then call
+`init()` before running your runner. Native ADK tracing already emits through the
+global OTel provider. There is no OpenInference dependency or extra exporter setup.
+The default `google_adk` integration suppresses Confident provider spans only when
+the current span is an ADK native inference operation on the shared provider.
+Direct provider calls and provider calls made inside tools remain instrumented.
+Keep `google_adk` selected when explicitly selecting `google_genai` in an ADK app.
+
+ADK emits `invocation`, `invoke_agent`, `call_llm`, inference, and tool spans.
+Its `call_llm` span is retained: it carries content that differs from the native
+inference span. This is native framework structure, not an extra Confident span.
+Conversation and invocation identifiers pass through unchanged. The observed
+scope is `gcp.vertex.agent`, version `2.8.0`, schema `1.36.0`; this does not imply
+that every emitted attribute belongs to that schema version.
+
+Content locations verified in the real runner:
+
+| Data | Native representation |
+|---|---|
+| Session | `gen_ai.conversation.id`; legacy `gcp.vertex.agent.session_id` |
+| Invocation | `gcp.vertex.agent.invocation_id` |
+| Model input/output | JSON `gcp.vertex.agent.llm_request` / `gcp.vertex.agent.llm_response` on `call_llm` |
+| Tool arguments/result | `gcp.vertex.agent.tool_call_args` / `gcp.vertex.agent.tool_response` |
+| Usage/finish | `gen_ai.usage.*`, `gen_ai.response.finish_reasons` on native model spans |
+| Additional message content | Native OTel logs; this SDK does not configure a logs pipeline |
+
+`ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false` disables ADK's legacy span content;
+ADK's own telemetry configuration can override its environment defaults. Confident's
+`capture_content`, `redact`, and size bounds govern Confident-owned spans only.
+No native spans are rewritten to the package's pinned GenAI convention. Backend
+mapping of ADK content and logs is separate and has not been certified here.
+
+See [the runnable agent/tool/streaming example](../examples/google_adk/agent.py).
+
+## Native AgentCore application telemetry
+
+Install `pip install -e './python[agentcore]'` (tested with AgentCore **1.22.0**, OTel ASGI
+instrumentation **0.63b1**). `init()` includes `agentcore` by default. The adapter
+uses upstream OTel ASGI middleware for HTTP `/invocations` requests without an
+active server span. This fixes a verified local-runtime gap: AgentCore's request
+context carries session identifiers but does not itself extract W3C trace context.
+The middleware uses the application's configured propagator and preserves context
+through the response body, including streams. Its server span carries the supplied
+session header as `gen_ai.conversation.id`. It does not inspect request/response bodies.
+
+If AWS/application server instrumentation already provides the active server span,
+or OTel ASGI middleware is already registered on the application, the adapter delegates without creating another server span or modifying that span.
+Framework/application spans are exported unchanged. Other routes, WebSocket, A2A,
+and cloud-service internal telemetry are outside this integration's support claim.
+AgentCore is a runtime: model, tool, and agent spans still come from provider or
+framework instrumentation inside it. Arbitrary functions are not auto-discovered.
+
+Use [the direct Bedrock example](../examples/agentcore/bedrock.py) or
+[the native Strands example](../examples/agentcore/strands.py). The latter selects
+only `agentcore` because Strands already owns inference instrumentation; automatic
+Strands/provider deduplication is not claimed. The example passes AgentCore's
+session ID to Strands explicitly using its public `trace_attributes` argument.
+
+In AWS environments, call `init(endpoint=CONFIDENT_TRACES_URL,
+protocol="http/protobuf", api_key=...)` explicitly so AWS OTLP endpoint/protocol
+variables do not redirect the new exporter. Existing AWS processors, sampling,
+resources, and propagators are retained. Unspecified exporter options still follow
+standard OTel environment settings. No AWS platform configuration is changed.
+
+## Native lifecycle and compatibility boundaries
+
+Both frameworks must emit through the provider receiving Confident's exporter.
+The normal global-provider path supports importing the framework before or after
+`init()`. If using `init(tracer_provider=provider)`, register that same provider as
+the global provider before framework initialization; passing an unrelated provider
+does not redirect native spans. Existing global providers are not replaced.
+
+Versions above describe what was tested, not installation or runtime restrictions.
+Other versions may work but have not been verified; historical compatibility is not
+implied. The extras do not pin framework versions. ADK duplicate prevention matches
+native scope and operation regardless of scope version. AgentCore checks its app
+and middleware APIs; missing dependencies/capabilities leave the application and
+existing native export working. Middleware without `exclude_spans` may also emit
+its normal receive/send spans. Constructor failure falls back before invoking the
+application; application failures are never retried.
+
+For reproducible tests use `pip install -c python/tests/constraints/native.txt -e
+'./python[test,native-test]'` from the repository root. CI separately installs the
+latest compatible dependencies without those constraints.
+`shutdown()` removes owned hooks and stops only Confident's exporter; framework and
+application exporters continue operating. `OTEL_SDK_DISABLED=true` prevents this
+package's initialization; it does not dismantle an already configured external pipeline.
+
+Verification uses real ADK runners and AgentCore HTTP handling, mocked model
+transports, and native Strands 1.54.0 agent/tool execution. Tests cover sync/async
+handlers, concurrent sessions, streams, cancellation, incoming W3C parents, and
+an existing OTel server middleware/exporter. Hosted AWS/ADOT smoke tests and backend
+UI/content interpretation have **not** been performed. Do not treat local server
+coexistence testing as hosted AWS certification.
+
+References: [ADK tracing](https://adk.dev/observability/traces/),
+[AgentCore observability](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-get-started.html).
+DeepEval's working examples informed scenarios; its conversion and evaluation code
+was not copied. All span transport remains standard OTLP.

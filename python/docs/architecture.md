@@ -2,7 +2,7 @@
 
 Users call `init()` to configure export and instrument supported installed SDKs.
 Optional `@span` creates custom steps. Provider-specific processing lives in
-`src/confident_trace/integrations/<provider>/`:
+`src/confident_trace/integrations/<integration>/`:
 
 | Package | SDK surface |
 | --- | --- |
@@ -11,7 +11,7 @@ Optional `@span` creates custom steps. Provider-specific processing lives in
 | `google_genai` | Content generation |
 | `bedrock` | Boto3 Bedrock Runtime Converse and ConverseStream event streams |
 
-Each package contains:
+Provider wrapper packages contain:
 
 - `instrumentation.py`: method targets and `install(runtime)`, request setup, and result dispatch.
 - `extraction.py`: SDK request/response fields, provider identity, message conversion, and attributes.
@@ -81,3 +81,16 @@ Do not hand-edit generated constants or published convention snapshots.
 
 These module paths are private implementation details. Public imports remain
 `from confident_trace import init, span, update_trace, flush, shutdown`.
+
+
+## Native integrations
+
+`google_adk` registers a verified native inference scope with shared lifecycle
+code. The generic provider wrapper checks only the current scope and operation;
+it does not import ADK or parse ADK payloads. Shutdown removes the registration.
+`agentcore` wraps the runtime application's ASGI call boundary with upstream OTel
+middleware only when no active server span covers it. Middleware is cached on the
+application and becomes inactive at shutdown; a new initialization replaces it.
+Both adapters use the same lazy registry and owned-cleanup contract as providers.
+Native integrations do not need extraction or streaming modules: their frameworks
+own content, stream lifecycle, convention versions, and span production.

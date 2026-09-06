@@ -3,10 +3,13 @@ from pathlib import Path
 
 import jsonschema
 import pytest
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 import confident_trace as ct
+from confident_trace._core.runtime import OwnedProcessor
 from confident_trace._semconv import genai_v1_37_0 as ai
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -99,3 +102,20 @@ def connection(provider, instance):
 
 def accumulator(provider):
     return integration(provider, "streaming").Accumulator()
+
+
+@pytest.fixture
+def native():
+    ct.shutdown()
+    provider = trace.get_tracer_provider()
+    if isinstance(provider, trace.ProxyTracerProvider):
+        provider = TracerProvider(shutdown_on_exit=False)
+        trace.set_tracer_provider(provider)
+    witness = InMemorySpanExporter()
+    gate = OwnedProcessor(SimpleSpanProcessor(witness))
+    provider.add_span_processor(gate)
+    exporter = InMemorySpanExporter()
+    ct.init(exporter=exporter)
+    yield provider, exporter, witness
+    ct.shutdown()
+    gate.shutdown()

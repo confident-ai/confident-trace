@@ -8,8 +8,15 @@ import sys
 from conftest import ROOT
 
 SOURCE = ROOT / "python/src/confident_trace"
-PROVIDERS = {"openai", "anthropic", "google_genai", "bedrock"}
-SDK_ROOTS = {"openai", "anthropic", "google", "boto3", "botocore"}
+PROVIDERS = {
+    "openai",
+    "anthropic",
+    "google_genai",
+    "bedrock",
+    "google_adk",
+    "agentcore",
+}
+SDK_ROOTS = {"openai", "anthropic", "google", "boto3", "botocore", "bedrock_agentcore"}
 
 
 def imports(path):
@@ -55,13 +62,13 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 class MissingSDKs(MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'openai', 'anthropic', 'google', 'boto3', 'botocore'}:
+        if fullname.split('.')[0] in {'openai', 'anthropic', 'google', 'boto3', 'botocore', 'bedrock_agentcore'}:
             raise ModuleNotFoundError(fullname)
 
 sys.meta_path.insert(0, MissingSDKs())
 import confident_trace as ct
 prefix = 'confident_trace.integrations.'
-providers = {'openai', 'anthropic', 'google_genai', 'bedrock'}
+providers = {'openai', 'anthropic', 'google_genai', 'bedrock', 'google_adk', 'agentcore'}
 def loaded():
     return {name[len(prefix):].split('.')[0] for name in sys.modules if name.startswith(prefix)} & providers
 assert loaded() == set()

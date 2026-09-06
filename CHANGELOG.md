@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Remove native framework version pins and runtime gates; use capability checks, documented tested versions, reproducible test constraints, and unconstrained latest CI.
+
+- Verify native Google ADK 2.8.0 spans and suppress only overlapping Confident inference spans.
+- Add AgentCore 1.22.0 HTTP invocation propagation through upstream OTel ASGI middleware, preserving existing server instrumentation.
+- Add optional extras, real-framework offline tests, examples, and explicit native-content/hosted-verification boundaries.
+
 ## 0.1.0
 
 Organized Python instrumentation into provider-owned integration packages, with

@@ -22,7 +22,14 @@ def init(
     capture_content=True,
     max_content_bytes=16384,
     redact=None,
-    instrumentations=("openai", "anthropic", "google_genai", "bedrock"),
+    instrumentations=(
+        "openai",
+        "anthropic",
+        "google_genai",
+        "bedrock",
+        "google_adk",
+        "agentcore",
+    ),
 ):
     """Initialize tracing; explicit values override environment configuration."""
     return runtime.init(

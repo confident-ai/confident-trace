@@ -63,3 +63,21 @@ account). Use the normal AWS credential chain, such as a profile or workload rol
 Boto3 is synchronous. The asyncio example offloads a Boto3 call to a worker thread;
 it is not native async instrumentation. Native async clients and AgentCore are
 separate integrations. Cancelling the await does not cancel the worker's request.
+
+
+## Native frameworks
+
+- [Google ADK agent, tools, and streaming](google_adk/agent.py):
+  `pip install -e './python[google-adk]'`; set `GOOGLE_API_KEY`, `CONFIDENT_API_KEY`,
+  and optionally `GOOGLE_MODEL`; run the file from the repository root.
+- [AgentCore with direct Bedrock calls](agentcore/bedrock.py):
+  `pip install -e './python[agentcore]' boto3`; set `BEDROCK_MODEL`,
+  `CONFIDENT_API_KEY`, and normal AWS credentials/region; run the file.
+- [AgentCore with native Strands](agentcore/strands.py):
+  additionally install `strands-agents[otel]`; the same environment applies.
+
+AgentCore examples serve port 8080. POST JSON `{"prompt":"Hello"}` to `/invocations`.
+Supply `X-Amzn-Bedrock-AgentCore-Runtime-Session-Id` to associate a session and
+`traceparent` to continue a distributed trace. These examples do not deploy AWS
+resources. Native content policies and backend interpretation are described in
+[the integration guide](../docs/integrations.md).

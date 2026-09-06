@@ -1,6 +1,6 @@
 """Shared call lifecycle, independent of SDK names or payload formats."""
 
-from opentelemetry import context
+from opentelemetry import context, trace
 from opentelemetry.trace import SpanKind
 
 from ..._core import runtime as _runtime
@@ -10,6 +10,36 @@ from ..._semconv import genai_v1_37_0 as ai
 from .streams import AsyncStream, Stream
 
 _SUPPRESS = context.create_key("confident_trace.provider_call")
+_NATIVE_INFERENCE_SCOPES = {}
+
+
+def register_native_inference(scope_name):
+    """Recognize a verified native inference scope without patching its SDK."""
+    key = scope_name
+    if key in _NATIVE_INFERENCE_SCOPES:
+        return []
+    owner = object()
+    _NATIVE_INFERENCE_SCOPES[key] = owner
+
+    def remove():
+        if _NATIVE_INFERENCE_SCOPES.get(key) is owner:
+            del _NATIVE_INFERENCE_SCOPES[key]
+
+    return [remove]
+
+
+def native_inference_active(rt):
+    # Native frameworks emit through the global provider. An unrelated explicit
+    # provider cannot collect those spans and must not lose its provider spans.
+    if not _NATIVE_INFERENCE_SCOPES or rt.provider is not trace.get_tracer_provider():
+        return False
+    current = trace.get_current_span()
+    scope = getattr(current, "instrumentation_scope", None)
+    if scope is None or scope.name not in _NATIVE_INFERENCE_SCOPES:
+        return False
+    return (getattr(current, "attributes", None) or {}).get(
+        "gen_ai.operation.name"
+    ) in ("generate_content", "chat")
 
 
 def begin_call(
@@ -56,6 +86,7 @@ def wrapper(begin, finish, *, asynchronous=False, manager=None):
             or not rt.active
             or _runtime.disabled()
             or context.get_value(_SUPPRESS)
+            or native_inference_active(rt)
         )
 
     if asynchronous:

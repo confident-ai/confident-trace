@@ -1,15 +1,14 @@
 # Python integration roadmap
 
-Bedrock model inference is implemented. The required agent
-integrations below remain on the roadmap; this list does not assign them a new
-priority relative to provider work. They are not supported by this release yet.
+Bedrock inference, native Google ADK interoperability, and AgentCore application
+request-boundary integration are locally tested with ADK 2.8.0 and AgentCore 1.22.0. Hosted AWS/ADOT and
+backend mapping verification remain outstanding; see docs/integrations.md.
+The remaining integrations below have no new priority relative to provider work.
 
 ## Required agent integrations
 
 | Target | SDK work to assess and implement |
 |---|---|
-| AWS Bedrock AgentCore | Run Confident Trace inside hosted agents, coexist with AWS OTel setup, preserve session and distributed context, and document export configuration. AgentCore runtime/service telemetry is distinct from application spans and Bedrock model inference. |
-| Google ADK | Reuse native OTel agent, model, and tool spans. Verify setup, session association, async/streaming execution, and duplicate prevention. |
 | Microsoft Agent Framework | Integrate with its native OTel instrumentation for agents, tools, and workflows. Test shared providers and framework-managed context. |
 | Microsoft Foundry / Foundry Agent Service | Cover client-side agent interactions and document the separate platform configuration needed to export accessible hosted-agent telemetry. Foundry is the platform; Agent Framework is the application framework. |
 
@@ -32,7 +31,7 @@ References:
 ## Model providers and other candidates
 
 - Bedrock Runtime: Boto3 `converse` and `converse_stream` are implemented. `invoke_model`, `invoke_model_with_response_stream`, native async
-  clients, and AgentCore are outside that support claim.
+  clients are outside that support claim. AgentCore application integration is separate.
 - Other candidates remain Pydantic AI, Strands, Azure OpenAI/Vertex AI deployment
   validation, and individually tested OpenAI-compatible endpoints.
 - Existing provider gaps include embeddings and OpenAI's `responses.stream()` helper.

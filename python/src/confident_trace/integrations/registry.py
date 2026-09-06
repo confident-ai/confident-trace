@@ -6,7 +6,14 @@ from .._core import runtime
 
 _MODULES = {
     name: f"{__package__}.{name}.instrumentation"
-    for name in ("openai", "anthropic", "google_genai", "bedrock")
+    for name in (
+        "openai",
+        "anthropic",
+        "google_genai",
+        "bedrock",
+        "google_adk",
+        "agentcore",
+    )
 }
 
 

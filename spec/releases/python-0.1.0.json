@@ -16,6 +16,7 @@
       "supported": ">=1.39,<2",
       "tested": [
         "1.39.0",
+        "1.42.1 (native integrations)",
         "1.44.0"
       ]
     },
@@ -53,6 +54,30 @@
         "1.40.0",
         "1.43.89"
       ]
+    },
+    "Google ADK (optional)": {
+      "supported": "Native scope/operation recognition; no package-version restriction",
+      "tested": [
+        "2.8.0 with Google GenAI 2.19.0 / 2.22.0"
+      ]
+    },
+    "AgentCore (optional)": {
+      "supported": "HTTP /invocations with compatible async ASGI app; no package-version restriction",
+      "tested": [
+        "1.22.0 with Boto3/Botocore 1.43.72 / 1.43.89; local ASGI only"
+      ]
+    },
+    "OTel ASGI instrumentation (AgentCore extra)": {
+      "supported": "Async middleware accepting tracer_provider and server_request_hook; exclude_spans optional",
+      "tested": [
+        "0.63b1 with OTel SDK 1.42.1"
+      ]
+    },
+    "Strands (coexistence example/test only)": {
+      "supported": "Native OTel export; not an automatic Strands instrumentor",
+      "tested": [
+        "1.54.0 agent/model/tool execution with mocked model events"
+      ]
     }
   },
   "instrumentation": [
@@ -84,7 +109,17 @@
     {
       "name": "Existing OTel instrumentation",
       "surfaces": "Pass-through on shared TracerProvider",
-      "validation": "Original attributes, events and schema preserved; no framework certification"
+      "validation": "Original IDs, parents, attributes, events and schema preserved; framework-specific coverage listed separately"
+    },
+    {
+      "name": "Google ADK (native OTel)",
+      "surfaces": "Runner.run_async; agent, model, tool, streaming spans",
+      "validation": "Real runner/mocked GenAI transport; parallel tools, concurrent sessions, failure/cancellation/early close; no extra Confident inference spans. Native scope gcp.vertex.agent/2.8.0, schema 1.36.0; content in gcp.vertex.agent.llm_request/llm_response/tool_call_args/tool_response. Native logs are not exported by this SDK."
+    },
+    {
+      "name": "AgentCore (native application telemetry)",
+      "surfaces": "HTTP /invocations via upstream ASGI middleware; existing middleware coexistence",
+      "validation": "Real local request handling, sync/async handlers, streaming/disconnect, W3C parents/session isolation, Bedrock calls and native Strands tools. No hosted AWS/ADOT or backend mapping certification."
     }
   ],
   "deviations": [
@@ -96,9 +131,11 @@
     "Custom tool arguments/results use confident.span.input/output because standard tool argument/result attributes are absent in 1.37.0.",
     "Cache and reasoning token breakdown attributes from later conventions are not emitted. Input/output totals include available provider-reported components.",
     "No inference of conversations from prompts. Explicit thread_id and provider conversation identifiers populate gen_ai.conversation.id without changing trace parentage.",
-    "No automatic framework setup or universal duplicate detection; disable overlapping provider instrumentation when using an external instrumentor.",
+    "Native adapter versions listed above are tested versions, not installation or runtime restrictions. Other versions may work but are unverified; missing AgentCore middleware capabilities leave existing native export and application behavior unaffected. No universal duplicate detection; disable overlapping provider instrumentation for other native frameworks such as Strands.",
     "Unknown fields and enum values in third-party spans pass through unchanged. Registry completeness is not an implementation-coverage claim.",
-    "Bedrock supports Boto3 Converse/ConverseStream only. AgentCore, InvokeModel, InvokeModelWithResponseStream, and native async clients are not included. Async applications can offload Boto3 with asyncio.to_thread; cancellation does not cancel the worker request.",
-    "Bedrock input totals include provider-reported uncached, cache-read, and cache-write tokens. Resolved model IDs and session IDs are not inferred. Guardrail ID is emitted only when supplied; despite the broad 1.37.0 Bedrock requirement, unguarded calls have no guardrail ID to report."
+    "Bedrock supports Boto3 Converse/ConverseStream only. InvokeModel, InvokeModelWithResponseStream, and native async clients are not included. AgentCore application telemetry is a separate integration. Async applications can offload Boto3 with asyncio.to_thread; cancellation does not cancel the worker request.",
+    "Bedrock input totals include provider-reported uncached, cache-read, and cache-write tokens. Resolved model IDs and session IDs are not inferred. Guardrail ID is emitted only when supplied; despite the broad 1.37.0 Bedrock requirement, unguarded calls have no guardrail ID to report.",
+    "Native framework spans retain their own content, error capture and conventions. Confident capture/redaction/size limits do not rewrite them. ADK also emits separate OTel logs; no logs pipeline is installed.",
+    "Native spans must use the provider receiving the Confident exporter. An unrelated explicit provider does not redirect framework telemetry. AgentCore WebSocket/A2A, cloud-service internal telemetry, deployment, and backend interpretation are outside this change."
   ]
 }

@@ -132,3 +132,10 @@ Bedrock examples: [Converse](examples/bedrock/converse.py), [streaming](examples
 Boto3 uses its normal AWS credential chain. Native async AWS clients are not instrumented.
 
 For implementation layout and adding integrations, see the [architecture guide](docs/architecture.md).
+
+
+Native integrations: install `confident-trace[google-adk]` or
+`confident-trace[agentcore]`, then call `init()` on the shared global OTel provider.
+See [native integration setup and boundaries](docs/integrations.md#native-google-adk)
+and [examples](examples/README.md). Tested versions are documented; the optional extras do not pin
+framework versions; cloud deployment and backend mapping are separate.
