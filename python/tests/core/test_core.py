@@ -347,3 +347,30 @@ def test_explicit_config_overrides_trace_and_generic_env(monkeypatch):
     assert rt.active
     assert rt.processor.delegate.span_exporter._endpoint == "localhost:4317"
     ct.shutdown()
+
+
+def test_trace_metadata_respects_native_span_ownership(telemetry):
+    provider, exporter = telemetry
+    native_tracer = provider.get_tracer(
+        "native-library", "42", schema_url="https://example.test/native-schema"
+    )
+    with native_tracer.start_as_current_span(
+        "native", attributes={"gen_ai.conversation.id": "native-session"}
+    ) as native_span:
+        ct.update_trace(thread_id="confident-session", tags=["tag"])
+        assert (
+            native_span.attributes["confident.trace.thread_id"] == "confident-session"
+        )
+        assert native_span.attributes["gen_ai.conversation.id"] == "native-session"
+        assert (
+            native_span.instrumentation_scope.schema_url
+            == "https://example.test/native-schema"
+        )
+    with native_tracer.start_as_current_span(
+        "without-native-conversation"
+    ) as native_span:
+        ct.update_trace(thread_id="confident-session")
+        assert "gen_ai.conversation.id" not in native_span.attributes
+    with ct.span("owned", thread_id="owned-session") as owned:
+        assert owned.attributes["gen_ai.conversation.id"] == "owned-session"
+        assert owned.attributes["confident.trace.thread_id"] == "owned-session"

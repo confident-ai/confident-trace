@@ -10,22 +10,12 @@ from opentelemetry import context
 from opentelemetry import trace as otel
 from opentelemetry.trace import Status, StatusCode
 
+from .. import _attributes as confident
 from .._semconv import genai_v1_37_0 as ai
 from . import runtime as _runtime
 from .safety import safe
 
-_ENTRY = context.create_key("confident_trace.entry")
-_FIELDS = {
-    "name",
-    "input",
-    "output",
-    "tags",
-    "metadata",
-    "environment",
-    "user_id",
-    "thread_id",
-    "turn_id",
-}
+_ENTRY = context.create_key(confident.ENTRY_CONTEXT_KEY)
 
 
 def content(span, key, value):
@@ -45,9 +35,9 @@ def fields(span, values):
     if not span.is_recording():
         return
     for key, value in values.items():
-        if key not in _FIELDS or value is None:
+        if key not in confident.TRACE_FIELDS or value is None:
             continue
-        attr = "confident.trace." + key
+        attr = confident.TRACE_FIELDS[key]
         if key in ("input", "output", "metadata"):
             content(span, attr, value)
         elif key == "tags":
@@ -55,7 +45,11 @@ def fields(span, values):
                 safe(span.set_attribute, attr, value[:128])
         elif type(value) is str:
             safe(span.set_attribute, attr, value[:4096])
-            if key == "thread_id":
+            if (
+                key == "thread_id"
+                and getattr(getattr(span, "instrumentation_scope", None), "name", None)
+                == confident.SCOPE_NAME
+            ):
                 safe(span.set_attribute, ai.GEN_AI_CONVERSATION_ID, value[:4096])
 
 
@@ -119,14 +113,14 @@ class Operation:
             context.detach(token)
 
     def input(self, value):
-        content(self.span, "confident.span.input", value)
+        content(self.span, confident.SPAN_INPUT, value)
         if self.is_entry:
-            content(self.span, "confident.trace.input", value)
+            content(self.span, confident.TRACE_INPUT, value)
 
     def output(self, value):
-        content(self.span, "confident.span.output", value)
+        content(self.span, confident.SPAN_OUTPUT, value)
         if self.is_entry:
-            content(self.span, "confident.trace.output", value)
+            content(self.span, confident.TRACE_OUTPUT, value)
 
     def end(self, error=None):
         if self.ended:
@@ -169,7 +163,12 @@ def _decorate_span(
     def decorate(fn):
         def start(args, kwargs):
             op = Operation(
-                ("execute_tool " if kind == "tool" else "") + (name or fn.__qualname__),
+                (
+                    (ai.GEN_AI_OPERATION_NAME__EXECUTE_TOOL + " ")
+                    if kind == "tool"
+                    else ""
+                )
+                + (name or fn.__qualname__),
                 attributes=_span_attributes(name or fn.__qualname__, kind, attributes),
                 trace_fields=trace_fields,
             )
@@ -246,7 +245,10 @@ def _span_attributes(name, kind, attributes):
     result = dict(attributes or {})
     if kind == "tool":
         result.update(
-            {ai.GEN_AI_OPERATION_NAME: "execute_tool", ai.GEN_AI_TOOL_NAME: name}
+            {
+                ai.GEN_AI_OPERATION_NAME: ai.GEN_AI_OPERATION_NAME__EXECUTE_TOOL,
+                ai.GEN_AI_TOOL_NAME: name,
+            }
         )
     return result
 
@@ -277,7 +279,12 @@ class _SpanScope:
             raise RuntimeError("Create a fresh span() context manager for each use")
         name = self.name or "span"
         self._context = _span_context(
-            ("execute_tool " if self.kind == "tool" else "") + name,
+            (
+                (ai.GEN_AI_OPERATION_NAME__EXECUTE_TOOL + " ")
+                if self.kind == "tool"
+                else ""
+            )
+            + name,
             attributes=_span_attributes(name, self.kind, self.attributes),
             **self.trace_fields,
         )

@@ -1,5 +1,6 @@
 """Bedrock Converse payload extraction, independent of Botocore lifecycle."""
 
+from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
@@ -74,7 +75,7 @@ def request(op, params):
     value = messages(get(params, "messages", []))
     content(op.span, ai.GEN_AI_INPUT_MESSAGES, value)
     if op.is_entry:
-        content(op.span, "confident.trace.input", value)
+        content(op.span, confident.TRACE_INPUT, value)
     system = get(params, "system")
     if system is not None:
         content(op.span, ai.GEN_AI_SYSTEM_INSTRUCTIONS, parts(system))
@@ -115,7 +116,7 @@ def response(op, value):
         output = [{**item, "finish_reason": reason} for item in messages([message])]
         content(op.span, ai.GEN_AI_OUTPUT_MESSAGES, output)
         if op.is_entry:
-            content(op.span, "confident.trace.output", output)
+            content(op.span, confident.TRACE_OUTPUT, output)
 
 
 def finish_reason(value):

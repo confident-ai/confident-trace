@@ -83,6 +83,12 @@ async def test_request_context_and_stream(native, preinstrumented, stream):
     assert {s.context.trace_id for s in children} == {1, 2}
     server = [s for s in captured if s.kind == SpanKind.SERVER]
     assert len(server) == 2
+    if preinstrumented == "none":
+        assert {s.attributes["confident.trace.thread_id"] for s in server} == {
+            "session-1",
+            "session-2",
+        }
+        assert all("gen_ai.conversation.id" not in s.attributes for s in server)
     assert all(s.parent.span_id == 0x42 for s in server)
     assert {s.parent.span_id for s in children} == {s.context.span_id for s in server}
     assert {s.attributes["session.id"] for s in children} == {"session-1", "session-2"}

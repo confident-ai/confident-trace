@@ -167,7 +167,8 @@ active server span. This fixes a verified local-runtime gap: AgentCore's request
 context carries session identifiers but does not itself extract W3C trace context.
 The middleware uses the application's configured propagator and preserves context
 through the response body, including streams. Its server span carries the supplied
-session header as `gen_ai.conversation.id`. It does not inspect request/response bodies.
+session header as the Confident extension `confident.trace.thread_id`; native
+GenAI conversation attributes are not added or rewritten. It does not inspect request/response bodies.
 
 If AWS/application server instrumentation already provides the active server span,
 or OTel ASGI middleware is already registered on the application, the adapter delegates without creating another server span or modifying that span.

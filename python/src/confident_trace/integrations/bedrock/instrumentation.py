@@ -32,7 +32,7 @@ def begin(instance, params):
             443 if endpoint.scheme == "https" else 80
         )
     op = Operation(
-        f"chat {model if type(model) is str else 'unknown'}",
+        f"{ai.GEN_AI_OPERATION_NAME__CHAT} {model if type(model) is str else 'unknown'}",
         kind=SpanKind.CLIENT,
         attributes=attrs,
     )

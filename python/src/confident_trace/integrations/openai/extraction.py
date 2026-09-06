@@ -2,6 +2,7 @@
 
 from urllib.parse import urlsplit
 
+from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
@@ -140,7 +141,7 @@ def connection(instance):
             base = None
     parsed = urlsplit(base) if base else None
     host = parsed.hostname if parsed else None
-    name = "openai"
+    name = ai.GEN_AI_PROVIDER_NAME__OPENAI
     if host and (
         host.endswith(".openai.azure.com") or host.endswith(".services.ai.azure.com")
     ):
@@ -201,14 +202,14 @@ def request(op, kwargs):
     if type(conversation) is str:
         safe(op.span.set_attribute, ai.GEN_AI_CONVERSATION_ID, conversation)
         if op.is_entry:
-            safe(op.span.set_attribute, "confident.trace.thread_id", conversation)
+            safe(op.span.set_attribute, confident.TRACE_THREAD_ID, conversation)
     rt = _runtime.current()
     if rt and rt.policy.enabled:
         value = kwargs.get("messages", kwargs.get("input", kwargs.get("contents", [])))
         normalized = messages(value)
         content(op.span, ai.GEN_AI_INPUT_MESSAGES, normalized)
         if op.is_entry:
-            content(op.span, "confident.trace.input", normalized)
+            content(op.span, confident.TRACE_INPUT, normalized)
         system = kwargs.get(
             "system", kwargs.get("instructions", get(config, "system_instruction"))
         )
@@ -246,7 +247,7 @@ def response(op, value):
     if type(conversation) is str:
         safe(op.span.set_attribute, ai.GEN_AI_CONVERSATION_ID, conversation)
         if op.is_entry:
-            safe(op.span.set_attribute, "confident.trace.thread_id", conversation)
+            safe(op.span.set_attribute, confident.TRACE_THREAD_ID, conversation)
     usage = get(value, "usage", get(value, "usage_metadata", {}))
     for keys, attr in (
         (
@@ -300,4 +301,4 @@ def response(op, value):
     if output:
         content(op.span, ai.GEN_AI_OUTPUT_MESSAGES, output)
         if op.is_entry:
-            content(op.span, "confident.trace.output", output)
+            content(op.span, confident.TRACE_OUTPUT, output)

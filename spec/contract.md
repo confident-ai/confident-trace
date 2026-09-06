@@ -57,7 +57,10 @@ of the application. `confident.span.content_truncated` marks accumulator overflo
 
 Trace-row fields belong to the entry span. `update_trace` targets the active entry,
 falling back to the current OTel span. Explicit thread IDs also populate
-`gen_ai.conversation.id`, inherited by subsequent package spans under that entry.
+`gen_ai.conversation.id` on Confident-owned spans, inherited by subsequent package
+spans under that entry. On foreign spans, `update_trace(thread_id=...)` writes only
+`confident.trace.thread_id` and preserves native conversation attributes. AgentCore
+request middleware likewise enriches its span with the Confident thread extension.
 Provider-supplied conversation IDs populate the inference span and, when it is the
 entry, the Confident thread field. No conversation is inferred from prompt text.
 Metadata never changes OTel parentage, starts a turn scope, or merges traces.

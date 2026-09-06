@@ -94,3 +94,27 @@ application and becomes inactive at shutdown; a new initialization replaces it.
 Both adapters use the same lazy registry and owned-cleanup contract as providers.
 Native integrations do not need extraction or streaming modules: their frameworks
 own content, stream lifecycle, convention versions, and span production.
+
+
+## Telemetry vocabulary ownership
+
+- `_semconv/genai_v1_37_0.py` is generated from the immutable snapshot and defines
+  what Confident-owned instrumentation emits. It remains the emission contract.
+- `_semconv/native.py` contains the small read-only recognition vocabulary used
+  for native inference deduplication. It does not select a schema or import the
+  generated emission vocabulary. Native scope versions and unknown values pass
+  through unchanged; new compatibility aliases require evidence and tests.
+- Integration `_constants.py` modules hold framework-owned identifiers such as
+  ADK's instrumentation scope; they are not OTel attribute definitions.
+- `_attributes.py` owns Confident extensions, its instrumentation identity, and
+  explicit public-metadata-to-attribute mappings. Enrichment of foreign spans uses
+  those extensions. `update_trace(thread_id=...)` also writes the pinned GenAI
+  conversation attribute only when updating a Confident-owned span.
+- OTel configuration keys come from the SDK's environment-variable constants.
+  These configuration names are independent of telemetry schema versions.
+
+Runtime code uses named string constants rather than closed enums. Multiple native
+conventions may coexist in one trace/export batch; Confident does not relabel them
+as its own schema. Architecture tests reject inline telemetry names and dynamic
+namespace prefixes outside definition modules. Wire fixtures and tests retain
+independent literals so they can detect incorrect constant values.

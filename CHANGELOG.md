@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Centralize runtime telemetry names by ownership; preserve the generated emission contract and independent native recognition vocabulary. Native-span session enrichment now uses Confident extensions rather than adding or overwriting GenAI conversation attributes.
+
 - Remove native framework version pins and runtime gates; use capability checks, documented tested versions, reproducible test constraints, and unconstrained latest CI.
 
 - Verify native Google ADK 2.8.0 spans and suppress only overlapping Confident inference spans.

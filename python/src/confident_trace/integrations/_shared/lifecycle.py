@@ -3,13 +3,15 @@
 from opentelemetry import context, trace
 from opentelemetry.trace import SpanKind
 
+from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
 from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import native as native_ai
 from .streams import AsyncStream, Stream
 
-_SUPPRESS = context.create_key("confident_trace.provider_call")
+_SUPPRESS = context.create_key(confident.PROVIDER_CALL_CONTEXT_KEY)
 _NATIVE_INFERENCE_SCOPES = {}
 
 
@@ -38,8 +40,8 @@ def native_inference_active(rt):
     if scope is None or scope.name not in _NATIVE_INFERENCE_SCOPES:
         return False
     return (getattr(current, "attributes", None) or {}).get(
-        "gen_ai.operation.name"
-    ) in ("generate_content", "chat")
+        native_ai.OPERATION_NAME
+    ) in native_ai.INFERENCE_OPERATIONS
 
 
 def begin_call(

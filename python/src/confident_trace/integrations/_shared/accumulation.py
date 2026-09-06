@@ -1,5 +1,6 @@
 """Bounded accumulation of normalized text, tool calls, and completion reasons."""
 
+from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
@@ -81,6 +82,6 @@ class Accumulator:
         if output:
             content(op.span, ai.GEN_AI_OUTPUT_MESSAGES, output)
             if op.is_entry:
-                content(op.span, "confident.trace.output", output)
+                content(op.span, confident.TRACE_OUTPUT, output)
         if self.truncated:
-            safe(op.span.set_attribute, "confident.span.content_truncated", True)
+            safe(op.span.set_attribute, confident.SPAN_CONTENT_TRUNCATED, True)

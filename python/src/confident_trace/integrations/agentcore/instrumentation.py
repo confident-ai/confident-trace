@@ -5,6 +5,7 @@ import inspect
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind
 
+from ... import _attributes as confident
 from ..._core.runtime import disabled, log
 from .._shared.patching import install_targets
 
@@ -34,7 +35,7 @@ def install(runtime):
         # Only attach the documented session identifier, never arbitrary headers.
         for name, value in scope.get("headers", ()):
             if name.lower() == session_header:
-                span.set_attribute("gen_ai.conversation.id", value.decode("latin-1"))
+                span.set_attribute(confident.TRACE_THREAD_ID, value.decode("latin-1"))
                 break
 
     # Validate constructor capabilities before patching. Some older middleware

@@ -113,3 +113,115 @@ def test_registry_cleanup_is_idempotent_and_preserves_later_wrappers(telemetry):
         cls.create = original
         for restore in reversed(undo):
             restore()
+
+
+# Definitions are deliberately separated by ownership, not one union enum.
+TELEMETRY_DEFINITIONS = {
+    "_attributes.py",
+    "_semconv/native.py",
+    "integrations/google_adk/_constants.py",
+}
+TELEMETRY_PREFIXES = (
+    "gen_ai.",
+    "confident.",
+    "confident_trace.",
+    "gcp.",
+    "aws.",
+    "azure.",
+    "server.",
+    "service.",
+    "session.",
+    "cloud.",
+    "http.",
+    "url.",
+    "network.",
+    "client.",
+    "db.",
+    "rpc.",
+    "messaging.",
+    "error.",
+    "user.",
+    "code.",
+    "process.",
+    "otel.",
+    "telemetry.",
+    "openai.",
+    "OTEL_",
+)
+
+
+def telemetry_literals(source):
+    tree = ast.parse(source)
+    docs = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(
+            node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+        )
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+        and isinstance(node.body[0].value.value, str)
+    }
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docs
+        ):
+            # SDK import targets are Python module paths, not wire attributes.
+            if node.value.startswith("openai.resources."):
+                continue
+            if (
+                node.value.startswith(TELEMETRY_PREFIXES)
+                or node.value == "confident_trace"
+            ):
+                yield node.lineno, node.value
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr in {
+                "set_attribute",
+                "add_event",
+                "get_tracer",
+                "create_key",
+            }:
+                first = (
+                    node.args[0]
+                    if node.args
+                    else next(
+                        (
+                            k.value
+                            for k in node.keywords
+                            if k.arg in {"key", "name", "instrumenting_module_name"}
+                        ),
+                        None,
+                    )
+                )
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    yield first.lineno, first.value
+
+
+def test_runtime_telemetry_literals_are_centralized():
+    for path in SOURCE.rglob("*.py"):
+        name = path.relative_to(SOURCE).as_posix()
+        if name in TELEMETRY_DEFINITIONS or (
+            name.startswith("_semconv/genai_v") and name.endswith(".py")
+        ):
+            continue
+        assert not list(telemetry_literals(path.read_text())), name
+
+
+def test_literal_guard_catches_attributes_scopes_and_dynamic_prefixes():
+    assert list(telemetry_literals('span.set_attribute("new.namespace", value)'))
+    assert list(telemetry_literals('key = "confident.trace." + field'))
+    assert list(telemetry_literals('key = f"gen_ai.{field}"'))
+    assert list(telemetry_literals('provider.get_tracer("new-library")'))
+    assert list(telemetry_literals('os.getenv("OTEL_SDK_DISABLED")'))
+    assert not list(telemetry_literals("span.set_attribute(attrs.TRACE_INPUT, value)"))
+    assert not list(
+        telemetry_literals('"""gen_ai.operation.name is documented here."""')
+    )
+
+
+def test_native_recognition_does_not_depend_on_emission_schema():
+    path = SOURCE / "_semconv/native.py"
+    assert not any("genai_v" in imported for imported in imports(path))

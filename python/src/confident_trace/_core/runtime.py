@@ -10,22 +10,24 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from opentelemetry import trace
+from opentelemetry.sdk import environment_variables as otel_env
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.util.re import parse_env_headers
 
+from .. import _attributes as confident
 from .._semconv.genai_v1_37_0 import SCHEMA_URL
 from .._semconv.genai_v1_37_0 import SEMCONV_VERSION as SEMCONV_VERSION
 from .content import ContentPolicy
 
 VERSION = "0.1.0"
-log = logging.getLogger("confident_trace")
+log = logging.getLogger(confident.SCOPE_NAME)
 log.addHandler(logging.NullHandler())
 
 
 def disabled():
-    return os.getenv("OTEL_SDK_DISABLED", "").lower() == "true"
+    return os.getenv(otel_env.OTEL_SDK_DISABLED, "").lower() == "true"
 
 
 class OwnedProcessor(SpanProcessor):
@@ -78,7 +80,7 @@ class Runtime:
         if not self.active or disabled():
             return trace.NoOpTracer()
         return self.provider.get_tracer(
-            "confident_trace", VERSION, schema_url=SCHEMA_URL
+            confident.SCOPE_NAME, VERSION, schema_url=SCHEMA_URL
         )
 
 
@@ -144,8 +146,8 @@ def init(
             if exporter is None:
                 selected = (
                     protocol
-                    or os.getenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL")
-                    or os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL")
+                    or os.getenv(otel_env.OTEL_EXPORTER_OTLP_TRACES_PROTOCOL)
+                    or os.getenv(otel_env.OTEL_EXPORTER_OTLP_PROTOCOL)
                     or "http/protobuf"
                 )
                 if selected == "http/protobuf":
@@ -162,15 +164,15 @@ def init(
                 if endpoint is not None:
                     kwargs["endpoint"] = endpoint
                 elif not (
-                    os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
-                    or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+                    os.getenv(otel_env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
+                    or os.getenv(otel_env.OTEL_EXPORTER_OTLP_ENDPOINT)
                 ):
                     if selected != "http/protobuf":
                         raise ValueError("A gRPC collector endpoint is required")
                     kwargs["endpoint"] = "https://otel.confident-ai.com/v1/traces"
                 env_headers = os.getenv(
-                    "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
-                    os.getenv("OTEL_EXPORTER_OTLP_HEADERS", ""),
+                    otel_env.OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                    os.getenv(otel_env.OTEL_EXPORTER_OTLP_HEADERS, ""),
                 )
                 resolved = {
                     k.lower(): v
