@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "confident-trace"
+version = "0.1.0"
+description = "OpenTelemetry-first tracing for AI applications"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+  "opentelemetry-api>=1.39,<2",
+  "opentelemetry-sdk>=1.39,<2",
+  "opentelemetry-exporter-otlp-proto-http>=1.39,<2",
+  "opentelemetry-exporter-otlp-proto-grpc>=1.39,<2",
+  "wrapt>=1.17,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "jsonschema>=4.23,<5", "PyYAML>=6,<7", "pytest-asyncio>=0.24", "openai>=1.109,<4", "anthropic>=0.69,<2", "google-genai>=1.40,<3"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/confident_trace"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.format]
+exclude = ["src/confident_trace/_genai.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

@@ -1,0 +1,305 @@
+{
+  "genai_version": "1.37.0",
+  "cases": [
+    {
+      "name": "openai-chat",
+      "provider": "openai",
+      "request": {
+        "model": "test",
+        "n": 2,
+        "max_completion_tokens": 80,
+        "stop": "END",
+        "temperature": 0.5,
+        "top_p": 0.9,
+        "seed": 42,
+        "frequency_penalty": 0.1,
+        "presence_penalty": 0.2,
+        "service_tier": "priority",
+        "response_format": {
+          "type": "json_schema"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": "weather?"
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "t1",
+            "content": "sunny"
+          }
+        ]
+      },
+      "response": {
+        "id": "c1",
+        "model": "test-response",
+        "service_tier": "priority",
+        "system_fingerprint": "fp1",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "t1",
+                  "function": {
+                    "name": "lookup",
+                    "arguments": "{\"city\":\"Macau\"}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          },
+          {
+            "index": 1,
+            "message": {
+              "role": "assistant",
+              "content": "sunny"
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 5,
+          "completion_tokens": 3
+        }
+      },
+      "expected": {
+        "gen_ai.request.choice.count": 2,
+        "gen_ai.request.max_tokens": 80,
+        "gen_ai.request.stop_sequences": [
+          "END"
+        ],
+        "gen_ai.output.type": "json",
+        "gen_ai.request.seed": 42,
+        "openai.request.service_tier": "priority",
+        "openai.response.service_tier": "priority",
+        "openai.response.system_fingerprint": "fp1",
+        "gen_ai.response.finish_reasons": [
+          "tool_call",
+          "stop"
+        ],
+        "gen_ai.usage.input_tokens": 5,
+        "gen_ai.usage.output_tokens": 3
+      }
+    },
+    {
+      "name": "openai-responses",
+      "provider": "openai",
+      "request": {
+        "model": "test",
+        "input": [
+          {
+            "type": "function_call_output",
+            "call_id": "call1",
+            "output": "sunny"
+          }
+        ],
+        "instructions": "help",
+        "max_output_tokens": 40,
+        "text": {
+          "format": {
+            "type": "json_object"
+          }
+        },
+        "conversation": {
+          "id": "conversation-42"
+        }
+      },
+      "response": {
+        "id": "r1",
+        "model": "test",
+        "status": "completed",
+        "conversation": {
+          "id": "conversation-42"
+        },
+        "output": [
+          {
+            "type": "function_call",
+            "call_id": "call1",
+            "name": "lookup",
+            "arguments": "{\"city\":\"Macau\"}"
+          },
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "sunny"
+              }
+            ]
+          }
+        ],
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 2
+        }
+      },
+      "expected": {
+        "gen_ai.conversation.id": "conversation-42",
+        "confident.trace.thread_id": "conversation-42",
+        "gen_ai.request.max_tokens": 40,
+        "gen_ai.output.type": "json",
+        "gen_ai.response.finish_reasons": [
+          "stop"
+        ]
+      }
+    },
+    {
+      "name": "anthropic",
+      "provider": "anthropic",
+      "request": {
+        "model": "claude-test",
+        "max_tokens": 100,
+        "top_k": 5,
+        "stop_sequences": [
+          "END"
+        ],
+        "system": "help",
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "image",
+                "source": {
+                  "type": "base64",
+                  "data": "DO-NOT-CAPTURE"
+                }
+              },
+              {
+                "type": "tool_result",
+                "tool_use_id": "t1",
+                "content": "sunny"
+              }
+            ]
+          }
+        ]
+      },
+      "response": {
+        "id": "m1",
+        "model": "claude-test",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "t2",
+            "name": "lookup",
+            "input": {
+              "city": "Macau"
+            }
+          }
+        ],
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 5,
+          "cache_creation_input_tokens": 3,
+          "cache_read_input_tokens": 2,
+          "output_tokens": 4
+        }
+      },
+      "expected": {
+        "gen_ai.request.max_tokens": 100,
+        "gen_ai.request.top_k": 5,
+        "gen_ai.usage.input_tokens": 10,
+        "gen_ai.usage.output_tokens": 4,
+        "gen_ai.response.finish_reasons": [
+          "tool_call"
+        ]
+      }
+    },
+    {
+      "name": "google",
+      "provider": "google_genai",
+      "request": {
+        "model": "gemini-test",
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "hi"
+              },
+              {
+                "function_response": {
+                  "id": "t1",
+                  "response": {
+                    "result": "sunny"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "config": {
+          "max_output_tokens": 50,
+          "candidate_count": 2,
+          "temperature": 0.4,
+          "top_p": 0.8,
+          "top_k": 3,
+          "seed": 9,
+          "stop_sequences": [
+            "END"
+          ],
+          "response_mime_type": "application/json",
+          "system_instruction": "help"
+        }
+      },
+      "response": {
+        "response_id": "g1",
+        "model_version": "gemini-test",
+        "candidates": [
+          {
+            "index": 0,
+            "content": {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "hello"
+                }
+              ]
+            },
+            "finish_reason": "STOP"
+          },
+          {
+            "index": 1,
+            "content": {
+              "role": "model",
+              "parts": [
+                {
+                  "function_call": {
+                    "name": "lookup",
+                    "args": {
+                      "city": "Macau"
+                    }
+                  }
+                }
+              ]
+            },
+            "finish_reason": "MAX_TOKENS"
+          }
+        ],
+        "usage_metadata": {
+          "prompt_token_count": 7,
+          "candidates_token_count": 2,
+          "thoughts_token_count": 3
+        }
+      },
+      "expected": {
+        "gen_ai.request.max_tokens": 50,
+        "gen_ai.request.choice.count": 2,
+        "gen_ai.request.seed": 9,
+        "gen_ai.output.type": "json",
+        "gen_ai.usage.output_tokens": 5,
+        "gen_ai.response.id": "g1",
+        "gen_ai.response.finish_reasons": [
+          "stop",
+          "length"
+        ]
+      }
+    }
+  ]
+}
