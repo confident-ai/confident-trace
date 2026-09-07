@@ -2,10 +2,16 @@
 
 # `confident-trace`: Otel Native Tracing for AI Systems
 
-Confident Trace brings model calls, agent runs, tools, retrieval, and application
+Confident Trace brings agent runs, model calls, tools, retrieval, and application
 code into OpenTelemetry traces. Python and TypeScript SDKs work with your existing
 provider clients and export through standard OTLP to Confident or an
 OpenTelemetry Collector.
+
+- **19 integrations:** 15 agent frameworks and 4 model providers across Python and
+  TypeScript, with language-specific coverage listed below.
+- **OpenTelemetry semantic conventions:** Confident-owned GenAI spans follow the
+  supported subset of GenAI 1.37.0 conventions for model calls, messages, tools,
+  and token usage. Native framework spans retain their original conventions.
 
 ## SDKs
 
@@ -16,25 +22,6 @@ OpenTelemetry Collector.
 
 Each SDK is independently installable. Provider and framework dependencies are
 optional; use the integrations your application needs.
-
-## Model providers
-
-| Provider | Python | TypeScript / JavaScript | Covered APIs |
-| --- | --- | --- | --- |
-| OpenAI | Supported | Supported | Chat Completions and Responses `create`, including streaming. |
-| Anthropic | Supported | Supported | Messages `create` and `stream`. |
-| Google GenAI | Supported | Supported | Content generation and streaming content generation. |
-| AWS Bedrock Runtime | Supported via Boto3 | — | `converse` and `converse_stream`. |
-
-Python provider integrations support synchronous and asynchronous calls, except
-Boto3, which uses synchronous calls and event streams. TypeScript integrations
-preserve the supplied client's method signatures and stream controls.
-
-Provider spans capture model information, timing, status, available token usage,
-messages, and supported tool-call data. Coverage applies to the APIs listed above;
-embeddings, realtime, provider batch APIs, image/audio generation, and OpenAI's
-separate `responses.stream` helper are outside this scope. Multimodal binary
-payloads are omitted.
 
 ## Agent frameworks
 
@@ -70,6 +57,25 @@ Strands has known upstream span-closure limitations on cancellation and early
 stream exit. AgentCore coverage is local application telemetry; hosted AWS
 telemetry and WebSocket/A2A endpoints are outside the supported scope.
 
+## Model providers
+
+| Provider | Python | TypeScript / JavaScript | Covered APIs |
+| --- | --- | --- | --- |
+| OpenAI | Supported | Supported | Chat Completions and Responses `create`, including streaming. |
+| Anthropic | Supported | Supported | Messages `create` and `stream`. |
+| Google GenAI | Supported | Supported | Content generation and streaming content generation. |
+| AWS Bedrock Runtime | Supported via Boto3 | — | `converse` and `converse_stream`. |
+
+Python provider integrations support synchronous and asynchronous calls, except
+Boto3, which uses synchronous calls and event streams. TypeScript integrations
+preserve the supplied client's method signatures and stream controls.
+
+Provider spans capture model information, timing, status, available token usage,
+messages, and supported tool-call data. Coverage applies to the APIs listed above;
+embeddings, realtime, provider batch APIs, image/audio generation, and OpenAI's
+separate `responses.stream` helper are outside this scope. Multimodal binary
+payloads are omitted.
+
 ## Custom tracing and OpenTelemetry
 
 - **Application spans:** Python decorators and span scopes; TypeScript function
@@ -88,7 +94,6 @@ telemetry and WebSocket/A2A endpoints are outside the supported scope.
   to Confident-managed content; native framework and third-party instrumentation
   retain their own content policies.
 
-Confident-owned GenAI spans use selected OpenTelemetry GenAI 1.37.0 conventions.
 The SDKs export traces; they do not provide a metrics or logs pipeline.
 
 ## Repository
