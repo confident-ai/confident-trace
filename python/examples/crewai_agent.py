@@ -1,5 +1,7 @@
 """Install confident-trace and crewai; configure OPENAI_API_KEY and OTLP export."""
 
+import os
+
 from crewai import Agent, Crew, Task
 
 import confident_trace as ct
@@ -9,7 +11,7 @@ agent = Agent(
     role="Explainer",
     goal="Give clear explanations",
     backstory="A patient teacher",
-    llm="openai/gpt-4o-mini",
+    llm="openai/" + os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
 )
 task = Task(
     description="Explain why the sky is blue in one sentence.",

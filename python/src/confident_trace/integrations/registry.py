@@ -7,6 +7,9 @@ from .._core import runtime
 _MODULES = {
     name: f"{__package__}.{name}.instrumentation"
     for name in (
+        "llamaindex",
+        "agno",
+        "smolagents",
         "crewai",
         "langchain",
         "langgraph",

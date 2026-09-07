@@ -127,6 +127,24 @@
       "tested": [
         "1.15.20 / crewai-core 1.15.20 with OpenAI 2.54.0"
       ]
+    },
+    "LlamaIndex (optional)": {
+      "supported": "Execution capabilities; application-owned framework dependency; no runtime version gate",
+      "tested": [
+        "core 0.14.24 / instrumentation 0.6.0 / workflows 2.23.3 / llms-openai 0.8.1 with OpenAI 2.54.0"
+      ]
+    },
+    "Agno (optional)": {
+      "supported": "Execution capabilities; application-owned framework dependency; no runtime version gate",
+      "tested": [
+        "3.0.6 with OpenAI 2.54.0"
+      ]
+    },
+    "smolagents (optional)": {
+      "supported": "Execution capabilities; application-owned framework dependency; no runtime version gate",
+      "tested": [
+        "1.26.0 with OpenAI 2.54.0"
+      ]
     }
   },
   "instrumentation": [
@@ -204,6 +222,21 @@
       "name": "CrewAI (in-house execution tracing)",
       "surfaces": "Crews, task execution, standalone/task agents, tools, Flow methods and resume; existing provider adapters own inference",
       "validation": "Real framework and mocked OpenAI HTTP/SSE; explicit hierarchy, parallel tasks/tools, scoped worker context, streaming, errors/cancellation, lifecycle and content contracts."
+    },
+    {
+      "name": "LlamaIndex (in-house execution tracing)",
+      "surfaces": "Native dispatcher agents/tools/retrieval/workflow structure with scoped execution and iterators; provider adapters own inference",
+      "validation": "Real frameworks with offline provider transports; exact span ownership, context and hierarchy, concurrency, streams, termination, lifecycle and content contracts."
+    },
+    {
+      "name": "Agno (in-house execution tracing)",
+      "surfaces": "Agent/team run and arun, workflows/steps/containers, function calls and generator tools; provider adapters own inference",
+      "validation": "Real frameworks with offline provider transports; exact span ownership, context and hierarchy, concurrency, streams, termination, lifecycle and content contracts."
+    },
+    {
+      "name": "smolagents (in-house execution tracing)",
+      "surfaces": "Agent/planning/step generators; ToolCallingAgent and local CodeAgent tools; provider adapters own inference",
+      "validation": "Real frameworks with offline provider transports; exact span ownership, context and hierarchy, concurrency, streams, termination, lifecycle and content contracts."
     }
   ],
   "deviations": [
@@ -230,6 +263,7 @@
     "Claude Agent SDK exports from a separate CLI process directly to OTLP. It cannot use an arbitrary Python exporter; Confident content policy, thread metadata and flush/shutdown do not control native child spans. Per-agent exporter overrides are application-owned as a group; Confident credentials are not injected into them.",
     "Claude native traces are beta. Local validation uses an offline CLI protocol fixture, not real Claude Code telemetry. Long-lived SDK clients inherit parent context at connection; native payloads, cancellation delivery and backend mapping require separate validation.",
     "LangChain/LangGraph use narrow owned execution hooks and preserve full callback structure. Plain runnables/graphs/retrievers have no fabricated GenAI operation. Framework-required explicit async RunnableConfig propagation still applies on Python 3.10. Application-owned pools require context propagation; remote execution and new protocol stream_events v3 are not certified.",
-    "CrewAI captures execution structure without a second framework inference span. Custom LLM/LiteLLM paths bypassing supported provider SDK methods require separate instrumentation. Internal agent Flow nodes are preserved. CrewAI streaming scopes begin in the inner execution under consumption context; cancelled synchronous workers may finish later. Remote AMP, memory tracing and arbitrary execution overrides are not certified. Do not combine overlapping CrewAI instrumentors or unreconciled gateway model exports."
+    "CrewAI captures execution structure without a second framework inference span. Custom LLM/LiteLLM paths bypassing supported provider SDK methods require separate instrumentation. Internal agent Flow nodes are preserved. CrewAI streaming scopes begin in the inner execution under consumption context; cancelled synchronous workers may finish later. Remote AMP, memory tracing and arbitrary execution overrides are not certified. Do not combine overlapping CrewAI instrumentors or unreconciled gateway model exports.",
+    "LlamaIndex, Agno and smolagents emit framework structure without synthetic model fallback spans. Unsupported providers, Agno background jobs, remote workflows/code executors, arbitrary execution overrides and overlapping third-party instrumentors are not certified. Choose one overlapping export path when deduplication is unavailable. smolagents early close may raise an upstream generator ignored GeneratorExit error; owned spans still close."
   ]
 }

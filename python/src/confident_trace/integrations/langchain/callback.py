@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from langchain_core.callbacks import BaseCallbackHandler
 from opentelemetry import context, trace
 
+from ..._attributes import Integration
 from ..._core import runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
@@ -78,6 +79,7 @@ class Bridge(BaseCallbackHandler):
                 op = Operation(
                     title,
                     attributes=attrs,
+                    integration=Integration.LANGCHAIN,
                     kind=trace.SpanKind.CLIENT
                     if kind in ("chat", "text_completion")
                     else trace.SpanKind.INTERNAL,

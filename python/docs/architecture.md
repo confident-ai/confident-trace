@@ -44,6 +44,11 @@ connects it to the registry; core does not import provider packages.
 span lifetime. `content.py` handles redaction, serialization, and bounds;
 `safety.py` handles fail-open telemetry calls.
 
+Local entry spans with a valid OTel parent do not supply an automatic
+`confident.trace.name`: a worker or application-owned parent already belongs to
+an existing trace. True roots retain automatic names. Explicit trace field
+updates remain supported on local entries.
+
 `integrations/_shared/patching.py` manages patch ownership. `lifecycle.py` manages
 common sync/async calls using provider callbacks. `streams.py` attaches context
 while driving iterators and handles completion, close, and errors. It contains no
@@ -147,6 +152,9 @@ provider and native schema.
 OTLP export. Core stores a non-repr OTLP connection template only for exporters it
 constructs. The adapter never mutates the parent environment or introspects a
 custom exporter; the child owns its spans, export pipeline and flush lifecycle.
+Claude query consumers must drain normal completion after `ResultMessage` to
+allow the native interaction span to end and flush; early closure does not
+establish native export completion.
 
 ## LangChain / LangGraph callback bridge
 
@@ -182,3 +190,18 @@ spans; CrewAI LLM methods can execute tools and are deliberately not model scope
 An invocation-local structured-tool proxy fills the upstream executor context gap.
 No global threading patches or permanent event listeners are installed.
 See [the hook contract and limitations](crewai.md).
+
+## LlamaIndex, Agno and smolagents execution scopes
+
+These adapters share invocation-owned execution and iterator lifecycle helpers.
+They emit framework structure and leave inference to provider adapters. There is
+no broad suppression scope around agents or tools. Agno and smolagents wrap
+actual execution methods; LlamaIndex uses native dispatcher IDs for lifecycle
+and inserts context activation underneath the dispatcher decorator. No OTel
+token crosses callbacks, tasks, threads, or iterator yields. Runtime-owned state
+tracks operations under a short lock and shutdown closes remaining spans once.
+
+LlamaIndex's native decorator bindings use weak references, so dynamically
+created workflow-step wrappers do not accumulate per-run undo closures. The
+dispatcher handler and owned wrappers are removed on shutdown without replacing
+application handlers or later wrappers. See [hook details and boundaries](frameworks.md).

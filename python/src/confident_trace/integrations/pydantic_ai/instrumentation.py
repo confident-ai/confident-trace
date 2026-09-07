@@ -1,5 +1,6 @@
 """Native Pydantic AI telemetry interoperability."""
 
+from ..._attributes import Integration
 from .._shared.lifecycle import register_native_inference
 from ._constants import SCOPE_NAME
 
@@ -12,4 +13,5 @@ def instrument(runtime):
     if getattr(Agent, "_instrument_default", None) is False:
         Agent.instrument_all(True)
     # Native enablement remains in place for other application exporters.
+    runtime.processor.integration_scopes[SCOPE_NAME] = Integration.PYDANTIC_AI
     return register_native_inference(SCOPE_NAME)

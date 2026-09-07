@@ -35,6 +35,9 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 | LangChain / Core (optional) | 1.x callback and execution-context capabilities; no runtime version gate | LangChain 1.4.0 / Core 1.6.2 / langchain-openai 1.6.0 |
 | LangGraph (optional) | 1.x local graph execution; remote servers require their own instrumentation | 1.2.11 with checkpoint 4.2.0 |
 | CrewAI (optional) | Execution-hook capabilities; framework installed by application; no runtime version gate | 1.15.20 / crewai-core 1.15.20 with OpenAI 2.54.0 |
+| LlamaIndex (optional) | Execution capabilities; application-owned framework dependency; no runtime version gate | core 0.14.24 / instrumentation 0.6.0 / workflows 2.23.3 / llms-openai 0.8.1 with OpenAI 2.54.0 |
+| Agno (optional) | Execution capabilities; application-owned framework dependency; no runtime version gate | 3.0.6 with OpenAI 2.54.0 |
+| smolagents (optional) | Execution capabilities; application-owned framework dependency; no runtime version gate | 1.26.0 with OpenAI 2.54.0 |
 
 ## Instrumentation coverage
 
@@ -55,6 +58,9 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 | Claude Agent SDK (native subprocess export configuration) | Default query()/ClaudeSDKClient subprocess configuration and W3C context propagation | Real Python SDK and offline CLI protocol fixture; copied options, destination/auth isolation, disabling, and patch ownership. Native CLI spans, cancellation delivery, collector/backend mapping unverified. |
 | LangChain / LangGraph (in-house GenAI bridge) | invoke/ainvoke, batch/abatch, model and graph streams, astream_events v2, tools/retrievers, subgraphs and checkpoint resume | Real framework and mocked provider execution on Python 3.10/3.13; explicit parent IDs, OTel nesting, parallel tasks/workers, cancellation/closure, content contracts and provider deduplication. |
 | CrewAI (in-house execution tracing) | Crews, task execution, standalone/task agents, tools, Flow methods and resume; existing provider adapters own inference | Real framework and mocked OpenAI HTTP/SSE; explicit hierarchy, parallel tasks/tools, scoped worker context, streaming, errors/cancellation, lifecycle and content contracts. |
+| LlamaIndex (in-house execution tracing) | Native dispatcher agents/tools/retrieval/workflow structure with scoped execution and iterators; provider adapters own inference | Real frameworks with offline provider transports; exact span ownership, context and hierarchy, concurrency, streams, termination, lifecycle and content contracts. |
+| Agno (in-house execution tracing) | Agent/team run and arun, workflows/steps/containers, function calls and generator tools; provider adapters own inference | Real frameworks with offline provider transports; exact span ownership, context and hierarchy, concurrency, streams, termination, lifecycle and content contracts. |
+| smolagents (in-house execution tracing) | Agent/planning/step generators; ToolCallingAgent and local CodeAgent tools; provider adapters own inference | Real frameworks with offline provider transports; exact span ownership, context and hierarchy, concurrency, streams, termination, lifecycle and content contracts. |
 
 ## Deviations and boundaries
 
@@ -82,5 +88,6 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 - Claude native traces are beta. Local validation uses an offline CLI protocol fixture, not real Claude Code telemetry. Long-lived SDK clients inherit parent context at connection; native payloads, cancellation delivery and backend mapping require separate validation.
 - LangChain/LangGraph use narrow owned execution hooks and preserve full callback structure. Plain runnables/graphs/retrievers have no fabricated GenAI operation. Framework-required explicit async RunnableConfig propagation still applies on Python 3.10. Application-owned pools require context propagation; remote execution and new protocol stream_events v3 are not certified.
 - CrewAI captures execution structure without a second framework inference span. Custom LLM/LiteLLM paths bypassing supported provider SDK methods require separate instrumentation. Internal agent Flow nodes are preserved. CrewAI streaming scopes begin in the inner execution under consumption context; cancelled synchronous workers may finish later. Remote AMP, memory tracing and arbitrary execution overrides are not certified. Do not combine overlapping CrewAI instrumentors or unreconciled gateway model exports.
+- LlamaIndex, Agno and smolagents emit framework structure without synthetic model fallback spans. Unsupported providers, Agno background jobs, remote workflows/code executors, arbitrary execution overrides and overlapping third-party instrumentors are not certified. Choose one overlapping export path when deduplication is unavailable. smolagents early close may raise an upstream generator ignored GeneratorExit error; owned spans still close.
 
 For automatic instrumentation versus existing OTel spans, see [integration guide](integrations.md).

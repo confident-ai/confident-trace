@@ -10,11 +10,15 @@ For a gRPC Collector, set OTEL_EXPORTER_OTLP_PROTOCOL=grpc and
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317. No application-code change.
 """
 
+import os
+
 from openai import OpenAI
 
 from confident_trace import init
 
 init()
 client = OpenAI()
-response = client.responses.create(model="gpt-4.1-mini", input="Hello")
+response = client.responses.create(
+    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), input="Hello"
+)
 print(response.output_text)

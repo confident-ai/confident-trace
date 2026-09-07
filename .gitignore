@@ -6,3 +6,5 @@ __pycache__/
 dist/
 *.egg-info/
 .env
+/mega-*.json
+/python/benchmarks/results.json

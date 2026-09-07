@@ -32,6 +32,9 @@ def instrument(runtime):
     session_header = SESSION_HEADER.lower().encode("ascii")
 
     def request_hook(span, scope):
+        span.set_attribute(
+            confident.SPAN_INTEGRATION, confident.Integration.AGENTCORE.value
+        )
         # Only attach the documented session identifier, never arbitrary headers.
         for name, value in scope.get("headers", ()):
             if name.lower() == session_header:
@@ -54,6 +57,16 @@ def instrument(runtime):
         async def call(wrapped, instance, args, kwargs):
             scope = args[0] if args else kwargs.get("scope", {})
             current = trace.get_current_span()
+            if (
+                runtime.active
+                and not disabled()
+                and scope.get("type") == "http"
+                and scope.get("path") == "/invocations"
+                and getattr(current, "kind", None) == SpanKind.SERVER
+            ):
+                current.set_attribute(
+                    confident.SPAN_INTEGRATION, confident.Integration.AGENTCORE.value
+                )
             if (
                 not runtime.active
                 or disabled()

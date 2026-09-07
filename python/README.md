@@ -41,6 +41,8 @@ Version 0.1.0 is the initial release; the API may change before 1.0.0. See the r
   We wrap their supported Python methods and emit OTel spans ourselves.
 - **In-house framework integration:** LangChain and LangGraph; full callback hierarchy,
   GenAI model/tool spans, and standard OTel nesting inside nodes and tools.
+  CrewAI, LlamaIndex, Agno and smolagents capture execution structure with
+  provider-owned inference spans; see [framework ownership](docs/frameworks.md).
 - **Native framework integration:** Pydantic AI, Strands, Google ADK, Microsoft Agent
   Framework, AgentCore, OpenAI Agents (requires the tracing bridge extra), and
   Claude Agent SDK (native child-process export). See [setup and native limitations](docs/integrations.md).
@@ -120,8 +122,9 @@ generator's final return value is captured. Explicitly close abandoned generator
 Providers capture bounded streaming output separately.
 
 Use `instrumentations=()` when another instrumentor already covers the provider.
-Existing wrapt wrappers are not stacked. Third-party OTel spans are exported
-unchanged; no semantic-version migration happens inside this SDK.
+Existing wrapt wrappers are not stacked. Enabled native integrations add
+`confident.span.integration` to spans from their exact instrumentation scope.
+Other attributes, events, and schema URLs retain their native conventions.
 
 See the [Python compatibility matrix](docs/compatibility.md) and
 [shared wire contract](../spec/contract.md) for exact
@@ -209,3 +212,26 @@ See [execution and concurrency details](docs/langchain.md) and the offline
 [LangGraph example](examples/langgraph_local.py).
 
 CrewAI is automatically instrumented when installed. See [CrewAI setup and tracing ownership](docs/crewai.md).
+
+LlamaIndex, Agno, and smolagents are automatically instrumented when installed.
+See [setup, execution context and model span ownership](docs/frameworks.md).
+
+## Integration labels
+
+`confident_trace.Integration` is the shared string enum of Cloud UI labels.
+Package-owned integrations stamp `confident.span.integration` at span creation;
+enabled native integrations stamp spans on the shared provider. Provider calls
+keep their own SDK label when nested inside framework spans. LangGraph uses
+`Integration.LANGCHAIN`, matching its shared callback bridge and Cloud UI.
+
+Existing UI labels are retained exactly, including `LangChain`, `PydanticAI`,
+`CrewAI`, `LlamaIndex`, `OpenAI Agents`, `Google ADK`, `Strands`, and `AgentCore`.
+New integrations use `Google GenAI`, `Bedrock`, `Microsoft Agent Framework`,
+`Agno`, and `Smolagents`; Cloud accepts these strings but has no dedicated icons
+for them yet. The enum also includes `OpenRouter`, `OpenTelemetry`, and
+`OpenInference` for explicitly attributed external spans.
+
+Claude Agent SDK's label is available as `Integration.CLAUDE_AGENT_SDK`, but its
+CLI subprocess exports directly to OTLP and bypasses the Python span processor.
+Stamping those remote spans requires support in the CLI or the receiving
+Collector; this SDK does not add duplicate local spans.

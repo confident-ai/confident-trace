@@ -392,7 +392,30 @@ behavior; cancellation tests assert span closure rather than inventing error dat
 References: [OpenAI Agents integrations and observability](https://developers.openai.com/api/docs/guides/agents/integrations-observability)
 and [OpenInference bridge](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents).
 
-## Claude Agent SDK
+## Claude Agent SDK (experimental native tracing)
+
+Native export does not currently guarantee a connected application trace. Live
+runs with SDK 0.2.152 / CLI 2.1.259 have completed successfully but emitted either
+no native batch or standalone `claude_code.llm_request` roots without an
+interaction span. The latter batches were accepted by the collector. A CLI
+initialization/context race is suspected, not proven; increasing flush timeouts
+cannot repair already-disconnected parentage.
+
+For applications requiring one connected trace, disable Claude telemetry per
+child and retain an explicit Python invocation span:
+
+```python
+options = ClaudeAgentOptions(env={"CLAUDE_CODE_ENABLE_TELEMETRY": "0"})
+with ct.span("claude.invocation"):
+    async for message in query(prompt="Reply with OK.", options=options):
+        pass
+```
+
+This gives up native model/tool spans, metrics and logs for that child. The
+adapter respects this switch; it does not create the outer span automatically.
+Do not combine a replacement model-span bridge with native export, or merge
+independent roots by timestamp/session ID. There is no reliable reconciliation
+for the observed missing context. See the [investigation](claude-native-tracing.md).
 
 Use `pip install confident-trace` in an application already using
 `claude-agent-sdk`, then call `init()` before `query()` or connecting a
@@ -429,16 +452,25 @@ Custom transports are left untouched.
 
 Shutdown restores our owned constructor patch for future transports. Already
 configured transports/connected children retain their configuration. Python
-`flush()`/`shutdown()` do not flush the child: consume/close the SDK stream or client
-so its own lifecycle can finish. Native telemetry is beta, with version-dependent
+`flush()`/`shutdown()` do not flush the child. For normal `query()` completion,
+drain the iterator through EOF, even after receiving `ResultMessage`. Returning
+or breaking immediately can terminate the CLI before its enclosing interaction
+span ends and exports. Close cancelled streams/clients for cleanup, but do not
+assume early closure guarantees native span delivery. Native telemetry is beta, with version-dependent
 span names, content, buffering and shutdown behavior.
 
 Tested Python SDK: 0.2.152. Tests run the real `query()`/`ClaudeSDKClient` and
 subprocess transport against an **offline CLI protocol fixture**, verifying results,
 configuration, parent propagation, explicit overrides, credential isolation,
-fail-open behavior and patch ownership. They do not certify real Claude Code
-agent/model/tool spans, delivery on cancellation, live collector ingestion, or
-backend mapping. Those require native CLI/backend validation.
+fail-open behavior and patch ownership. A separate MEGA regression runs the real
+bundled CLI (verified with Claude Code 2.1.259) against fake model HTTP responses
+and a local OTLP receiver. It asserts two concurrent requests each export exactly
+one interaction and one model span, with the request trace ID and exact parent
+chain. The fake model URL skips the production remote-settings startup path, so
+this does not establish live reliability. The disabled-telemetry case also checks
+that only the two Python scopes remain and the query result is preserved. Tool spans,
+delivery on cancellation, hosted collector ingestion and backend mapping remain
+outside that test's coverage.
 
 Reference: [Claude Agent SDK OpenTelemetry observability](https://code.claude.com/docs/en/agent-sdk/observability).
 

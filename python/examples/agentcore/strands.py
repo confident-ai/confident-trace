@@ -14,7 +14,8 @@ from confident_trace import init
 
 init(
     endpoint=os.getenv(
-        "CONFIDENT_OTLP_ENDPOINT", "https://otel.confident-ai.com/v1/traces"
+        "CONFIDENT_OTLP_ENDPOINT",
+        "https://confident-otel-new-us.up.railway.app/v1/traces",
     ),
     protocol="http/protobuf",
     api_key=os.environ["CONFIDENT_API_KEY"],

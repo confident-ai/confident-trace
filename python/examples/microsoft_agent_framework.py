@@ -13,7 +13,7 @@ async def main():
     init()
     try:
         async with Agent(
-            client=OpenAIChatClient(model=os.environ["OPENAI_MODEL"]),
+            client=OpenAIChatClient(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini")),
             name="assistant",
             instructions="Answer concisely.",
         ) as agent:

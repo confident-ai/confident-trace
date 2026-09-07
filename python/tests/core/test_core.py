@@ -374,3 +374,30 @@ def test_trace_metadata_respects_native_span_ownership(telemetry):
     with ct.span("owned", thread_id="owned-session") as owned:
         assert owned.attributes["gen_ai.conversation.id"] == "owned-session"
         assert owned.attributes["confident.trace.thread_id"] == "owned-session"
+
+
+@pytest.mark.parametrize("remote", [False, True])
+def test_parented_local_entry_does_not_rename_trace(telemetry, remote):
+    from opentelemetry import context
+    from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
+
+    parent = SpanContext(
+        trace_id=123, span_id=456, is_remote=remote, trace_flags=TraceFlags(1)
+    )
+    token = context.attach(otel.set_span_in_context(NonRecordingSpan(parent)))
+    try:
+        with ct.span("process.worker", thread_id="conversation"):
+            pass
+        with ct.span("explicit.worker"):
+            ct.update_trace(name="intentional-name")
+    finally:
+        context.detach(token)
+    worker, explicit = spans(telemetry[1])
+    assert worker.context.trace_id == parent.trace_id
+    assert worker.parent.span_id == parent.span_id
+    assert "confident.trace.name" not in worker.attributes
+    assert worker.attributes["gen_ai.conversation.id"] == "conversation"
+    assert explicit.attributes["confident.trace.name"] == "intentional-name"
+    with ct.span("request"):
+        pass
+    assert spans(telemetry[1])[-1].attributes["confident.trace.name"] == "request"

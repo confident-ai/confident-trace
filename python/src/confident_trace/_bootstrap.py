@@ -23,6 +23,9 @@ def init(
     max_content_bytes=16384,
     redact=None,
     instrumentations=(
+        "llamaindex",
+        "agno",
+        "smolagents",
         "crewai",
         "langchain",
         "langgraph",

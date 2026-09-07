@@ -1,0 +1,9 @@
+# Versions tested together for this example, not restrictions on Confident Trace.
+# Use a separate venv: Pydantic AI here requires OpenAI 3.x, while the tested
+# LlamaIndex provider in the other examples requires OpenAI <3.
+langchain-core==1.6.2
+langchain-openai==1.6.0
+pydantic-ai-slim[openai]==2.40.0
+claude-agent-sdk==0.2.152
+openai==3.8.0
+httpx==0.28.1

@@ -1,6 +1,13 @@
 # Changelog
 
+Integration spans now use the shared public `Integration` enum and stamp
+`confident.span.integration` with canonical Cloud UI labels, including enabled
+native framework spans. Claude CLI subprocess exports remain external.
+
 ## Unreleased
+
+- Add in-house LlamaIndex, Agno and smolagents execution tracing with provider-owned
+  model spans, scoped context, stream lifecycle and isolated real-framework tests.
 
 - Add in-house CrewAI execution tracing with provider-owned model spans, scoped
   tool worker context, lifecycle cleanup, and real-framework coverage.

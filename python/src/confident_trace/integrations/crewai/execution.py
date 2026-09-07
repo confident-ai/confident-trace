@@ -9,6 +9,7 @@ from contextvars import ContextVar, copy_context
 
 import wrapt
 
+from ..._attributes import Integration
 from ..._core import runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
@@ -58,7 +59,7 @@ class State:
             if call is not None and call[0] == attributes.get(ai.GEN_AI_TOOL_NAME):
                 if type(call[1]) is str:
                     attributes[ai.GEN_AI_TOOL_CALL_ID] = call[1]
-        op = Operation(name, attributes=attributes)
+        op = Operation(name, attributes=attributes, integration=Integration.CREWAI)
         with self.lock:
             closed = self.closed
             if not closed:

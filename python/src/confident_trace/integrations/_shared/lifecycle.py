@@ -56,7 +56,15 @@ def native_inference_active(rt):
 
 
 def begin_call(
-    operation, fallback_provider, model, params, instance, connection, request
+    operation,
+    fallback_provider,
+    model,
+    params,
+    instance,
+    connection,
+    request,
+    *,
+    integration: confident.Integration,
 ):
     model_name = model if type(model) is str else "unknown"
     attrs = {
@@ -65,7 +73,12 @@ def begin_call(
     }
     if type(model) is str:
         attrs[ai.GEN_AI_REQUEST_MODEL] = model
-    op = Operation(f"{operation} {model_name}", kind=SpanKind.CLIENT, attributes=attrs)
+    op = Operation(
+        f"{operation} {model_name}",
+        kind=SpanKind.CLIENT,
+        attributes=attrs,
+        integration=integration,
+    )
     op.ctx = context.set_value(_SUPPRESS, True, op.ctx)
     safe(request, op, params)
     return op

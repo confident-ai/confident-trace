@@ -2,6 +2,7 @@
 
 import inspect
 
+from ..._attributes import Integration
 from ..._semconv import genai_v1_37_0 as ai
 from .._shared.lifecycle import begin_call, finish_call, wrapper
 from .._shared.patching import install_targets
@@ -24,6 +25,7 @@ def begin(params, instance=None):
         instance,
         connection,
         request,
+        integration=Integration.GOOGLE_GENAI,
     )
 
 

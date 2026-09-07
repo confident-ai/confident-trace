@@ -7,6 +7,11 @@ The remaining integrations below have no new priority relative to provider work.
 
 ## Framework integrations implemented locally
 
+- LlamaIndex, Agno, and smolagents: in-house structural tracing with provider-owned
+  inference spans. See [setup, tested scope and limitations](docs/frameworks.md).
+  Overlapping third-party framework instrumentation or unreconciled gateway model
+  exports require choosing one owner; propagation alone does not deduplicate.
+
 - CrewAI: in-house execution hooks for crews, tasks, agents, tools, and flows;
   existing provider adapters own model spans without a second CrewAI inference span.
   See [coverage and boundaries](docs/crewai.md).
@@ -17,9 +22,13 @@ The remaining integrations below have no new priority relative to provider work.
 
 - OpenAI Agents SDK: optional OpenInference bridge, native model deduplication,
   offline agent/tool/handoff/guardrail/stream tests with SDK 0.22.0 and bridge 2.2.1.
-- Claude Agent SDK: native child-process export configuration, tested through the
-  real Python SDK 0.2.152 with an offline CLI protocol fixture. Real CLI spans,
-  delivery and backend mapping remain unverified.
+- Claude Agent SDK: **experimental native tracing**. SDK 0.2.152 / CLI 2.1.259
+  passes fake-model parentage tests, but live runs have missing or disconnected
+  native spans. Collector acceptance is observed; connected trace reliability is
+  unresolved. For strict trace ownership, disable child telemetry and retain only
+  the Python invocation span. Track upstream readiness/context behavior and
+  require a production-startup regression before removing this limitation.
+  See [evidence and upstream issue draft](docs/claude-native-tracing.md).
 
 - Microsoft Agent Framework: native OTel enablement, model deduplication, and
   real-framework agent/tool/workflow tests.
@@ -62,7 +71,6 @@ See the [release matrix](docs/compatibility.md) for implemented coverage.
 
 ## Remaining framework candidates
 
-- LlamaIndex
 - AutoGen
 
 Haystack is excluded from the current framework list.

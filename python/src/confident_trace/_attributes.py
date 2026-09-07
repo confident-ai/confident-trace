@@ -1,5 +1,6 @@
 """Confident-owned extensions and identifiers, independent of OTel semconv versions."""
 
+from enum import Enum
 from types import MappingProxyType
 from typing import Final
 
@@ -16,6 +17,34 @@ TRACE_ENVIRONMENT: Final = "confident.trace.environment"
 TRACE_USER_ID: Final = "confident.trace.user_id"
 TRACE_THREAD_ID: Final = "confident.trace.thread_id"
 TRACE_TURN_ID: Final = "confident.trace.turn_id"
+
+SPAN_INTEGRATION: Final = "confident.span.integration"
+
+
+class Integration(str, Enum):
+    """Canonical Cloud UI labels for SDK and framework integrations."""
+
+    LANGCHAIN = "LangChain"
+    CREWAI = "CrewAI"
+    LLAMAINDEX = "LlamaIndex"
+    OPENAI_AGENTS = "OpenAI Agents"
+    OPENAI = "OpenAI"
+    ANTHROPIC = "Anthropic"
+    PYDANTIC_AI = "PydanticAI"
+    GOOGLE_ADK = "Google ADK"
+    OPENROUTER = "OpenRouter"
+    STRANDS = "Strands"
+    OPENTELEMETRY = "OpenTelemetry"
+    OPENINFERENCE = "OpenInference"
+    AGENTCORE = "AgentCore"
+    # Integrations without an existing Cloud icon label.
+    GOOGLE_GENAI = "Google GenAI"
+    BEDROCK = "Bedrock"
+    CLAUDE_AGENT_SDK = "Claude Agent SDK"
+    MICROSOFT_AGENT_FRAMEWORK = "Microsoft Agent Framework"
+    AGNO = "Agno"
+    SMOLAGENTS = "Smolagents"
+
 
 SPAN_INPUT: Final = "confident.span.input"
 SPAN_OUTPUT: Final = "confident.span.output"

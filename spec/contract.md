@@ -5,7 +5,12 @@
 Standard OTLP traces, HTTP/protobuf by default, or gRPC with a configured endpoint.
 Confident authentication uses `x-confident-api-key`. There is no Confident wire
 format, REST fallback, or SDK trace aggregation. Third-party spans retain their
-attributes, events, and scope schema URL, including unknown convention values.
+attributes, events, and scope schema URL, including unknown convention values,
+except that enabled native integrations stamp `confident.span.integration` with
+the canonical SDK/framework label. Package-owned integrations stamp it at span
+creation. Labels are defined by the public Python `Integration` enum; they are
+independent of `gen_ai.provider.name`. Claude CLI subprocess spans bypass this
+Python processor and are not stamped.
 
 Trace IDs, parentage, sampling, status, resources, links, and propagation belong
 to OpenTelemetry. Inference spans are CLIENT; custom steps/tools are INTERNAL.

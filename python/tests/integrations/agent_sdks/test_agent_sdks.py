@@ -18,6 +18,10 @@ from conftest import ROOT
             ("openai-agents", "openinference-instrumentation-openai-agents"),
         ),
         ("claude_agent_scenarios", ("claude-agent-sdk",)),
+        (
+            "mega_native_scenarios",
+            ("claude-agent-sdk", "langchain-openai", "pydantic-ai-slim"),
+        ),
     ],
 )
 def test_agent_sdk(scenario, packages, tmp_path):

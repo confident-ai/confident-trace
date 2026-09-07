@@ -68,6 +68,7 @@ class Operation:
         name,
         *,
         attributes=None,
+        integration: confident.Integration | None = None,
         kind=otel.SpanKind.INTERNAL,
         trace_fields=None,
     ):
@@ -79,6 +80,11 @@ class Operation:
             self.is_entry = False
             self.ended = False
             return
+        if integration is not None:
+            attributes = {
+                **(attributes or {}),
+                confident.SPAN_INTEGRATION: integration.value,
+            }
         self.parent = context.get_current()
         self.entry = context.get_value(_ENTRY, self.parent)
         self.span = (
@@ -95,7 +101,12 @@ class Operation:
         self.ctx = otel.set_span_in_context(self.span, self.parent)
         if self.is_entry:
             self.ctx = context.set_value(_ENTRY, self.span, self.ctx)
-            safe(fields, self.span, {"name": name, **(trace_fields or {})})
+            # A local entry can be a child of a remote/application span. Only
+            # a true trace root supplies an automatic trace name; explicit
+            # update_trace/name fields remain deliberate trace-wide updates.
+            parent_span = otel.get_current_span(self.parent).get_span_context()
+            defaults = {} if parent_span.is_valid else {"name": name}
+            safe(fields, self.span, {**defaults, **(trace_fields or {})})
         # Inherit explicit conversation metadata from the entry without reparenting.
         if self.entry is not None:
             entry_attributes = getattr(self.entry, "attributes", None) or {}

@@ -42,9 +42,18 @@ class OwnedProcessor(SpanProcessor):
     def __init__(self, delegate):
         self.delegate = delegate
         self.closed = False
+        self.integration_scopes: dict[str, confident.Integration] = {}
 
     def on_start(self, span, parent_context=None):
-        pass
+        if self.closed or disabled():
+            return
+        try:
+            scope = span.instrumentation_scope
+            integration = self.integration_scopes.get(scope.name) if scope else None
+            if integration is not None:
+                span.set_attribute(confident.SPAN_INTEGRATION, integration.value)
+        except Exception:
+            log.debug("Integration stamping failed")
 
     def on_end(self, span):
         if not self.closed:
@@ -173,7 +182,9 @@ def init(
                 ):
                     if selected != "http/protobuf":
                         raise ValueError("A gRPC collector endpoint is required")
-                    kwargs["endpoint"] = "https://otel.confident-ai.com/v1/traces"
+                    kwargs["endpoint"] = (
+                        "https://confident-otel-new-us.up.railway.app/v1/traces"
+                    )
                 env_headers = os.getenv(
                     otel_env.OTEL_EXPORTER_OTLP_TRACES_HEADERS,
                     os.getenv(otel_env.OTEL_EXPORTER_OTLP_HEADERS, ""),

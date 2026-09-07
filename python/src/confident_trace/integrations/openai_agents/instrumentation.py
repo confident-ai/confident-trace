@@ -2,6 +2,7 @@
 
 from importlib.metadata import distribution
 
+from ..._attributes import Integration
 from ..._semconv import native
 from .._shared.lifecycle import register_native_inference
 from ._constants import SCOPE_NAME
@@ -18,6 +19,7 @@ def instrument(runtime):
         return []
     # The upstream bridge owns process-wide hooks and its original provider.
     # Keep them for application exporters, as with other native integrations.
+    runtime.processor.integration_scopes[SCOPE_NAME] = Integration.OPENAI_AGENTS
     return register_native_inference(
         SCOPE_NAME,
         attribute=native.OPENINFERENCE_KIND,

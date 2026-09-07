@@ -1,5 +1,6 @@
 """Enable native Agent Framework telemetry on the application's OTel provider."""
 
+from ..._attributes import Integration
 from .._shared.lifecycle import register_native_inference
 from ._constants import SCOPE_NAME
 
@@ -14,4 +15,5 @@ def instrument(runtime):
         observability.enable_instrumentation(
             enable_sensitive_data=settings.enable_sensitive_data
         )
+    runtime.processor.integration_scopes[SCOPE_NAME] = Integration.MICROSOFT_AGENT_FRAMEWORK
     return register_native_inference(SCOPE_NAME)

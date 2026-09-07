@@ -1,0 +1,8 @@
+# Tested versions, not runtime restrictions. Framework dependencies are application-owned.
+llama-index-core==0.14.24
+llama-index-instrumentation==0.6.0
+llama-index-workflows==2.23.3
+llama-index-llms-openai==0.8.1
+agno==3.0.6
+smolagents==1.26.0
+openai==2.54.0

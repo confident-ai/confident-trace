@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+frameworks-test = ["llama-index-core", "llama-index-llms-openai", "agno", "smolagents[openai]"]
 crewai-test = ["crewai>=1,<2"]
 langchain-test = ["langchain>=1,<2", "langgraph>=1,<2", "langchain-openai>=1,<2"]
 openai-agents = ["openinference-instrumentation-openai-agents>=2.2.1,<3"]

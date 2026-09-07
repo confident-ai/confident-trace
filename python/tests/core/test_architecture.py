@@ -9,6 +9,9 @@ from conftest import ROOT
 
 SOURCE = ROOT / "python/src/confident_trace"
 PROVIDERS = {
+    "llamaindex",
+    "agno",
+    "smolagents",
     "crewai",
     "langchain",
     "openai",
@@ -24,6 +27,12 @@ PROVIDERS = {
     "claude_agent_sdk",
 }
 SDK_ROOTS = {
+    "llama_index",
+    "llama_index_instrumentation",
+    "workflows",
+    "llamaindex",
+    "agno",
+    "smolagents",
     "crewai",
     "langchain",
     "langchain_core",
@@ -87,13 +96,13 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 class MissingSDKs(MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'crewai', 'langchain', 'langchain_core', 'langgraph', 'openai', 'anthropic', 'google', 'boto3', 'botocore', 'bedrock_agentcore', 'agent_framework', 'pydantic_ai', 'strands', 'agents', 'claude_agent_sdk', 'openinference'}:
+        if fullname.split('.')[0] in {'llama_index', 'llama_index_instrumentation', 'workflows', 'llamaindex', 'agno', 'smolagents', 'crewai', 'langchain', 'langchain_core', 'langgraph', 'openai', 'anthropic', 'google', 'boto3', 'botocore', 'bedrock_agentcore', 'agent_framework', 'pydantic_ai', 'strands', 'agents', 'claude_agent_sdk', 'openinference'}:
             raise ModuleNotFoundError(fullname)
 
 sys.meta_path.insert(0, MissingSDKs())
 import confident_trace as ct
 prefix = 'confident_trace.integrations.'
-providers = {'crewai', 'langchain', 'openai', 'anthropic', 'google_genai', 'bedrock', 'google_adk', 'agentcore', 'microsoft_agent_framework', 'pydantic_ai', 'strands', 'openai_agents', 'claude_agent_sdk'}
+providers = {'llamaindex', 'agno', 'smolagents', 'crewai', 'langchain', 'openai', 'anthropic', 'google_genai', 'bedrock', 'google_adk', 'agentcore', 'microsoft_agent_framework', 'pydantic_ai', 'strands', 'openai_agents', 'claude_agent_sdk'}
 def loaded():
     return {name[len(prefix):].split('.')[0] for name in sys.modules if name.startswith(prefix)} & providers
 assert loaded() == set()

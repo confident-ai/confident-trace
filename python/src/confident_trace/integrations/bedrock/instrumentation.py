@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from opentelemetry import context
 from opentelemetry.trace import SpanKind
 
+from ..._attributes import Integration
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
@@ -35,6 +36,7 @@ def begin(instance, params):
         f"{ai.GEN_AI_OPERATION_NAME__CHAT} {model if type(model) is str else 'unknown'}",
         kind=SpanKind.CLIENT,
         attributes=attrs,
+        integration=Integration.BEDROCK,
     )
     op.ctx = context.set_value(_SUPPRESS, True, op.ctx)
     safe(request, op, params)
