@@ -1,3 +1,5 @@
+![Confident Trace — illuminated paths across a star-filled landscape](assets/confident-trace-banner.png)
+
 # `confident-trace`: Otel Native Tracing for AI Systems
 
 Confident's OpenTelemetry-first tracing SDK for AI applications.
