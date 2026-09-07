@@ -70,5 +70,5 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${hei
   </g>
 </svg>
 `;
-await writeFile(new URL('assets/confident-trace-banner.svg', root), svg);
+await writeFile(new URL('assets/confident-trace-banner-horizon.svg', root), svg);
 console.log(`Generated ${width}×${height} banner: eight-second horizon reveal, then ${stars.length} subtle star twinkles`);
