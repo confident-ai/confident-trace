@@ -1,4 +1,4 @@
-<img src="assets/confident-trace-banner-radial-fast.svg" alt="Confident Trace — illuminated paths across a star-filled landscape" width="100%" />
+<img src="assets/confident-trace-banner-radial-4s.svg" alt="Confident Trace — illuminated paths across a star-filled landscape" width="100%" />
 
 # `confident-trace`: Otel Native Tracing for AI Systems
 

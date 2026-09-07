@@ -17,7 +17,7 @@
     <mask id="radial-reveal" maskUnits="userSpaceOnUse" x="0" y="0" width="2172" height="724" style="mask-type: luminance">
       <rect width="2172" height="724" fill="black" />
       <circle cx="1086" cy="362" r="1527" fill="url(#reveal-softness)">
-        <animate attributeName="r" values="0;1527" dur="2s" repeatCount="1" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.25 0.1 0.25 1" />
+        <animate attributeName="r" values="0;1527" dur="4s" repeatCount="1" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.25 0.1 0.25 1" />
       </circle>
     </mask>
     <radialGradient id="starlight">
@@ -31,43 +31,43 @@
   </g>
   <g class="twinkles" pointer-events="none">
     <g transform="translate(169.42 55.75)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="6.8s" begin="2.1s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="6.8s" begin="4.1s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="9.799999999999999" fill="url(#starlight)" />
       <path d="M -4.8999999999999995 0 H 4.8999999999999995 M 0 -4.8999999999999995 V 4.8999999999999995" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1.4" fill="#fff8e9" />
     </g>
     <g transform="translate(488.70 76.02)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="7.3s" begin="2.5s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="7.3s" begin="4.5s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="7.700000000000001" fill="url(#starlight)" />
       <path d="M -3.8500000000000005 0 H 3.8500000000000005 M 0 -3.8500000000000005 V 3.8500000000000005" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1.1" fill="#fff8e9" />
     </g>
     <g transform="translate(762.37 28.24)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="8.1s" begin="2.3s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="8.1s" begin="4.3s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="10.5" fill="url(#starlight)" />
       <path d="M -5.25 0 H 5.25 M 0 -5.25 V 5.25" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1.5" fill="#fff8e9" />
     </g>
     <g transform="translate(1031.70 90.50)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="6.4s" begin="2.9s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="6.4s" begin="4.9s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="7" fill="url(#starlight)" />
       <path d="M -3.5 0 H 3.5 M 0 -3.5 V 3.5" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1" fill="#fff8e9" />
     </g>
     <g transform="translate(1364.02 37.65)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="7.6s" begin="2.2s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="7.6s" begin="4.2s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="8.4" fill="url(#starlight)" />
       <path d="M -4.2 0 H 4.2 M 0 -4.2 V 4.2" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1.2" fill="#fff8e9" />
     </g>
     <g transform="translate(1702.85 52.13)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="8.5s" begin="2.7s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="8.5s" begin="4.7s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="11.200000000000001" fill="url(#starlight)" />
       <path d="M -5.6000000000000005 0 H 5.6000000000000005 M 0 -5.6000000000000005 V 5.6000000000000005" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1.6" fill="#fff8e9" />
     </g>
     <g transform="translate(1950.46 21.00)" opacity="0">
-      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="7.1s" begin="3.1s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
+      <animate attributeName="opacity" values="0;0;0.55;0;0" keyTimes="0;0.2;0.4;0.65;1" dur="7.1s" begin="5.1s" repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;0.42 0 0.58 1;0.42 0 0.58 1;0 0 1 1" />
       <circle r="7" fill="url(#starlight)" />
       <path d="M -3.5 0 H 3.5 M 0 -3.5 V 3.5" stroke="#fff2d4" stroke-width="0.7" stroke-linecap="round" />
       <circle r="1" fill="#fff8e9" />
