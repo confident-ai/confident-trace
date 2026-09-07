@@ -8,3 +8,8 @@ dist/
 .env
 /mega-*.json
 /python/benchmarks/results.json
+
+# TypeScript dependencies and local environment variants
+node_modules/
+.pnpm-store/
+.venv-*/

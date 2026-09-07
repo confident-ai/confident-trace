@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — TypeScript SDK
+
+- Add the TypeScript OpenTelemetry runtime, OTLP exporters, bounded content policy,
+  and custom span/trace helpers with ESM/CommonJS declarations and packaging.
+- Add OpenAI, Anthropic, Google GenAI, Mastra, Vercel AI SDK, LangChain,
+  LangGraph, and OpenAI Agents SDK integrations with span types and content controls.
+- Add real SDK tests, wire fixtures, package consumer checks, and Node 22/24 CI.
+- Preserve the existing Python implementation and its semantic registry.
+
 Integration spans now use the shared public `Integration` enum and stamp
 `confident.span.integration` with canonical Cloud UI labels, including enabled
 native framework spans. Claude CLI subprocess exports remain external.

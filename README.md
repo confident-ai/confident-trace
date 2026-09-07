@@ -4,9 +4,10 @@ Confident's OpenTelemetry-first tracing SDK for AI applications.
 
 - [`python/`](python/): installable Python package, tests, examples, and benchmarks.
 - [`spec/`](spec/): language-neutral versioned GenAI registry, release manifests, and shared fixtures.
-- `typescript/`: intentionally empty, reserved for the TypeScript SDK.
+- [`typescript/`](typescript/): TypeScript SDK with OpenAI, Anthropic, Google GenAI,
+  Mastra, Vercel AI SDK, LangChain, LangGraph, and OpenAI Agents integrations.
 
-Git does not track empty directories. Run `mkdir -p typescript` after cloning.
+For TypeScript setup and usage, see the [TypeScript quickstart](typescript/README.md).
 
 ```sh
 pip install -e './python[test]'

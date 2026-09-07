@@ -1,0 +1,5 @@
+dist/
+pnpm-lock.yaml
+src/semconv/generated.ts
+LICENSE
+tests/support/proto/

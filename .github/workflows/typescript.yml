@@ -1,0 +1,32 @@
+name: TypeScript
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22', '24']
+        dependencies: [minimum, current]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+          cache-dependency-path: typescript/pnpm-lock.yaml
+      - run: pnpm --dir typescript install --frozen-lockfile
+      - if: matrix.dependencies == 'current'
+        run: pnpm --dir typescript check
+      - if: matrix.dependencies == 'minimum'
+        run: pnpm --dir typescript test:minimum
+  shared:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/sync-shared.mjs --check

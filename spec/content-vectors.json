@@ -1,0 +1,59 @@
+{
+  "contractVersion": 1,
+  "cases": [
+    {
+      "name": "plain",
+      "value": {
+        "text": "hello",
+        "list": [
+          true,
+          null,
+          3
+        ]
+      },
+      "expected": {
+        "text": "hello",
+        "list": [
+          true,
+          null,
+          3
+        ]
+      }
+    },
+    {
+      "name": "unicode",
+      "value": {
+        "text": "澳門 😀"
+      },
+      "expected": {
+        "text": "澳門 😀"
+      }
+    },
+    {
+      "name": "disabled",
+      "value": "secret",
+      "enabled": false,
+      "expectedOmitted": true
+    },
+    {
+      "name": "oversized",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "maxBytes": 64,
+      "expected": "[truncated]"
+    },
+    {
+      "name": "redaction",
+      "value": {
+        "secret": "token"
+      },
+      "redactor": "replace",
+      "expected": "[redacted]"
+    },
+    {
+      "name": "failed-redactor",
+      "value": "secret",
+      "redactor": "throw",
+      "expectedOmitted": true
+    }
+  ]
+}
