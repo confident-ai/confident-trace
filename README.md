@@ -1,4 +1,4 @@
-# confident-trace
+# `confident-trace`: Otel Native Tracing for AI Systems
 
 Confident's OpenTelemetry-first tracing SDK for AI applications.
 
