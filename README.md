@@ -23,6 +23,23 @@ OpenTelemetry Collector.
 Each SDK is independently installable. Provider and framework dependencies are
 optional; use the integrations your application needs.
 
+## Environment variables
+
+Set `CONFIDENT_API_KEY` to your project's API key. The SDK defaults internally to
+`https://otel.confident-ai.com/v1/traces`, so no endpoint variable is needed for
+US Confident Cloud. For EU or on-prem deployments, set `OTEL_EXPORTER_OTLP_ENDPOINT`:
+
+```sh
+# EU Confident Cloud
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://eu.otel.confident-ai.com
+# On-prem: replace with your deployment's OTLP HTTP base URL
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.your-company.com
+```
+
+With the default HTTP/protobuf protocol, OTel appends `/v1/traces` to this base URL.
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` takes precedence if set and must include the
+full traces path. `CONFIDENT_OTEL_ENDPOINT` is not used by this SDK.
+
 ## Agent frameworks
 
 “Native OTel” means the integration uses the framework's own OpenTelemetry spans.
