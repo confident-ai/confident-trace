@@ -33,13 +33,13 @@ const bands = [
 ];
 // Sparse highlights in the sky, scaled with the original artwork.
 const stars = [
-  [0.078, 0.077, 1.4, 8.4, 6.8],
-  [0.225, 0.105, 1.1, 10.1, 7.3],
-  [0.351, 0.039, 1.5, 9.5, 8.1],
-  [0.475, 0.125, 1.0, 11.3, 6.4],
-  [0.628, 0.052, 1.2, 8.9, 7.6],
-  [0.784, 0.072, 1.6, 10.7, 8.5],
-  [0.898, 0.029, 1.0, 12.1, 7.1],
+  [0.078, 0.077, 1.4, 2.1, 6.8],
+  [0.225, 0.105, 1.1, 2.5, 7.3],
+  [0.351, 0.039, 1.5, 2.3, 8.1],
+  [0.475, 0.125, 1.0, 2.9, 6.4],
+  [0.628, 0.052, 1.2, 2.2, 7.6],
+  [0.784, 0.072, 1.6, 2.7, 8.5],
+  [0.898, 0.029, 1.0, 3.1, 7.1],
 ];
 const twinkles = stars.map(([x, y, size, begin, duration]) => `
     <g transform="translate(${(x * width).toFixed(2)} ${(y * height).toFixed(2)})" opacity="0">
@@ -65,8 +65,8 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${hei
     <mask id="horizon-reveal" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}" style="mask-type: luminance">
       <rect width="${width}" height="${height}" fill="black" />
       <path d="${bands.at(-1)}" fill="white" filter="url(#mist-feather)">
-        <animate attributeName="d" values="${bands.join(';')}" keyTimes="0;0.22;0.55;1" dur="8s" repeatCount="1" fill="freeze" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" />
-        <animate attributeName="opacity" values="0;1" dur="0.9s" fill="freeze" />
+        <animate attributeName="d" values="${bands.join(';')}" keyTimes="0;0.22;0.55;1" dur="2s" repeatCount="1" fill="freeze" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" />
+        <animate attributeName="opacity" values="0;1" dur="0.2s" fill="freeze" />
       </path>
     </mask>
     <radialGradient id="starlight">
@@ -82,5 +82,5 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${hei
   </g>
 </svg>
 `;
-await writeFile(new URL('assets/confident-trace-banner-mist.svg', root), svg);
-console.log(`Generated ${width}×${height} banner: eight-second horizontal mist reveal, then ${stars.length} subtle star twinkles`);
+await writeFile(new URL('assets/confident-trace-banner-mist-fast.svg', root), svg);
+console.log(`Generated ${width}×${height} banner: two-second horizontal mist reveal, then ${stars.length} subtle star twinkles`);
