@@ -4,13 +4,13 @@
 
 Confident Trace brings agent runs, model calls, tools, retrieval, and application
 code into OpenTelemetry traces. Python and TypeScript SDKs work with your existing
-provider clients and export through standard OTLP to Confident or an
+provider clients and export through standard OTLP to Confident AI or an
 OpenTelemetry Collector.
 
 - **19 integrations:** 15 agent frameworks and 4 model providers across Python and
   TypeScript, with language-specific coverage listed below.
-- **OpenTelemetry semantic conventions:** Confident-owned GenAI spans follow the
-  supported subset of GenAI 1.37.0 conventions for model calls, messages, tools,
+- **OpenTelemetry semantic conventions:** Confident Trace emits GenAI spans using
+  the supported subset of GenAI 1.37.0 conventions for model calls, messages, tools,
   and token usage. Native framework spans retain their original conventions.
 
 ## SDKs
@@ -91,7 +91,7 @@ payloads are omitted.
   configured collector or compatible endpoint.
 - **Content controls:** capture opt-out, redaction, and bounded content attributes
   with a default 16 KiB limit. Capture is enabled by default. These controls apply
-  to Confident-managed content; native framework and third-party instrumentation
+  to content managed by Confident Trace; native framework and third-party instrumentation
   retain their own content policies.
 
 The SDKs export traces; they do not provide a metrics or logs pipeline.
