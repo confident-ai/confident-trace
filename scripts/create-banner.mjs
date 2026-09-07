@@ -7,14 +7,30 @@ if (png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
 }
 const width = png.readUInt32BE(16);
 const height = png.readUInt32BE(20);
-const horizonX = width * 0.57;
 const horizonY = height * 0.29;
-const verticalScale = 0.55;
-// Finish with every corner inside the fully opaque part of the feathered mask.
-const radius = Math.ceil(Math.hypot(
-  Math.max(horizonX, width - horizonX),
-  Math.max(horizonY, height - horizonY) / verticalScale,
-) / 0.64);
+const feather = height * 0.023;
+const margin = feather * 6;
+// A full-width band with separate, irregular upper/lower edges. The sky
+// clears first; the lower edge rolls across the foreground more slowly.
+function mistBand(sky, ground, waviness) {
+  const top = [], bottom = [];
+  for (let i = 0; i <= 32; i++) {
+    const x = -margin + (width + 2 * margin) * i / 32;
+    const ripple = Math.sin(i * 0.67) * 0.55 + Math.sin(i * 1.39 + 1.7) * 0.3;
+    const lowerRipple = Math.sin(i * 0.49 + 0.8) * 0.65 + Math.sin(i * 1.17) * 0.25;
+    top.push([x, horizonY - 3 - (horizonY + margin) * sky + ripple * waviness]);
+    bottom.push([x, horizonY + 3 + (height - horizonY + margin) * ground + lowerRipple * waviness]);
+  }
+  return [...top, ...bottom.reverse()].map(([x, y], i) =>
+    `${i ? 'L' : 'M'} ${x.toFixed(2)} ${y.toFixed(2)}`,
+  ).join(' ') + ' Z';
+}
+const bands = [
+  mistBand(0, 0, 2),
+  mistBand(0.35, 0.12, height * 0.025),
+  mistBand(0.9, 0.5, height * 0.045),
+  mistBand(1, 1, 0),
+];
 // Sparse highlights in the sky, scaled with the original artwork.
 const stars = [
   [0.078, 0.077, 1.4, 8.4, 6.8],
@@ -35,7 +51,7 @@ const twinkles = stars.map(([x, y, size, begin, duration]) => `
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-labelledby="title desc">
   <title id="title">Confident Trace — illuminated paths across a star-filled landscape</title>
-  <desc id="desc">The landscape slowly emerges from its glowing horizon, followed by gentle star twinkles.</desc>
+  <desc id="desc">A soft, uneven band of mist opens along the horizon and rolls toward the foreground, followed by gentle star twinkles.</desc>
   <style>
     @media (prefers-reduced-motion: reduce) {
       .landscape { mask: none !important; }
@@ -43,19 +59,15 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${hei
     }
   </style>
   <defs>
-    <radialGradient id="reveal-softness">
-      <stop offset="0" stop-color="white" />
-      <stop offset="0.65" stop-color="white" />
-      <stop offset="0.83" stop-color="#aaa" />
-      <stop offset="1" stop-color="black" />
-    </radialGradient>
+    <filter id="mist-feather" filterUnits="userSpaceOnUse" x="${-margin}" y="${-margin}" width="${width + 2 * margin}" height="${height + 2 * margin}">
+      <feGaussianBlur stdDeviation="${feather}" />
+    </filter>
     <mask id="horizon-reveal" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}" style="mask-type: luminance">
       <rect width="${width}" height="${height}" fill="black" />
-      <g transform="translate(${horizonX} ${horizonY}) scale(1 ${verticalScale})">
-        <circle r="${radius}" fill="url(#reveal-softness)">
-          <animate attributeName="r" values="0;${radius}" dur="8s" repeatCount="1" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.25 0.1 0.25 1" />
-        </circle>
-      </g>
+      <path d="${bands.at(-1)}" fill="white" filter="url(#mist-feather)">
+        <animate attributeName="d" values="${bands.join(';')}" keyTimes="0;0.22;0.55;1" dur="8s" repeatCount="1" fill="freeze" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" />
+        <animate attributeName="opacity" values="0;1" dur="0.9s" fill="freeze" />
+      </path>
     </mask>
     <radialGradient id="starlight">
       <stop offset="0" stop-color="#fff5db" stop-opacity="0.7" />
@@ -70,5 +82,5 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${hei
   </g>
 </svg>
 `;
-await writeFile(new URL('assets/confident-trace-banner-horizon.svg', root), svg);
-console.log(`Generated ${width}×${height} banner: eight-second horizon reveal, then ${stars.length} subtle star twinkles`);
+await writeFile(new URL('assets/confident-trace-banner-mist.svg', root), svg);
+console.log(`Generated ${width}×${height} banner: eight-second horizontal mist reveal, then ${stars.length} subtle star twinkles`);
