@@ -1,0 +1,42 @@
+{
+  "tests/integrations/frameworks.test.ts": {
+    "uses real AI SDK generation with <integration> and preserves async parentage": "vercel-ai",
+    "retains streaming output, usage, SDK callbacks and response helpers": "vercel-ai",
+    "records AI SDK multi-step tools with the tool span active inside execute": "vercel-ai",
+    "redacts AI SDK content and drops raw headers, metadata and error payloads": "vercel-ai",
+    "honors runtime content opt-out and bounds upstream AI SDK JSON before parsing": "vercel-ai",
+    "keeps simultaneous generations in separate trace trees with one shared integration": "vercel-ai",
+    "exports real Mastra agent/model/tool trees with original IDs and usage": "mastra",
+    "exports resumed Mastra spans without needing prior start events": "mastra",
+    "applies Mastra privacy and preserves failure status without exception text": "mastra",
+    "Mastra shutdown is idempotent and does not shut down the application OTel provider": "mastra",
+    "omits multimodal payloads and keeps existing third-party spans unchanged": "vercel-ai",
+    "ends AI SDK streams on an SDK abort without changing callback behavior": "vercel-ai",
+    "respects disabled tracing in both framework integrations": "core",
+    "respects Mastra sampling, redaction, events and exporter resource precedence": "mastra"
+  },
+  "tests/integrations/providers.test.ts": {
+    "captures chat using the real SDK and keeps parentage": "openai",
+    "captures responses using the real SDK and keeps parentage": "openai",
+    "captures anthropic using the real SDK and keeps parentage": "anthropic",
+    "captures google using the real SDK and keeps parentage": "google-genai",
+    "preserves APIPromise helpers and raw response bodies": "openai",
+    "captures Chat streaming text/tool deltas and trailing usage without eager consumption": "openai",
+    "captures Responses streams without duplicating completed output": "openai",
+    "captures Anthropic create streaming including helper-only consumption": "anthropic",
+    "captures Anthropic stream streaming including helper-only consumption": "anthropic",
+    "captures Google camelCase streaming metadata": "google-genai",
+    "honors init content policy and explicit redaction without leaking error bodies": "openai",
+    "bounds stream retention, still captures usage, and ends early-return streams": "openai",
+    "preserves errors, iterator cancellation, suppression, and restoration ownership": "openai",
+    "does not instrument disabled calls or invoke content getters": "openai",
+    "uses redaction once on normalized content and omits content when redaction throws": "openai",
+    "keeps streaming withResponse and await on the same promise open until consumed": "openai",
+    "ends an unconsumed stream on explicit SDK abort": "openai",
+    "preserves iterator failures and runs stream work inside the provider span": "openai",
+    "suppresses nested provider calls and preserves later patches on restoration": "core",
+    "captures Anthropic tool fragments and Google complete tool calls": "core",
+    "keeps concurrent provider requests under their own parents": "openai",
+    "preserves initialization privacy when only a content limit is overridden": "openai"
+  }
+}

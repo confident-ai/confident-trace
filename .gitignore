@@ -13,3 +13,6 @@ dist/
 node_modules/
 .pnpm-store/
 .venv-*/
+
+# Grouped CI reports
+/ci-results/

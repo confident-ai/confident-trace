@@ -6,10 +6,18 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repository = fileURLToPath(new URL('../../', import.meta.url));
-const temporary = await mkdtemp(join(tmpdir(), 'confident-trace-minimum-'));
-const destination = join(temporary, 'repo');
+const prepareOnly = process.argv.includes('--prepare-only');
+const temporary = prepareOnly
+  ? undefined
+  : await mkdtemp(join(tmpdir(), 'confident-trace-minimum-'));
+const destination = prepareOnly
+  ? process.env.CI_MINIMUM_DESTINATION
+  : join(temporary, 'repo');
+if (!destination)
+  throw new Error('CI_MINIMUM_DESTINATION is required with --prepare-only');
 const excluded = new Set([
   'node_modules',
+  'ci-results',
   '.pnpm-store',
   '.git',
   '.venv',
@@ -49,8 +57,12 @@ try {
     });
   run(['install', '--no-frozen-lockfile']);
   run(['exec', 'prettier', '--write', 'package.json']);
-  run(['check']);
-  console.log('Minimum OTel dependency suite passed in an isolated checkout');
+  if (!prepareOnly) run(['check']);
+  console.log(
+    prepareOnly
+      ? 'Minimum OTel environment prepared'
+      : 'Minimum OTel dependency suite passed in an isolated checkout',
+  );
 } finally {
-  await rm(temporary, { recursive: true, force: true });
+  if (temporary) await rm(temporary, { recursive: true, force: true });
 }

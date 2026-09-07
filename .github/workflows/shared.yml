@@ -1,0 +1,47 @@
+name: Shared
+on: [push, pull_request]
+jobs:
+  consistency:
+    name: Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@v6
+      - run: uv python install 3.10 3.11 3.12 3.13
+      - run: python -m pip install pytest PyYAML ruff
+      - name: Registry consistency across Python versions
+        run: |
+          failed=0
+          for version in 3.10 3.11 3.12 3.13; do
+            "$(uv python find "$version")" tools/generate_genai.py --check --base "$REGISTRY_BASE" || failed=1
+          done
+          exit "$failed"
+        env:
+          REGISTRY_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - name: Shared files on Node 22
+        if: ${{ !cancelled() }}
+        run: node scripts/sync-shared.mjs --check
+      - uses: actions/setup-node@v4
+        if: ${{ !cancelled() }}
+        with:
+          node-version: '24'
+      - name: Shared files on Node 24
+        if: ${{ !cancelled() }}
+        run: node scripts/sync-shared.mjs --check
+      - name: Python runner regression tests
+        if: ${{ !cancelled() }}
+        run: |
+          ruff check scripts/ci
+          ruff format --check scripts/ci
+          python -m unittest discover -s scripts/ci -p 'test_*.py'
+      - name: TypeScript grouping regression tests
+        if: ${{ !cancelled() }}
+        run: node --test typescript/scripts/ci-suite.test.mjs

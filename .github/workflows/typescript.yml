@@ -1,32 +1,63 @@
+# Generated layout is checked by scripts/ci/test_runner.py.
 name: TypeScript
 on: [push, pull_request]
 jobs:
-  test:
+  suite:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     strategy:
+      fail-fast: false
       matrix:
-        node: ['22', '24']
-        dependencies: [minimum, current]
+        include:
+          - suite: openai
+            name: "OpenAI"
+          - suite: anthropic
+            name: "Anthropic"
+          - suite: google-genai
+            name: "Google GenAI"
+          - suite: langchain
+            name: "LangChain / LangGraph"
+          - suite: openai-agents
+            name: "OpenAI Agents"
+          - suite: core
+            name: "Core"
+          - suite: quality
+            name: "Build & quality"
+          - suite: mastra
+            name: "Mastra"
+          - suite: vercel-ai
+            name: "Vercel AI SDK"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - uses: pnpm/action-setup@v4
         with:
           version: 10.14.0
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '22'
           cache: pnpm
           cache-dependency-path: typescript/pnpm-lock.yaml
-      - run: pnpm --dir typescript install --frozen-lockfile
-      - if: matrix.dependencies == 'current'
-        run: pnpm --dir typescript check
-      - if: matrix.dependencies == 'minimum'
-        run: pnpm --dir typescript test:minimum
-  shared:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - run: echo "NODE_22=$(dirname "$(command -v node)")" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-      - run: node scripts/sync-shared.mjs --check
+          node-version: '24'
+      - run: echo "NODE_24=$(dirname "$(command -v node)")" >> "$GITHUB_ENV"
+      - name: Run all compatibility combinations
+        run: python3 scripts/ci/run.py typescript "${{ matrix.suite }}"
+      - name: Upload results and logs
+        id: reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-${{ matrix.suite }}
+          path: ci-results/typescript/${{ matrix.suite }}/
+          if-no-files-found: error
+      - name: Link reports
+        if: always() && steps.reports.outputs.artifact-url != ''
+        env:
+          REPORT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: echo "[Download per-combination logs and test reports]($REPORT_URL)" >> "$GITHUB_STEP_SUMMARY"
