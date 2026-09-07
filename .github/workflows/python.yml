@@ -48,3 +48,75 @@ jobs:
         run: python -m pip install --upgrade -e './python[test,native-test]'
       - run: python -m pip check
       - run: pytest python/tests
+
+  microsoft:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13']
+        dependencies: [tested, latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - if: matrix.dependencies == 'tested'
+        run: python -m pip install -c python/tests/constraints/microsoft.txt -e './python[test,microsoft-test]'
+      - if: matrix.dependencies == 'latest'
+        run: python -m pip install --upgrade -e './python[test,microsoft-test]'
+      - run: python -m pip check
+      - run: pytest python/tests
+
+  agent-sdks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13']
+        dependencies: [tested, latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - if: matrix.dependencies == 'tested'
+        run: python -m pip install -c python/tests/constraints/agent-sdks.txt -e './python[test,agent-sdks-test]'
+      - if: matrix.dependencies == 'latest'
+        run: python -m pip install --upgrade -e './python[test,agent-sdks-test]'
+      - run: python -m pip check
+      - run: pytest python/tests
+
+  langchain:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13']
+        dependencies: [tested, latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - if: matrix.dependencies == 'tested'
+        run: python -m pip install -c python/tests/constraints/langchain.txt -e './python[test,langchain-test]'
+      - if: matrix.dependencies == 'latest'
+        run: python -m pip install --upgrade -e './python[test,langchain-test]'
+      - run: python -m pip check
+      - run: pytest python/tests
+
+  crewai:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13']
+        dependencies: [tested, latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - if: matrix.dependencies == 'tested'
+        run: python -m pip install -c python/tests/constraints/crewai.txt -e './python[test,crewai-test]'
+      - if: matrix.dependencies == 'latest'
+        run: python -m pip install --upgrade -e './python[test,crewai-test]'
+      - run: python -m pip check
+      - run: pytest python/tests

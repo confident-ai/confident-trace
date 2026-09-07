@@ -39,6 +39,11 @@ Version 0.1.0 is the initial release; the API may change before 1.0.0. See the r
 
 - **Automatically instrumented SDK calls:** OpenAI, Anthropic, Google GenAI, and AWS Bedrock Runtime (Boto3).
   We wrap their supported Python methods and emit OTel spans ourselves.
+- **In-house framework integration:** LangChain and LangGraph; full callback hierarchy,
+  GenAI model/tool spans, and standard OTel nesting inside nodes and tools.
+- **Native framework integration:** Pydantic AI, Strands, Google ADK, Microsoft Agent
+  Framework, AgentCore, OpenAI Agents (requires the tracing bridge extra), and
+  Claude Agent SDK (native child-process export). See [setup and native limitations](docs/integrations.md).
 - **Existing OTel spans:** we export spans an SDK/framework or external instrumentor
   already emits through the shared provider. Framework instrumentation must already
   be enabled; backend GenAI interpretation depends on its conventions.
@@ -134,8 +139,73 @@ Boto3 uses its normal AWS credential chain. Native async AWS clients are not ins
 For implementation layout and adding integrations, see the [architecture guide](docs/architecture.md).
 
 
-Native integrations: install `confident-trace[google-adk]` or
-`confident-trace[agentcore]`, then call `init()` on the shared global OTel provider.
-See [native integration setup and boundaries](docs/integrations.md#native-google-adk)
-and [examples](examples/README.md). Tested versions are documented; the optional extras do not pin
-framework versions; cloud deployment and backend mapping are separate.
+Native integrations: install `pip install confident-trace` in your existing Google
+ADK or Microsoft Agent Framework application, then call `init()` on the shared
+global OTel provider. Supported installed SDKs are detected automatically; manage
+your provider and framework dependencies in your application.
+
+AgentCore additionally needs OTel ASGI instrumentation: install
+`pip install 'confident-trace[agentcore]'`. This extra installs the tracing
+middleware only; your application supplies `bedrock-agentcore`. Extras add tracing
+dependencies, rather than enabling integrations.
+
+See [integration setup and boundaries](docs/integrations.md) and
+[examples](examples/README.md). Tested versions are documented; cloud deployment
+and backend mapping are separate. Test extras are for development and CI.
+
+## SDK diagnostics
+
+To troubleshoot missing telemetry, enable the SDK's diagnostic logger through
+Python logging:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger("confident_trace.diagnostics").setLevel(logging.DEBUG)
+```
+
+Failures caught by the shared fail-open helper then produce messages such as
+`Telemetry operation integrations.openai.extraction.response failed (TypeError)`.
+This is SDK troubleshooting output, not a separate telemetry exporter. Existing
+application logging handlers and filters determine where the messages go.
+
+Diagnostics are silent unless DEBUG is enabled for this logger (directly or via
+its parent). They include only package code locations and exception type names;
+arguments, return values, exception messages, and tracebacks are omitted. External
+callables use the generic label `telemetry`. Output is limited to 10 messages per
+60-second window per process across all operations; the last message announces
+suppression. Enabling diagnostics does not change return values or retry calls.
+Logging failures are swallowed and forked children get a fresh limiter.
+This covers the shared helper, not every upstream or independently caught failure.
+
+
+For OpenAI Agents framework tracing, install `confident-trace[openai-agents]` in
+addition to your existing `openai-agents` package. This extra adds the OpenInference
+tracing bridge. Claude Agent SDK needs no extra; `init()` configures its default
+subprocess's native OTLP export. See [setup and boundaries](docs/integrations.md).
+
+### LangChain and LangGraph
+
+Install the frameworks and model integrations your application uses, then call
+`init()`. No tracing extra or OpenInference dependency is required. Both frameworks
+share one owned callback bridge; `instrumentations=("langgraph",)` also enables it.
+
+```python
+from confident_trace import init, span
+
+init()
+with span("request"):
+    result = graph.invoke(state, {"configurable": {"thread_id": "conversation-42"}})
+```
+
+Graph nodes, intermediate runnables, models, tools, and retrievers retain their
+callback hierarchy. A model's requested tool calls are captured in its output;
+subsequent tool executions follow their framework parent, normally alongside
+the model under the agent/node. Conversation IDs associate separate traces;
+checkpoint resume starts a new invocation.
+
+See [execution and concurrency details](docs/langchain.md) and the offline
+[LangGraph example](examples/langgraph_local.py).
+
+CrewAI is automatically instrumented when installed. See [CrewAI setup and tracing ownership](docs/crewai.md).

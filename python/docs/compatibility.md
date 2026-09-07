@@ -16,7 +16,7 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 
 | Dependency | Supported | Locally tested |
 |---|---|---|
-| Python | >=3.10 | 3.13.2 (CI: 3.10–3.13) |
+| Python | >=3.10 | 3.10.17 (LangChain/LangGraph and core/provider suite), 3.13.2 (CI: 3.10–3.13) |
 | OTel API/SDK/HTTP+gRPC exporters | >=1.39,<2 | 1.39.0, 1.42.1 (native integrations), 1.44.0 |
 | OpenAI | >=1.109,<4 | 1.109.0, 3.8.0 |
 | Anthropic | >=0.69,<2 | 0.69.0, 1.4.0 |
@@ -26,7 +26,15 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 | Google ADK (optional) | Native scope/operation recognition; no package-version restriction | 2.8.0 with Google GenAI 2.19.0 / 2.22.0 |
 | AgentCore (optional) | HTTP /invocations with compatible async ASGI app; no package-version restriction | 1.22.0 with Boto3/Botocore 1.43.72 / 1.43.89; local ASGI only |
 | OTel ASGI instrumentation (AgentCore extra) | Async middleware accepting tracer_provider and server_request_hook; exclude_spans optional | 0.63b1 with OTel SDK 1.42.1 |
-| Strands (coexistence example/test only) | Native OTel export; not an automatic Strands instrumentor | 1.54.0 agent/model/tool execution with mocked model events |
+| Microsoft Agent Framework (optional) | Native observability capabilities; no runtime version gate | core 1.17.0 / OpenAI client 1.14.2 |
+| Strands (optional) | Native OTel export and inference recognition; no runtime version gate | 1.54.0 with OpenAI 3.8.0 |
+| Pydantic AI (optional) | Native enablement and inference recognition; no runtime version gate | pydantic-ai-slim 2.40.0 with OpenAI 3.8.0 |
+| OpenAI Agents SDK (optional) | OpenInference bridge capabilities; framework installed by application | 0.22.0 with OpenAI 3.8.0 |
+| OpenInference OpenAI Agents bridge (extra) | >=2.2.1,<3; native OpenInference schema and policy | 2.2.1 with openinference-instrumentation 0.1.61 / semantic-conventions 0.1.35 |
+| Claude Agent SDK (optional) | Default subprocess transport; CLI native OTLP tracing requires beta support | 0.2.152 Python SDK with offline CLI protocol fixture; native CLI spans unverified |
+| LangChain / Core (optional) | 1.x callback and execution-context capabilities; no runtime version gate | LangChain 1.4.0 / Core 1.6.2 / langchain-openai 1.6.0 |
+| LangGraph (optional) | 1.x local graph execution; remote servers require their own instrumentation | 1.2.11 with checkpoint 4.2.0 |
+| CrewAI (optional) | Execution-hook capabilities; framework installed by application; no runtime version gate | 1.15.20 / crewai-core 1.15.20 with OpenAI 2.54.0 |
 
 ## Instrumentation coverage
 
@@ -40,22 +48,39 @@ Content: JSON-encoded gen_ai.input.messages / gen_ai.output.messages and gen_ai.
 | Existing OTel instrumentation | Pass-through on shared TracerProvider | Original IDs, parents, attributes, events and schema preserved; framework-specific coverage listed separately |
 | Google ADK (native OTel) | Runner.run_async; agent, model, tool, streaming spans | Real runner/mocked GenAI transport; parallel tools, concurrent sessions, failure/cancellation/early close; no extra Confident inference spans. Native scope gcp.vertex.agent/2.8.0, schema 1.36.0; content in gcp.vertex.agent.llm_request/llm_response/tool_call_args/tool_response. Native logs are not exported by this SDK. |
 | AgentCore (native application telemetry) | HTTP /invocations via upstream ASGI middleware; existing middleware coexistence | Real local request handling, sync/async handlers, streaming/disconnect, W3C parents/session isolation, Bedrock calls and native Strands tools. No hosted AWS/ADOT or backend mapping certification. |
+| Microsoft Agent Framework (native OTel) | Agent.run, native tools and workflows; overlapping Confident inference suppression | Real framework and mocked HTTP: concurrency, streaming, tools, workflow parentage, errors/cancellation and enablement lifecycle. Native scope agent_framework/1.17.0; native schema URL empty. |
+| Pydantic AI (native OTel) | Agent runs, tools and streams; native enablement and overlapping model suppression | Real OpenAI model adapter with mocked HTTP/SSE; sync/async, tools, parentage, errors, cancellation/close, existing settings and explicit providers. |
+| Strands (native OTel) | Agent runs, tools and streams; overlapping model suppression | Real OpenAI model adapter with mocked HTTP/SSE; sync/async, tools, parentage, errors, import/init order. Native cancellation and early-close span leaks are tracked expected failures. |
+| OpenAI Agents SDK (OpenInference OTel bridge) | Agent runs, model calls, tools, handoffs, guardrails and streams | Real SDK with mocked Chat Completions/Responses HTTP and SSE; native processors, parentage, deduplication, cancellation/draining, and reinit. Bridge owns native content and error policy. |
+| Claude Agent SDK (native subprocess export configuration) | Default query()/ClaudeSDKClient subprocess configuration and W3C context propagation | Real Python SDK and offline CLI protocol fixture; copied options, destination/auth isolation, disabling, and patch ownership. Native CLI spans, cancellation delivery, collector/backend mapping unverified. |
+| LangChain / LangGraph (in-house GenAI bridge) | invoke/ainvoke, batch/abatch, model and graph streams, astream_events v2, tools/retrievers, subgraphs and checkpoint resume | Real framework and mocked provider execution on Python 3.10/3.13; explicit parent IDs, OTel nesting, parallel tasks/workers, cancellation/closure, content contracts and provider deduplication. |
+| CrewAI (in-house execution tracing) | Crews, task execution, standalone/task agents, tools, Flow methods and resume; existing provider adapters own inference | Real framework and mocked OpenAI HTTP/SSE; explicit hierarchy, parallel tasks/tools, scoped worker context, streaming, errors/cancellation, lifecycle and content contracts. |
 
 ## Deviations and boundaries
 
 - Traces only: cataloged metrics and log events are not emitted. No server-side measurements or backend mapping certification.
-- Only the listed SDK methods are instrumented. Embeddings, realtime, batch, image/audio generation, and OpenAI responses.stream helper are outside this release.
+- Only the listed SDK methods are instrumented. Embeddings, realtime, provider batch APIs, image/audio generation, and OpenAI responses.stream helper are outside this release.
 - Content capture defaults on rather than the upstream opt-in recommendation; disable with capture_content=False. Third-party instrumentation owns its own capture policy.
 - Partial output uses an empty finish_reason until a provider reports one. Empty means unknown, not successful completion; span status still records errors.
 - Multimodal binary payloads are omitted; message parts identify omitted content. Provider-specific builtin tools and unknown content use explicit unsupported markers.
 - Custom tool arguments/results use confident.span.input/output because standard tool argument/result attributes are absent in 1.37.0.
 - Cache and reasoning token breakdown attributes from later conventions are not emitted. Input/output totals include available provider-reported components.
 - No inference of conversations from prompts. Explicit thread_id and provider conversation identifiers populate gen_ai.conversation.id on Confident-owned spans without changing trace parentage. Foreign-span enrichment uses confident.trace.thread_id and preserves native GenAI attributes.
-- Native adapter versions listed above are tested versions, not installation or runtime restrictions. Other versions may work but are unverified; missing AgentCore middleware capabilities leave existing native export and application behavior unaffected. No universal duplicate detection; disable overlapping provider instrumentation for other native frameworks such as Strands.
+- Native adapter versions listed above are tested versions, not installation or runtime restrictions. Other versions may work but are unverified; missing AgentCore middleware capabilities leave existing native export and application behavior unaffected. No universal duplicate detection; disable overlapping provider instrumentation for unverified native frameworks.
 - Unknown fields and enum values in third-party spans pass through unchanged. Registry completeness is not an implementation-coverage claim.
 - Bedrock supports Boto3 Converse/ConverseStream only. InvokeModel, InvokeModelWithResponseStream, and native async clients are not included. AgentCore application telemetry is a separate integration. Async applications can offload Boto3 with asyncio.to_thread; cancellation does not cancel the worker request.
 - Bedrock input totals include provider-reported uncached, cache-read, and cache-write tokens. Resolved model IDs and session IDs are not inferred. Guardrail ID is emitted only when supplied; despite the broad 1.37.0 Bedrock requirement, unguarded calls have no guardrail ID to report.
 - Native framework spans retain their own content, error capture and conventions. Confident capture/redaction/size limits do not rewrite them. ADK also emits separate OTel logs; no logs pipeline is installed.
 - Native spans must use the provider receiving the Confident exporter. An unrelated explicit provider does not redirect framework telemetry. AgentCore WebSocket/A2A, cloud-service internal telemetry, deployment, and backend interpretation are outside this change.
+- Microsoft Agent Framework native enablement remains application-owned after Confident shutdown; preexisting content settings and sticky disable are preserved.
+- Agent Framework 1.17.0 ends native chat/invoke_agent spans with ERROR on provider failure but UNSET on cancellation. Native gen_ai.conversation.id uses service_session_id, not the local session_id. Confident preserves these upstream behaviors; tests verify span closure and both session cases.
+- Pydantic AI native defaults are enabled when False; preexisting settings and per-agent overrides are preserved. An explicit earlier global False cannot be distinguished from the framework default; exclude pydantic_ai to prevent enablement.
+- Strands 1.54.0 does not end its native agent/cycle/model spans on task cancellation or early stream close. These upstream limitations are expected failures in isolated tests; native lifetimes are not patched.
+- Native model suppression checks SDK processor identity as well as scope/operation; if that read-only SDK capability is unavailable, the provider wrapper remains active.
+- OpenAI Agents requires the optional OpenInference tracing bridge. Its native OpenInference schema/content policy pass through unchanged; backend interpretation and realtime/voice coverage are not certified. Bridge hooks/processors and their original provider remain application-owned after Confident shutdown.
+- Claude Agent SDK exports from a separate CLI process directly to OTLP. It cannot use an arbitrary Python exporter; Confident content policy, thread metadata and flush/shutdown do not control native child spans. Per-agent exporter overrides are application-owned as a group; Confident credentials are not injected into them.
+- Claude native traces are beta. Local validation uses an offline CLI protocol fixture, not real Claude Code telemetry. Long-lived SDK clients inherit parent context at connection; native payloads, cancellation delivery and backend mapping require separate validation.
+- LangChain/LangGraph use narrow owned execution hooks and preserve full callback structure. Plain runnables/graphs/retrievers have no fabricated GenAI operation. Framework-required explicit async RunnableConfig propagation still applies on Python 3.10. Application-owned pools require context propagation; remote execution and new protocol stream_events v3 are not certified.
+- CrewAI captures execution structure without a second framework inference span. Custom LLM/LiteLLM paths bypassing supported provider SDK methods require separate instrumentation. Internal agent Flow nodes are preserved. CrewAI streaming scopes begin in the inner execution under consumption context; cancelled synchronous workers may finish later. Remote AMP, memory tracing and arbitrary execution overrides are not certified. Do not combine overlapping CrewAI instrumentors or unreconciled gateway model exports.
 
 For automatic instrumentation versus existing OTel spans, see [integration guide](integrations.md).

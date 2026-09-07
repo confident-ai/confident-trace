@@ -7,6 +7,14 @@ from .._core import runtime
 _MODULES = {
     name: f"{__package__}.{name}.instrumentation"
     for name in (
+        "crewai",
+        "langchain",
+        "langgraph",
+        "openai_agents",
+        "claude_agent_sdk",
+        "pydantic_ai",
+        "strands",
+        "microsoft_agent_framework",
         "openai",
         "anthropic",
         "google_genai",
@@ -15,16 +23,18 @@ _MODULES = {
         "agentcore",
     )
 }
+# LangGraph shares the callback bridge; its optional context hook lives with it.
+_MODULES["langgraph"] = _MODULES["langchain"]
 
 
-def install(rt, names):
+def instrument(rt, names):
     undo = []
     for name in dict.fromkeys(names):
         module = _MODULES.get(name)
         if module is None:
             continue
         try:
-            undo.extend(importlib.import_module(module).install(rt))
+            undo.extend(importlib.import_module(module).instrument(rt))
         except ImportError:
             continue
         except Exception:

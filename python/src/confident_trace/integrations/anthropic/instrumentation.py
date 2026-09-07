@@ -31,7 +31,7 @@ def finish(op, value):
     return finish_call(op, value, response, Accumulator, Stream, AsyncStream)
 
 
-def install(runtime):
+def instrument(runtime):
     return install_targets(
         TARGETS,
         lambda original, method: wrapper(

@@ -105,7 +105,14 @@ def accumulator(provider):
 
 
 @pytest.fixture
-def native():
+def native_integrations():
+    # Frameworks with process-global enablement are exercised in isolated
+    # subprocess scenarios; other native tests should not initialize them.
+    return ("openai", "anthropic", "google_genai", "bedrock", "google_adk", "agentcore")
+
+
+@pytest.fixture
+def native(native_integrations):
     ct.shutdown()
     provider = trace.get_tracer_provider()
     if isinstance(provider, trace.ProxyTracerProvider):
@@ -115,7 +122,7 @@ def native():
     gate = OwnedProcessor(SimpleSpanProcessor(witness))
     provider.add_span_processor(gate)
     exporter = InMemorySpanExporter()
-    ct.init(exporter=exporter)
+    ct.init(exporter=exporter, instrumentations=native_integrations)
     yield provider, exporter, witness
     ct.shutdown()
     gate.shutdown()

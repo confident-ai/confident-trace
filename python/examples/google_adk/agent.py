@@ -1,4 +1,4 @@
-"""pip install -e './python[google-adk]'; set GOOGLE_API_KEY and CONFIDENT_API_KEY."""
+"""pip install -e './python' google-adk; set GOOGLE_API_KEY and CONFIDENT_API_KEY."""
 
 import asyncio
 import os

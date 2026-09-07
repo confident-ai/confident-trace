@@ -32,7 +32,7 @@ def finish(op, value):
     return finish_call(op, value, response, Accumulator)
 
 
-def install(runtime):
+def instrument(runtime):
     return install_targets(
         TARGETS,
         lambda original, method: wrapper(

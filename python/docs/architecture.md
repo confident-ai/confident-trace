@@ -13,7 +13,7 @@ Optional `@span` creates custom steps. Provider-specific processing lives in
 
 Provider wrapper packages contain:
 
-- `instrumentation.py`: method targets and `install(runtime)`, request setup, and result dispatch.
+- `instrumentation.py`: method targets and `instrument(runtime)`, request setup, and result dispatch.
 - `extraction.py`: SDK request/response fields, provider identity, message conversion, and attributes.
 - `streaming.py`: SDK events and provider-specific stream helpers, using bounded shared accumulation.
 
@@ -22,7 +22,7 @@ Provider wrapper packages contain:
 ```text
 init() → _bootstrap → _core.runtime: provider, processor, exporter configuration
                    → integrations.registry: load selected integrations
-                       → integration.install(runtime): install owned patches
+                       → integration.instrument(runtime): apply owned patches
 
 SDK call → integration.instrumentation → shared call lifecycle → core Operation
          → integration.extraction: request attributes and content
@@ -59,7 +59,7 @@ core and shared streaming code.
 
 ## Adding an integration
 
-1. Add its package with an `install(runtime)` function returning cleanup callbacks.
+1. Add its package with an `instrument(runtime)` function returning cleanup callbacks.
    SDK wrappers can use shared patching and lifecycle helpers. An integration for
    a framework that already emits OTel can configure its native instrumentor and
    return its cleanup callback without adding wrappers.
@@ -86,7 +86,7 @@ These module paths are private implementation details. Public imports remain
 ## Native integrations
 
 `google_adk` registers a verified native inference scope with shared lifecycle
-code. The generic provider wrapper checks only the current scope and operation;
+code. The generic provider wrapper checks the current scope, operation, and SDK processor identity;
 it does not import ADK or parse ADK payloads. Shutdown removes the registration.
 `agentcore` wraps the runtime application's ASGI call boundary with upstream OTel
 middleware only when no active server span covers it. Middleware is cached on the
@@ -118,3 +118,67 @@ conventions may coexist in one trace/export batch; Confident does not relabel th
 as its own schema. Architecture tests reject inline telemetry names and dynamic
 namespace prefixes outside definition modules. Wire fixtures and tests retain
 independent literals so they can detect incorrect constant values.
+
+
+`microsoft_agent_framework` enables native observability while preserving content
+policy and sticky disable, then registers its inference scope.
+Native process-wide configuration stays enabled after Confident shutdown to
+preserve other application exporters. Hosted platform export configuration is
+separate from the SDK's application framework integrations.
+
+
+`pydantic_ai` enables the native process default while preserving existing settings;
+`strands` needs only native inference recognition. Neither translates framework
+spans. Native recognition compares the span's SDK processor with the runtime
+provider's processor, so a Pydantic agent using an unrelated explicit provider
+cannot suppress an inference span we would otherwise collect. This read-only,
+capability-checked SDK detail falls back to keeping the wrapper if unavailable.
+Native framework tests run in subprocesses with allowlisted environments; global
+provider, native enablement and thread instrumentation do not leak into other tests.
+
+
+`openai_agents` enables the optional OpenInference OTel bridge without replacing
+OpenAI's tracing processors. Shared inference recognition records the verified
+attribute/value vocabulary for each scope; OpenInference's `LLM` kind is separate
+from native GenAI operation names. The bridge owns its process-global hooks,
+provider and native schema.
+
+`claude_agent_sdk` copies per-transport options to configure native child-process
+OTLP export. Core stores a non-repr OTLP connection template only for exporters it
+constructs. The adapter never mutates the parent environment or introspects a
+custom exporter; the child owns its spans, export pipeline and flush lifecycle.
+
+## LangChain / LangGraph callback bridge
+
+Both registry names resolve to `integrations/langchain`; a runtime-owned handler
+prevents duplicate registration. `callback.py` owns the synchronized run-ID map,
+`extraction.py` normalizes public payloads, and `execution.py` owns context scopes.
+The integration creates core Operations and uses the existing export pipeline.
+
+Auto-registration wraps callback-manager `_configure`, adding one inheritable
+handler without replacing application callbacks. Config-context hooks wrap the
+helpers used by Core runnables/tools and LangGraph's internal runnable module.
+They attach within the helper's isolated context and detach there on exit.
+Model generation helpers use their explicit run managers; model stream frames
+bind the start callback only in the same task/thread that owns the iterator step.
+Runnable, graph node, tool and retriever invocation scopes also cover Python 3.10
+coroutine execution and executor fallbacks. No OTel token crosses
+callback lifetimes, no model-current global drives hierarchy, and no global
+thread-pool patch is installed. These private execution hooks have real-framework
+concurrency and lifecycle tests; unsupported signatures preserve provider tracing.
+
+Terminal callbacks atomically remove registry entries before ending operations.
+Model execution hooks additionally close cancelled calls when the framework does
+not deliver its terminal callback. Shutdown closes pending operations first, then
+restores only hooks still owned by this runtime. Fork resets locks and discards
+inherited pending run entries without re-exporting parent-process spans.
+
+## CrewAI execution scopes
+
+The CrewAI adapter wraps execution boundaries, not asynchronous event dispatch.
+It uses the core Operation and content policy, with a runtime-owned locked set
+of pending operations for exactly-once cleanup. Provider adapters own inference
+spans; CrewAI LLM methods can execute tools and are deliberately not model scopes.
+An invocation-local structured-tool proxy fills the upstream executor context gap.
+No global threading patches or permanent event listeners are installed.
+See [the hook contract and limitations](crewai.md).

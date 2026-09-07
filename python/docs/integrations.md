@@ -36,8 +36,9 @@ requests and requested tool calls, not the execution of arbitrary tool functions
 
 The source must already have instrumentation enabled and emit through the shared
 SDK TracerProvider (or explicitly use the provider passed to `init`). `init()`
-does not activate Pydantic AI, Strands, Google ADK, or other frameworks' tracing
-settings, and does not collect spans from an unrelated provider automatically.
+enables Pydantic AI and Microsoft Agent Framework as described below. Strands and
+Google ADK already emit native spans. Other frameworks must be enabled by the
+application. Spans from an unrelated provider are not collected automatically.
 
 We preserve the source's attributes, events, and schema URL. Plain OTel spans can
 be exported without GenAI conventions, but exporting a span does not guarantee
@@ -124,8 +125,9 @@ as specified by [AWS prompt caching](https://docs.aws.amazon.com/bedrock/latest/
 
 ## Native Google ADK
 
-Install `pip install -e './python[google-adk]'` (tested with Google ADK **2.8.0**), then call
-`init()` before running your runner. Native ADK tracing already emits through the
+For an existing Google ADK application, install `pip install confident-trace`, then
+call `init()` before running your runner. Install `google-adk` separately when
+starting a new application (tested with Google ADK **2.8.0**). Native ADK tracing already emits through the
 global OTel provider. There is no OpenInference dependency or extra exporter setup.
 The default `google_adk` integration suppresses Confident provider spans only when
 the current span is an ADK native inference operation on the shared provider.
@@ -160,8 +162,10 @@ See [the runnable agent/tool/streaming example](../examples/google_adk/agent.py)
 
 ## Native AgentCore application telemetry
 
-Install `pip install -e './python[agentcore]'` (tested with AgentCore **1.22.0**, OTel ASGI
-instrumentation **0.63b1**). `init()` includes `agentcore` by default. The adapter
+For an existing AgentCore application, install `pip install 'confident-trace[agentcore]'`.
+This extra adds only `opentelemetry-instrumentation-asgi`; install `bedrock-agentcore`
+separately when starting a new application. Tested with AgentCore **1.22.0** and OTel
+ASGI instrumentation **0.63b1**. `init()` includes `agentcore` by default. The adapter
 uses upstream OTel ASGI middleware for HTTP `/invocations` requests without an
 active server span. This fixes a verified local-runtime gap: AgentCore's request
 context carries session identifiers but does not itself extract W3C trace context.
@@ -178,9 +182,7 @@ AgentCore is a runtime: model, tool, and agent spans still come from provider or
 framework instrumentation inside it. Arbitrary functions are not auto-discovered.
 
 Use [the direct Bedrock example](../examples/agentcore/bedrock.py) or
-[the native Strands example](../examples/agentcore/strands.py). The latter selects
-only `agentcore` because Strands already owns inference instrumentation; automatic
-Strands/provider deduplication is not claimed. The example passes AgentCore's
+[the native Strands example](../examples/agentcore/strands.py). The latter uses the default integrations, including Strands/provider deduplication. The example passes AgentCore's
 session ID to Strands explicitly using its public `trace_attributes` argument.
 
 In AWS environments, call `init(endpoint=CONFIDENT_TRACES_URL,
@@ -199,7 +201,7 @@ does not redirect native spans. Existing global providers are not replaced.
 
 Versions above describe what was tested, not installation or runtime restrictions.
 Other versions may work but have not been verified; historical compatibility is not
-implied. The extras do not pin framework versions. ADK duplicate prevention matches
+implied. Applications manage their own framework dependencies. ADK duplicate prevention matches
 native scope and operation regardless of scope version. AgentCore checks its app
 and middleware APIs; missing dependencies/capabilities leave the application and
 existing native export working. Middleware without `exclude_spans` may also emit
@@ -224,3 +226,234 @@ References: [ADK tracing](https://adk.dev/observability/traces/),
 [AgentCore observability](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability-get-started.html).
 DeepEval's working examples informed scenarios; its conversion and evaluation code
 was not copied. All span transport remains standard OTLP.
+
+
+## Microsoft Agent Framework
+
+For an existing Agent Framework application, install `pip install confident-trace`.
+When starting a new application, install `agent-framework-core` and the framework's
+chosen model client separately (the example uses `agent-framework-openai`).
+`init()` enables native instrumentation when needed without configuring new OTel
+providers or exporters. A prior `disable_instrumentation()` remains authoritative.
+Agents, model calls, tools and workflows retain their native scope and conventions.
+Only overlapping Confident model spans are suppressed; model calls made inside
+native tools still receive provider spans.
+
+```python
+from confident_trace import init
+
+init()
+# Construct and run your Agent Framework agents as usual.
+```
+
+Use the global provider, or pass that same provider to `init(tracer_provider=...)`.
+A separate explicit provider does not redirect framework spans. Use `@span` and
+`update_trace(thread_id=...)` around a request for explicit conversation grouping;
+framework session identifiers remain framework-owned. In the tested Agent Framework
+1.17.0, native `gen_ai.conversation.id` comes from `AgentSession.service_session_id`;
+setting only the local `session_id` does not emit that native attribute. See
+`examples/microsoft_agent_framework.py`.
+
+Native content is off by default. Configure it with Agent Framework's
+`enable_sensitive_telemetry()` or `ENABLE_SENSITIVE_DATA`. Confident's capture,
+redaction and size limits apply only to Confident-owned spans. Native metrics and
+logs need their own application pipelines. Shutdown removes Confident's exporter
+and deduplication registration; it leaves native instrumentation enabled so other
+application exporters continue working. Reinitialization adds a fresh pipeline.
+
+Verified with `agent-framework-core==1.17.0` and `agent-framework-openai==1.14.2`:
+real agents and workflows, mocked Responses HTTP, tool calls, concurrent sessions,
+stream completion, errors/cancellation, and provider/enablement lifecycle. These
+are tested versions, not runtime version gates. Failure tests assert both native
+`chat` and `invoke_agent` spans end with `ERROR`. Cancellation in 1.17.0 ends both
+spans but leaves status `UNSET` because the native handlers catch `Exception`, not
+`asyncio.CancelledError`. Confident preserves that native behavior; cancellation
+coverage verifies matching started/ended span IDs rather than claiming error status.
+Workflow tests run inside a Confident request span and verify a single connected
+trace. Microsoft scenarios run in separate processes with an allowlisted environment
+and an empty temporary working directory; native settings never leak into other tests.
+
+Sources read for this adapter:
+- [Agent Framework observability sample](https://github.com/microsoft/agent-framework/blob/main/python/samples/02-agents/observability/README.md)
+- [Native observability API](https://learn.microsoft.com/en-us/python/api/agent-framework-core/agent_framework.observability)
+
+
+## Pydantic AI and Strands (native OTel)
+
+Install `confident-trace` alongside the framework and model SDK your application
+already uses. No Confident extra is needed for either framework. Call `init()`
+before running agents; it includes `pydantic_ai` and `strands` by default.
+
+```python
+from confident_trace import init, span
+from pydantic_ai import Agent
+
+init()
+agent = Agent("openai:gpt-4.1-mini")
+with span("request", thread_id="conversation-1"):
+    result = agent.run_sync("Hello")
+```
+
+For Strands, use the normal `strands.Agent` with the same setup. Runnable examples
+are [Pydantic AI](../examples/pydantic_agent.py) and
+[Strands](../examples/strands_agent.py). Framework agent, model and tool spans
+retain their original IDs, parents, events, attributes and conventions. The
+optional request span associates the run with your explicit thread ID; it does
+not infer or alter a framework's conversation/session identifier.
+
+Pydantic AI is enabled through `Agent.instrument_all(True)` when its process
+default is `False`. Existing `InstrumentationSettings` are preserved, including
+custom content settings and tracer providers; per-agent overrides remain
+Pydantic's responsibility. The default value and an explicit earlier
+`Agent.instrument_all(False)` are indistinguishable. To keep native tracing off,
+exclude `pydantic_ai` from `instrumentations`, or disable it per agent. On current
+Pydantic AI, `agent.instrument = False` is supported; newer native configuration
+also offers the `Instrumentation` capability. Configure that through Pydantic's
+API. No model methods, agent methods, or capability implementations are patched.
+Native enablement remains in place after `shutdown()` for other exporters.
+
+Strands emits OTel spans without calling `StrandsTelemetry` or adding a second
+exporter. Its adapter only registers the verified inference scope. An agent
+constructed before `init()` can retain OTel's proxy tracer, which resolves when
+the global provider is installed. An explicitly configured unrelated provider is
+not redirected.
+
+Provider wrappers bypass only when the current span is a recognized native model
+operation **on the provider receiving our exporter**. Direct SDK calls and SDK
+calls made inside tools still receive Confident spans. Pydantic settings pointing
+to an unrelated provider therefore retain Confident provider spans. An explicit
+provider shared by both Pydantic and `init(tracer_provider=...)` is supported.
+Recognition currently verifies standard SDK processor identity because OTel has
+no public span-to-provider API; unknown SDK layouts conservatively retain the
+wrapper. Shutdown removes this recognition registration.
+
+Content capture, redaction, error details and semantic-convention versions belong
+to the framework. Confident's `capture_content`, size limits and redactor only
+apply to Confident spans. In particular, Pydantic's native default captures
+content; use its `InstrumentationSettings(include_content=False)` if needed.
+No Logfire service, DeepEval adapter, metrics exporter or trace translation is
+installed. Backend display/mapping and hosted export remain separately unverified.
+
+Tests use Pydantic AI 2.40.0 and Strands 1.54.0 with real OpenAI model adapters and
+mocked HTTP/SSE. They check sync/async execution, streamed output, tools, direct
+provider calls, concurrent request parentage, usage, unchanged application-exporter
+spans, initialization order, settings preservation and shutdown/reinitialization.
+**Strands 1.54.0 leaves native agent/cycle/model spans open on task cancellation
+and early stream close.** These are explicit expected failures in the isolated
+native test scenarios; this adapter does not repair upstream span lifetimes.
+Pydantic's cancellation/early-close paths are checked for complete span closure.
+
+Native API references: [Pydantic AI instrumentation](https://pydantic.dev/docs/ai/integrations/logfire/)
+and [Strands tracing](https://strandsagents.com/docs/user-guide/observability-evaluation/traces/).
+
+
+## OpenAI Agents SDK
+
+In an application already using `openai-agents`, install
+`pip install 'confident-trace[openai-agents]'` and call `init()` before agent runs.
+The extra installs the **OpenInference OTel bridge**, not the agent framework.
+Unlike Pydantic AI, OpenAI Agents' built-in tracing objects are not OTel spans;
+the bridge converts them into OTel spans on the provider receiving our exporter.
+See the [runnable example](../examples/openai_agent.py).
+
+The `openai_agents` adapter enables `OpenAIAgentsInstrumentor` with
+`exclusive_processor=False`. Existing OpenAI tracing processors, including its
+default exporter, remain installed. Existing bridge configuration is preserved.
+We reuse its agent, task/turn, model, tool, handoff and guardrail tracing rather
+than maintaining another conversion layer. Its OpenInference attributes and
+content/error policy pass through unchanged; they are not rewritten as GenAI
+1.37.0. Confident's content limits and redactor do not govern these spans. Configure
+capture with OpenInference's `TraceConfig`/environment settings before `init()` if
+needed. Backend interpretation of OpenInference remains separate work.
+
+Our provider wrappers recognize only the bridge's verified scope and `LLM` kind
+on the same provider. Independent calls and calls inside tools remain instrumented.
+Without the extra, ordinary supported model-client calls can still be traced,
+but framework spans are not automatically produced by Confident. Native
+`RunConfig(tracing_disabled=True)` remains effective for framework spans and does
+not disable separately selected Confident model-client instrumentation.
+
+The bridge owns process-global instrumentation and its original tracer provider.
+It remains enabled after Confident shutdown for application exporters; shutdown
+removes our inference recognition and exporter gate. Reinitialization reuses the
+bridge without adding processors. If you later select a different explicit
+provider, the existing bridge is not redirected: use its original provider to
+collect its spans. This also applies to an instrumentor configured by the app
+before `init()`. Third-party bridge configuration is application-owned.
+
+Tested: OpenAI Agents 0.22.0, OpenInference bridge 2.2.1, OpenAI 3.8.0. Offline
+real-SDK tests exercise sync/async runs, Chat Completions and Responses streaming,
+tools, handoffs, guardrails, explicit workflows, concurrent parentage, native
+processors, failures, cancellation (including cancelling and draining a stream),
+disabling and shutdown/reinitialization. Realtime/voice and every hosted tool are
+not part of this verified coverage. Native error statuses/content remain upstream
+behavior; cancellation tests assert span closure rather than inventing error data.
+
+References: [OpenAI Agents integrations and observability](https://developers.openai.com/api/docs/guides/agents/integrations-observability)
+and [OpenInference bridge](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents).
+
+## Claude Agent SDK
+
+Use `pip install confident-trace` in an application already using
+`claude-agent-sdk`, then call `init()` before `query()` or connecting a
+`ClaudeSDKClient`. No additional Confident tracing dependency is needed. See the
+[runnable example](../examples/claude_agent.py).
+
+Claude Agent SDK runs Claude Code as a child process. Its CLI exports native OTel
+spans **directly to the collector**, rather than through the Python TracerProvider.
+The `claude_agent_sdk` adapter configures new default subprocess transports with
+our resolved OTLP trace endpoint, protocol, headers, explicit timeout/compression,
+and the CLI's telemetry/beta-trace enable switches. Other inherited TLS/exporter
+settings remain available to the CLI. It configures traces only; metrics/log
+pipelines are not enabled by this integration.
+
+Options are copied for each transport: neither `os.environ` nor the caller's
+`ClaudeAgentOptions.env` is mutated. Explicit native disable switches are respected.
+If `options.env` contains an OTLP exporter setting, its connection configuration
+is treated as application-owned as a group; supply its destination and any needed
+headers there. Confident authentication is not injected into that override.
+Claude's separate detailed-tracing routing configuration is also left untouched.
+A caller-supplied Python exporter cannot be serialized for a child process; with
+`init(exporter=...)`, explicitly configure the CLI's OTLP destination through its
+environment if native agent spans are wanted. `InMemorySpanExporter` will only
+receive Python-process spans.
+
+Current SDK versions propagate active W3C context at subprocess connection, so
+`query()` inside `ct.span("request")` can join the same distributed trace.
+`TRACEPARENT`/`TRACESTATE` in per-agent options remain authoritative. A long-lived
+`ClaudeSDKClient` inherits context when it connects, not a fresh parent for every
+subsequent query; keep its connection lifetime within the intended parent scope.
+Native session IDs and span attributes belong to Claude. Confident thread metadata
+and content/redaction limits are not automatically applied to child-process spans.
+Custom transports are left untouched.
+
+Shutdown restores our owned constructor patch for future transports. Already
+configured transports/connected children retain their configuration. Python
+`flush()`/`shutdown()` do not flush the child: consume/close the SDK stream or client
+so its own lifecycle can finish. Native telemetry is beta, with version-dependent
+span names, content, buffering and shutdown behavior.
+
+Tested Python SDK: 0.2.152. Tests run the real `query()`/`ClaudeSDKClient` and
+subprocess transport against an **offline CLI protocol fixture**, verifying results,
+configuration, parent propagation, explicit overrides, credential isolation,
+fail-open behavior and patch ownership. They do not certify real Claude Code
+agent/model/tool spans, delivery on cancellation, live collector ingestion, or
+backend mapping. Those require native CLI/backend validation.
+
+Reference: [Claude Agent SDK OpenTelemetry observability](https://code.claude.com/docs/en/agent-sdk/observability).
+
+### LangChain / LangGraph (in-house)
+
+`init()` attaches one inheritable callback bridge and owned execution-context hooks.
+Both framework names select the same bridge. The bridge emits our GenAI 1.37.0
+spans through the existing OTel pipeline, preserves full callback hierarchy, and
+parents custom/third-party spans under the executing node, tool or model. It does
+not require OpenInference or a tracing extra. See [setup, concurrency and supported
+surfaces](langchain.md).
+
+### CrewAI (in-house execution tracing)
+
+CrewAI execution hooks capture crews, tasks, agents, tools, and flows. Existing
+provider adapters own model spans; no extra CrewAI inference span is emitted.
+Install framework packages yourself; `init()` includes CrewAI by default. See
+[setup, ownership, concurrency, and boundaries](crewai.md).

@@ -67,11 +67,21 @@ separate integrations. Cancelling the await does not cancel the worker's request
 
 ## Native frameworks
 
+- [OpenAI Agents SDK](openai_agent.py): install `confident-trace[openai-agents]`
+  and `openai-agents`; set `OPENAI_API_KEY` and `CONFIDENT_API_KEY`.
+- [Claude Agent SDK](claude_agent.py): install `confident-trace` and
+  `claude-agent-sdk`; authenticate Claude and configure `CONFIDENT_API_KEY` or OTLP.
+
+- [Pydantic AI](pydantic_agent.py): install `pydantic-ai-slim[openai]` alongside
+  Confident Trace; set `OPENAI_API_KEY` and `CONFIDENT_API_KEY`.
+- [Strands](strands_agent.py): install `strands-agents[openai]` alongside
+  Confident Trace; set `OPENAI_API_KEY` and `CONFIDENT_API_KEY`.
+
 - [Google ADK agent, tools, and streaming](google_adk/agent.py):
-  `pip install -e './python[google-adk]'`; set `GOOGLE_API_KEY`, `CONFIDENT_API_KEY`,
+  `pip install -e './python' google-adk`; set `GOOGLE_API_KEY`, `CONFIDENT_API_KEY`,
   and optionally `GOOGLE_MODEL`; run the file from the repository root.
 - [AgentCore with direct Bedrock calls](agentcore/bedrock.py):
-  `pip install -e './python[agentcore]' boto3`; set `BEDROCK_MODEL`,
+  `pip install -e './python[agentcore]' bedrock-agentcore boto3`; set `BEDROCK_MODEL`,
   `CONFIDENT_API_KEY`, and normal AWS credentials/region; run the file.
 - [AgentCore with native Strands](agentcore/strands.py):
   additionally install `strands-agents[otel]`; the same environment applies.
@@ -81,3 +91,5 @@ Supply `X-Amzn-Bedrock-AgentCore-Runtime-Session-Id` to associate a session and
 `traceparent` to continue a distributed trace. These examples do not deploy AWS
 resources. Native content policies and backend interpretation are described in
 [the integration guide](../docs/integrations.md).
+
+- [CrewAI crew](crewai_agent.py): in-house execution hierarchy plus provider model spans.

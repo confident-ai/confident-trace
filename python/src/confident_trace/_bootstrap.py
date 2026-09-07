@@ -23,6 +23,14 @@ def init(
     max_content_bytes=16384,
     redact=None,
     instrumentations=(
+        "crewai",
+        "langchain",
+        "langgraph",
+        "openai_agents",
+        "claude_agent_sdk",
+        "pydantic_ai",
+        "strands",
+        "microsoft_agent_framework",
         "openai",
         "anthropic",
         "google_genai",
@@ -45,5 +53,5 @@ def init(
         capture_content=capture_content,
         max_content_bytes=max_content_bytes,
         redact=redact,
-        _install=lambda rt: registry.install(rt, instrumentations),
+        _instrument=lambda rt: registry.instrument(rt, instrumentations),
     )

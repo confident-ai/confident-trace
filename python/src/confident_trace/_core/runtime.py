@@ -20,6 +20,8 @@ from .. import _attributes as confident
 from .._semconv.genai_v1_37_0 import SCHEMA_URL
 from .._semconv.genai_v1_37_0 import SEMCONV_VERSION as SEMCONV_VERSION
 from .content import ContentPolicy
+from .otlp import child_environment
+from .safety import safe
 
 VERSION = "0.1.0"
 log = logging.getLogger(confident.SCOPE_NAME)
@@ -75,6 +77,7 @@ class Runtime:
     processor: OwnedProcessor | None = None
     active: bool = True
     undo: list = field(default_factory=list)
+    otlp_environment: dict[str, str] | None = field(default=None, repr=False)
 
     def tracer(self):
         if not self.active or disabled():
@@ -110,7 +113,7 @@ def init(
     capture_content=True,
     max_content_bytes=16384,
     redact=None,
-    _install=None,
+    _instrument=None,
 ):
     """Initialize once. Explicit values override OTel environment configuration.
 
@@ -126,6 +129,7 @@ def init(
         if _runtime and _runtime.active:
             return _runtime
         processor = None
+        otlp_environment = None
         try:
             if max_content_bytes < 64:
                 raise ValueError("max_content_bytes must be at least 64")
@@ -200,15 +204,19 @@ def init(
                 # Unspecified TLS, compression, timeout and endpoint settings are
                 # resolved by the standard exporter, including signal precedence.
                 exporter = OTLPSpanExporter(**kwargs)
+                otlp_environment = safe(
+                    child_environment, selected, kwargs, compression=compression
+                )
             processor = OwnedProcessor(BatchSpanProcessor(exporter))
             provider.add_span_processor(processor)
             runtime = Runtime(
                 provider,
                 ContentPolicy(capture_content, max_content_bytes, redact),
                 processor,
+                otlp_environment=otlp_environment,
             )
             _runtime = runtime
-            runtime.undo = _install(runtime) if _install else []
+            runtime.undo = _instrument(runtime) if _instrument else []
             return runtime
         except Exception:
             if processor:

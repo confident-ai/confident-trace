@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- Add in-house CrewAI execution tracing with provider-owned model spans, scoped
+  tool worker context, lifecycle cleanup, and real-framework coverage.
+
+- Add OpenAI Agents SDK through an optional OpenInference bridge, preserving native
+  processors and suppressing overlapping provider spans on the same OTel provider.
+- Add Claude Agent SDK subprocess OTLP configuration with copied options, explicit
+  override/disable handling, W3C propagation tests and native export boundaries.
+
+- Add native Pydantic AI and Strands integrations with model-span deduplication,
+  real-framework offline tests, examples, and native-content documentation.
+  Recognize the actual SDK provider for native spans, including Pydantic agents
+  configured with explicit providers. Track Strands cancellation/early-close
+  leaks as upstream limitations without patching its span lifecycle.
+
+- Add opt-in DEBUG diagnostics for shared fail-open telemetry calls, with package
+  operation/error-type labels, bounded output, and no payloads or tracebacks.
+
+- Remove framework-only install extras for ADK and Microsoft Agent Framework.
+  Applications supply their framework SDKs; the AgentCore extra now installs only
+  OTel ASGI instrumentation. Development/test extras remain available.
+
+- Add Microsoft Agent Framework native OTel enablement and inference deduplication.
+- Add an Agent Framework example, real-SDK offline tests, tested dependency
+  constraints, CI coverage, and native content/lifecycle documentation.
+
 - Centralize runtime telemetry names by ownership; preserve the generated emission contract and independent native recognition vocabulary. Native-span session enrichment now uses Confident extensions rather than adding or overwriting GenAI conversation attributes.
 
 - Remove native framework version pins and runtime gates; use capability checks, documented tested versions, reproducible test constraints, and unconstrained latest CI.

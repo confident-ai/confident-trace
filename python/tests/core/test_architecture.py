@@ -9,14 +9,39 @@ from conftest import ROOT
 
 SOURCE = ROOT / "python/src/confident_trace"
 PROVIDERS = {
+    "crewai",
+    "langchain",
     "openai",
     "anthropic",
     "google_genai",
     "bedrock",
     "google_adk",
     "agentcore",
+    "microsoft_agent_framework",
+    "pydantic_ai",
+    "strands",
+    "openai_agents",
+    "claude_agent_sdk",
 }
-SDK_ROOTS = {"openai", "anthropic", "google", "boto3", "botocore", "bedrock_agentcore"}
+SDK_ROOTS = {
+    "crewai",
+    "langchain",
+    "langchain_core",
+    "langgraph",
+    "agents",
+    "openinference",
+    "openai",
+    "anthropic",
+    "google",
+    "boto3",
+    "botocore",
+    "bedrock_agentcore",
+    "agent_framework",
+    "pydantic_ai",
+    "strands",
+    "openai_agents",
+    "claude_agent_sdk",
+}
 
 
 def imports(path):
@@ -62,13 +87,13 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 class MissingSDKs(MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'openai', 'anthropic', 'google', 'boto3', 'botocore', 'bedrock_agentcore'}:
+        if fullname.split('.')[0] in {'crewai', 'langchain', 'langchain_core', 'langgraph', 'openai', 'anthropic', 'google', 'boto3', 'botocore', 'bedrock_agentcore', 'agent_framework', 'pydantic_ai', 'strands', 'agents', 'claude_agent_sdk', 'openinference'}:
             raise ModuleNotFoundError(fullname)
 
 sys.meta_path.insert(0, MissingSDKs())
 import confident_trace as ct
 prefix = 'confident_trace.integrations.'
-providers = {'openai', 'anthropic', 'google_genai', 'bedrock', 'google_adk', 'agentcore'}
+providers = {'crewai', 'langchain', 'openai', 'anthropic', 'google_genai', 'bedrock', 'google_adk', 'agentcore', 'microsoft_agent_framework', 'pydantic_ai', 'strands', 'openai_agents', 'claude_agent_sdk'}
 def loaded():
     return {name[len(prefix):].split('.')[0] for name in sys.modules if name.startswith(prefix)} & providers
 assert loaded() == set()
@@ -93,10 +118,10 @@ def test_registry_cleanup_is_idempotent_and_preserves_later_wrappers(telemetry):
 
     cls = sdk.Completions
     original = cls.create
-    undo = registry.install(runtime.current(), ("openai", "openai"))
+    undo = registry.instrument(runtime.current(), ("openai", "openai"))
     ours = vars(cls)["create"]
     assert ours is not original
-    assert registry.install(runtime.current(), ("openai",)) == []
+    assert registry.instrument(runtime.current(), ("openai",)) == []
     later = wrapt.FunctionWrapper(
         ours, lambda wrapped, instance, args, kwargs: wrapped(*args, **kwargs)
     )
@@ -120,6 +145,11 @@ TELEMETRY_DEFINITIONS = {
     "_attributes.py",
     "_semconv/native.py",
     "integrations/google_adk/_constants.py",
+    "integrations/microsoft_agent_framework/_constants.py",
+    "integrations/pydantic_ai/_constants.py",
+    "integrations/strands/_constants.py",
+    "integrations/openai_agents/_constants.py",
+    "integrations/claude_agent_sdk/_constants.py",
 }
 TELEMETRY_PREFIXES = (
     "gen_ai.",

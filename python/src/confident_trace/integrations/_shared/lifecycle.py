@@ -15,12 +15,17 @@ _SUPPRESS = context.create_key(confident.PROVIDER_CALL_CONTEXT_KEY)
 _NATIVE_INFERENCE_SCOPES = {}
 
 
-def register_native_inference(scope_name):
+def register_native_inference(
+    scope_name,
+    *,
+    attribute=native_ai.OPERATION_NAME,
+    values=native_ai.INFERENCE_OPERATIONS,
+):
     """Recognize a verified native inference scope without patching its SDK."""
     key = scope_name
     if key in _NATIVE_INFERENCE_SCOPES:
         return []
-    owner = object()
+    owner = (object(), attribute, frozenset(values))
     _NATIVE_INFERENCE_SCOPES[key] = owner
 
     def remove():
@@ -31,17 +36,23 @@ def register_native_inference(scope_name):
 
 
 def native_inference_active(rt):
-    # Native frameworks emit through the global provider. An unrelated explicit
-    # provider cannot collect those spans and must not lose its provider spans.
-    if not _NATIVE_INFERENCE_SCOPES or rt.provider is not trace.get_tracer_provider():
+    if not _NATIVE_INFERENCE_SCOPES:
         return False
     current = trace.get_current_span()
-    scope = getattr(current, "instrumentation_scope", None)
-    if scope is None or scope.name not in _NATIVE_INFERENCE_SCOPES:
+    # OTel exposes no public span-to-provider link. Compare the SDK processor
+    # identity conservatively: native settings can select a non-global provider.
+    # If a future SDK changes these internals, keep the provider wrapper active.
+    processor = getattr(current, "_span_processor", None)
+    if processor is None or processor is not getattr(
+        rt.provider, "_active_span_processor", None
+    ):
         return False
-    return (getattr(current, "attributes", None) or {}).get(
-        native_ai.OPERATION_NAME
-    ) in native_ai.INFERENCE_OPERATIONS
+    scope = getattr(current, "instrumentation_scope", None)
+    registration = _NATIVE_INFERENCE_SCOPES.get(scope.name) if scope else None
+    if registration is None:
+        return False
+    _, attribute, values = registration
+    return (getattr(current, "attributes", None) or {}).get(attribute) in values
 
 
 def begin_call(

@@ -1,0 +1,4 @@
+# Tested framework versions, not package runtime restrictions.
+agent-framework-core==1.17.0
+agent-framework-openai==1.14.2
+openai==3.8.0

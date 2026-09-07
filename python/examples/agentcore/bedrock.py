@@ -1,6 +1,6 @@
 """Run locally or inside AgentCore; uses normal AWS credentials and BEDROCK_MODEL.
 
-Install: pip install -e './python[agentcore]' boto3
+Install: pip install -e './python[agentcore]' bedrock-agentcore boto3
 Run: python python/examples/agentcore/bedrock.py
 Invoke: POST /invocations with JSON {"prompt": "Hello"} on port 8080.
 """

@@ -1,0 +1,7 @@
+# Locally tested versions, not native SDK runtime restrictions.
+openai-agents==0.22.0
+claude-agent-sdk==0.2.152
+openinference-instrumentation-openai-agents==2.2.1
+openinference-instrumentation==0.1.61
+openinference-semantic-conventions==0.1.35
+openai==3.8.0

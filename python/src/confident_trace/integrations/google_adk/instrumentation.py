@@ -6,7 +6,7 @@ from .._shared.lifecycle import register_native_inference
 from ._constants import SCOPE_NAME
 
 
-def install(runtime):
+def instrument(runtime):
     try:
         distribution("google-adk")
     except PackageNotFoundError:

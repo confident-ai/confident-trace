@@ -10,7 +10,7 @@ from ..._core.runtime import disabled, log
 from .._shared.patching import install_targets
 
 
-def install(runtime):
+def instrument(runtime):
     try:
         from bedrock_agentcore.runtime.app import BedrockAgentCoreApp
         from bedrock_agentcore.runtime.models import SESSION_HEADER

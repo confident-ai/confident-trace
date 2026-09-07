@@ -1,6 +1,6 @@
 """Native Strands spans inside AgentCore, using the shared OTel provider.
 
-Install: pip install -e './python[agentcore]' 'strands-agents[otel]'
+Install: pip install -e './python[agentcore]' bedrock-agentcore 'strands-agents[otel]'
 Set CONFIDENT_API_KEY, BEDROCK_MODEL and normal AWS credentials.
 Run this file; POST {"prompt": "Hello"} to /invocations on port 8080.
 """
@@ -18,8 +18,6 @@ init(
     ),
     protocol="http/protobuf",
     api_key=os.environ["CONFIDENT_API_KEY"],
-    # Strands already instruments inference; do not also wrap its Bedrock calls.
-    instrumentations=("agentcore",),
 )
 app = BedrockAgentCoreApp()
 

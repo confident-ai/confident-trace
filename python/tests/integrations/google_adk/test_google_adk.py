@@ -212,7 +212,7 @@ async def test_failed_model_does_not_leak_context(native, mode):
         await client.aio.aclose()
 
 
-def test_install_cleanup_and_unrelated_provider(native):
+def test_instrument_cleanup_and_unrelated_provider(native):
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
         InMemorySpanExporter,
@@ -223,7 +223,7 @@ def test_install_cleanup_and_unrelated_provider(native):
 
     provider, exporter, witness = native
     rt = runtime.current()
-    assert registry.install(rt, ("google_adk",)) == []
+    assert registry.instrument(rt, ("google_adk",)) == []
     assert ct.init() is rt
     ct.shutdown()
     other = InMemorySpanExporter()

@@ -11,3 +11,7 @@ from typing import Final
 
 OPERATION_NAME: Final = "gen_ai.operation.name"
 INFERENCE_OPERATIONS: Final = frozenset({"generate_content", "chat"})
+
+# OpenInference bridge spans use their own vocabulary, preserved on export.
+OPENINFERENCE_KIND = "openinference.span.kind"
+OPENINFERENCE_LLM = "LLM"

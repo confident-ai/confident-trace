@@ -1,0 +1,4 @@
+# Tested versions, not runtime restrictions. Framework dependencies are application-owned.
+crewai==1.15.20
+crewai-core==1.15.20
+openai==2.54.0

@@ -80,7 +80,7 @@ def wrapper(wrapped, instance, args, kwargs):
     return result
 
 
-def install(runtime):
+def instrument(runtime):
     return install_targets(
         [("botocore.client", "BaseClient", "_make_api_call")],
         lambda original, method: wrapper,
