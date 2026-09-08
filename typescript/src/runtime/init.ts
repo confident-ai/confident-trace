@@ -1,4 +1,11 @@
 import {
+  configure,
+  activate,
+  getInstrumentationStatus,
+  flushOwned,
+  closeOwned,
+} from '@/auto/control';
+import {
   context,
   diag,
   propagation,
@@ -33,6 +40,7 @@ const noop = new ProxyTracerProvider().getTracer('confident-trace-disabled');
 const inactive: TraceRuntime = {
   active: false,
   getTracer: () => noop,
+  getInstrumentationStatus,
   flush: async () => true,
   shutdown: async () => true,
 };
@@ -49,6 +57,7 @@ class OwnedRuntime implements TraceRuntime {
   get active(): boolean {
     return this.running;
   }
+  getInstrumentationStatus = getInstrumentationStatus;
   getTracer() {
     return this.running && !isDisabled()
       ? this.provider.getTracer('confident-trace', VERSION, {
@@ -58,7 +67,7 @@ class OwnedRuntime implements TraceRuntime {
   }
   flush(timeoutMillis = 30000): Promise<boolean> {
     return withinBudget(
-      () => this.closing ?? this.provider.forceFlush(),
+      () => this.closing ?? flushOwned().then(() => this.provider.forceFlush()),
       timeoutMillis,
     );
   }
@@ -66,7 +75,8 @@ class OwnedRuntime implements TraceRuntime {
     if (!this.closing) {
       this.running = false;
       this.closing = Promise.resolve()
-        .then(() => this.provider.shutdown())
+        .then(() => closeOwned())
+        .finally(() => this.provider.shutdown())
         .finally(() => {
           this.contextManager?.disable();
         });
@@ -83,6 +93,7 @@ export function init(options: InitOptions = {}): TraceRuntime {
   // A registered provider cannot be replaced after shutdown. Reinitialization
   // returns the terminal runtime instead of pretending a new pipeline is global.
   if (runtime) return runtime;
+  configure(options);
   let processor: SpanProcessor | undefined;
   let provider: NodeTracerProvider | undefined;
   let ownedContext: AsyncLocalStorageContextManager | undefined;
@@ -117,6 +128,7 @@ export function init(options: InitOptions = {}): TraceRuntime {
     runtime = new OwnedRuntime(provider, policy, ownedContext);
     state.runtime = runtime;
     state.policy = policy;
+    activate();
     return runtime;
   } catch {
     const cleanup = provider ?? processor;

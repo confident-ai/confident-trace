@@ -18,10 +18,14 @@ OpenTelemetry Collector.
 | SDK | Runtime | Integration model |
 | --- | --- | --- |
 | Python | Python 3.10+ | Automatic instrumentation for supported installed SDKs, framework integrations, and custom span decorators. |
-| TypeScript / JavaScript | Node.js 22+; tested on 22 and 24 | Explicit client instrumentation, framework adapters, and custom function wrappers. ESM and CommonJS supported. |
+| TypeScript / JavaScript | Node.js 22+; tested on 22 and 24 | Automatic instrumentation through `init()` and a Node preload, plus manual adapters and custom function wrappers. ESM and CommonJS supported. |
 
 Each SDK is independently installable. Provider and framework dependencies are
 optional; use the integrations your application needs.
+
+For TypeScript, call `init()` in your existing entry file and launch with
+`node --import confident-trace/register dist/index.js` (keep your own filename).
+See the [TypeScript setup and examples](typescript/README.md#automatic-setup).
 
 ## Environment variables
 

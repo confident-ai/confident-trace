@@ -277,5 +277,8 @@ export function createVercelAITracer(
       return context.with(trace.setSpan(parent, span), fn, undefined, span);
     }) as Tracer['startActiveSpan'],
   };
+  Object.defineProperty(tracer, Symbol.for('confident-trace.vercel.tracer'), {
+    value: true,
+  });
   return tracer;
 }

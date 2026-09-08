@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — TypeScript automatic instrumentation
+
+- Add `confident-trace/register` for Node preload instrumentation of all eight
+  existing integrations. Keep `init()` in the existing entry file and add
+  `--import confident-trace/register` to its startup command.
+- Add integration selection and `getInstrumentationStatus()`, with a missing-hook
+  warning. Use `init({ instrumentations: [] })` for manual-only tracing.
+- Coordinate automatically owned framework adapter lifecycle through the runtime.
+  Preserve manual APIs, existing SDK method coverage, and content policies.
+- Add executable entry examples and automatic startup/OTLP acceptance suites.
+
+
 ## Unreleased — TypeScript SDK
 
 - Add the TypeScript OpenTelemetry runtime, OTLP exporters, bounded content policy,

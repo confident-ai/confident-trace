@@ -1,30 +1,116 @@
 # Confident Trace for Node.js
 
-An OpenTelemetry tracing foundation for Node.js 22 and 24. This alpha provides
-initialization, OTLP export, lifecycle management, and opt-in OpenAI, Anthropic,
-and Google GenAI integrations, plus Mastra and Vercel AI SDK adapters.
-Custom function wrappers, scoped callbacks, and native sync/async generators are supported.
+OpenTelemetry tracing for Node.js 22 and 24. Use the same automatic setup for
+OpenAI, Anthropic, Google GenAI, Vercel AI SDK, LangChain, LangGraph, Mastra, and
+OpenAI Agents. ESM and CommonJS entry points share one runtime.
 
-The package is prepared for distribution but has not been published by this change.
-It supports both ESM and CommonJS; both entry points share one runtime.
+## Automatic setup
 
-```ts
-import { init, withSpan } from 'confident-trace';
+Install Confident Trace alongside the provider/framework packages your app uses:
 
-const runtime = init({ resourceAttributes: { 'service.name': 'my-agent' } });
-
-await withSpan({ name: 'answer', type: 'agent' }, async () => {
-  return await doWork();
-});
-
-await runtime.flush();
-await runtime.shutdown();
+```sh
+npm install confident-trace
 ```
 
-`getTracer()` returns a standard OTel tracer. Other tracers obtained through
-`@opentelemetry/api` use the same provider. Importing the package does not register
-a provider, instrument clients, send data, or install process signal handlers.
-Applications explicitly own startup and shutdown.
+Set `CONFIDENT_API_KEY` (or configure your OTLP collector), then call `init()` in
+your **existing entry file**, before running application work:
+
+```ts
+// index.ts — keep your own entry filename
+import { init } from 'confident-trace';
+import OpenAI from 'openai';
+
+const tracing = init();
+const client = new OpenAI();
+try {
+  const response = await client.responses.create({
+    model: 'gpt-4.1-mini',
+    input: 'Hello',
+  });
+  console.log(response.output_text);
+} finally {
+  await tracing.shutdown();
+}
+```
+
+Add the preload to the command you already use. Keep the same entry filename:
+
+```sh
+# Compiled JavaScript: before → after
+node dist/index.js
+node --import confident-trace/register dist/index.js
+
+# TypeScript with tsx installed
+node --import tsx --import confident-trace/register src/index.ts
+```
+
+For example, these package scripts make the flag part of normal startup:
+
+```json
+{
+  "scripts": {
+    "start": "node --import confident-trace/register dist/index.js",
+    "dev": "node --import tsx --import confident-trace/register src/index.ts"
+  }
+}
+```
+
+**The hook prepares supported libraries before your entry file loads. `init()`
+configures and starts tracing.** Ordinary static imports work; no bootstrap file
+or dynamic-import rewrite is needed. Calling `init()` alone does not install the
+hook and emits a setup warning when automatic tracing is requested.
+
+Do not add Confident wrappers, callbacks, processors, or exporters to the automatic
+examples. Normal application SDK calls remain unchanged:
+
+| Integration   | Complete entry example                             |
+| ------------- | -------------------------------------------------- |
+| OpenAI        | [openai.ts](examples/auto/openai.ts)               |
+| Anthropic     | [anthropic.ts](examples/auto/anthropic.ts)         |
+| Google GenAI  | [google-genai.ts](examples/auto/google-genai.ts)   |
+| Vercel AI SDK | [vercel-ai.ts](examples/auto/vercel-ai.ts)         |
+| LangChain     | [langchain.ts](examples/auto/langchain.ts)         |
+| LangGraph     | [langgraph.ts](examples/auto/langgraph.ts)         |
+| Mastra        | [mastra.ts](examples/auto/mastra.ts)               |
+| OpenAI Agents | [openai-agents.ts](examples/auto/openai-agents.ts) |
+
+Run any source example using the same pattern, for example:
+`node --import tsx --import confident-trace/register examples/auto/langchain.ts`.
+Use your normal provider credentials; Anthropic and Google examples also read
+`ANTHROPIC_MODEL` and `GOOGLE_MODEL`.
+
+Automatic tracing defaults to all supported integrations that are loaded. Select
+integrations explicitly or opt out for manual-only/custom tracing:
+
+```ts
+init({ instrumentations: ['openai', 'langchain'] });
+// Alternatively, for manual-only tracing:
+init({ instrumentations: [] });
+```
+
+Names are `openai`, `anthropic`, `google-genai`, `vercel-ai`, `langchain`,
+`langgraph`, `mastra`, and `openai-agents`. Call `init()` once; subsequent calls
+return the existing runtime. `tracing.getInstrumentationStatus()` reports whether
+the hook registered and each integration's attachment state. `not observed` means
+the corresponding SDK has not been observed, not that it is uninstalled.
+Unsupported SDK versions and attachment failures produce a warning.
+
+For servers, initialize once at startup and call `shutdown()` during the server's
+existing graceful shutdown, after requests and streams complete. Do not shut down
+after each request. Automatic mode coordinates its owned framework adapters;
+application-owned exporters/processors retain their ownership. No signal handlers
+are installed by Confident Trace. Workers inherit Node's preload arguments by
+default but must call `init()` within their own application entry code.
+
+The hook covers SDKs loaded by Node. It does not instrument SDK code bundled into
+an application by Webpack, Vite, or another bundler. Use the manual adapters below
+with `instrumentations: []` for bundled applications. Existing SDK version and
+method coverage is unchanged; automatic setup does not enable extra model APIs.
+
+The package is prepared for distribution but has not been published by this change.
+Normal imports do not register tracing, patch SDKs, or send data. The `/register`
+preload prepares instrumentation but does not create an exporter or send data until
+application initialization.
 
 ## Custom tracing
 
@@ -182,7 +268,7 @@ failures and returns an inactive runtime with a content-free diagnostic.
 
 ## Configuration
 
-`init()` accepts camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
+`init()` accepts `instrumentations` (`"all"` or an array of integration names), plus camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
 `timeoutMillis`, `compression`, `exporter`, `resourceAttributes`, `captureContent`,
 `maxContentBytes`, and `redact`. The processor factory accepts export options only.
 An injected exporter is owned by the resulting processor and bypasses exporter
@@ -238,8 +324,7 @@ import type { GenAiMessage } from 'confident-trace/semconv';
 ```
 
 Constants represent the selected GenAI **1.37.0** contract, not full GenAI coverage.
-`spec/semconv.json` at the repository root generates TypeScript constants.
-Python retains its existing versioned registry and generator in `tools/`.
+`spec/semconv.json` at the repository root generates native constants in both SDKs.
 The repository also shares wire/content fixtures and one Apache-2.0 license.
 Neither installed SDK requires the other language or the repository checkout.
 
@@ -264,7 +349,11 @@ conventions or the root license; commit the generated files. `--check` detects d
 The root `spec/compatibility.md` records TypeScript support; Python support is
 documented in `python/docs/compatibility.md`.
 
-## Provider integrations
+## Manual provider integrations
+
+Use these adapters when the startup hook is unsuitable, including bundled apps.
+Initialize with `instrumentations: []`; automatic setup above needs none of these
+per-integration registration calls.
 
 Install the SDKs you use; all three are optional peers:
 
@@ -281,7 +370,7 @@ import { instrumentOpenAI } from 'confident-trace/openai';
 import { instrumentAnthropic } from 'confident-trace/anthropic';
 import { instrumentGoogleGenAI } from 'confident-trace/google-genai';
 
-const runtime = init({ captureContent: false });
+const runtime = init({ instrumentations: [], captureContent: false });
 const openai = new OpenAI();
 const anthropic = new Anthropic();
 const google = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -343,7 +432,7 @@ normalization, or fan-out of streams via `tee()`. Do not install a second provid
 instrumentor on the same client. See the root compatibility matrix for tested
 JavaScript SDK versions; Python version ranges are independent.
 
-## Vercel AI SDK
+## Manual Vercel AI SDK integration
 
 AI SDK 7 uses the official `@ai-sdk/otel` integration. Supply our tracer to it:
 
@@ -357,7 +446,7 @@ import { OpenTelemetry } from '@ai-sdk/otel';
 import { init } from 'confident-trace';
 import { createVercelAITracer } from 'confident-trace/vercel-ai';
 
-const runtime = init({ captureContent: false });
+const runtime = init({ instrumentations: [], captureContent: false });
 const telemetry = {
   integrations: [new OpenTelemetry({ tracer: createVercelAITracer() })],
   recordInputs: false,
@@ -399,7 +488,7 @@ integration; it intentionally retains only the known AI tracing attribute subset
 See the [AI SDK telemetry documentation](https://ai-sdk.dev/docs/ai-sdk-core/telemetry)
 for global registration and per-call configuration.
 
-## Mastra
+## Manual Mastra integration
 
 ```sh
 pnpm add @mastra/core @mastra/observability
@@ -456,7 +545,7 @@ OTel exporter to the same destination.
 See Mastra's [observability interfaces](https://mastra.ai/reference/observability/tracing/interfaces)
 for exporter configuration and lifecycle.
 
-## LangChain and LangGraph
+## Manual LangChain and LangGraph integration
 
 Pass a handler in the root invocation's `callbacks`; the framework propagates it
 through chains, models, tools, retrievers, and graph nodes:
@@ -466,7 +555,7 @@ import { init } from 'confident-trace';
 import { ConfidentLangChainCallbackHandler } from 'confident-trace/langchain';
 import { ConfidentLangGraphCallbackHandler } from 'confident-trace/langgraph';
 
-const runtime = init({ captureContent: false });
+const runtime = init({ instrumentations: [], captureContent: false });
 const chainTracing = new ConfidentLangChainCallbackHandler();
 await chain.invoke(input, { callbacks: [chainTracing] });
 
@@ -517,7 +606,7 @@ HTTP/database spans inside a model or tool are not automatically parented under
 these callback spans. Attach callbacks at the root; do not add another copy at
 each child. See [LangGraph streaming](https://docs.langchain.com/oss/javascript/langgraph/streaming).
 
-## OpenAI Agents SDK
+## Manual OpenAI Agents integration
 
 Register the processor before creating/running agents:
 
@@ -526,7 +615,7 @@ import { Agent, run, setTraceProcessors } from '@openai/agents';
 import { init } from 'confident-trace';
 import { ConfidentOpenAIAgentsProcessor } from 'confident-trace/openai-agents';
 
-const runtime = init({ captureContent: false });
+const runtime = init({ instrumentations: [], captureContent: false });
 const tracing = new ConfidentOpenAIAgentsProcessor();
 setTraceProcessors([tracing]);
 const agent = new Agent({ name: 'Assistant', instructions: 'Be helpful.' });

@@ -10,3 +10,9 @@ export type {
   SpanOptions,
   TurnOptions,
 } from '@/spans/index';
+
+export type {
+  InstrumentationName,
+  InstrumentationState,
+  InstrumentationStatus,
+} from '@/auto/types';

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   cp,
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
@@ -64,7 +65,7 @@ try {
   );
   run('pnpm', [
     'install',
-    '--offline',
+    '--prefer-offline',
     '--ignore-scripts',
     '--config.confirmModulesPurge=false',
   ]);
@@ -122,6 +123,53 @@ try {
   console.log(
     'Packed licenses, exports, aliases, and NodeNext/Bundler declarations passed',
   );
+  await mkdir(join(temporary, 'scripts'), { recursive: true });
+
+  // Exercise the actual tarball, not the workspace self-reference, with all SDKs.
+  for (const name of [
+    'openai',
+    '@anthropic-ai/sdk',
+    '@google/genai',
+    '@langchain/core',
+    '@langchain/langgraph',
+    '@openai/agents',
+    '@mastra/core',
+    'ai',
+    'esbuild',
+    'tsx',
+    'protobufjs',
+    '@langchain/openai',
+    '@ai-sdk/openai',
+  ]) {
+    dependencies[name] = JSON.parse(
+      await readFile(join(root, 'node_modules', name, 'package.json'), 'utf8'),
+    ).version;
+  }
+  await writeFile(
+    join(temporary, 'package.json'),
+    JSON.stringify({ private: true, type: 'module', dependencies }),
+  );
+  run('pnpm', [
+    'install',
+    '--prefer-offline',
+    '--ignore-scripts',
+    '--config.confirmModulesPurge=false',
+  ]);
+  for (const directory of [
+    'tests/auto',
+    'tests/support/proto',
+    'examples/auto',
+  ]) {
+    await cp(join(root, directory), join(temporary, directory), {
+      recursive: true,
+    });
+  }
+  for (const script of ['test-auto.mjs', 'test-auto-examples.mjs']) {
+    await cp(join(root, 'scripts', script), join(temporary, 'scripts', script));
+    process.stdout.write(
+      run(process.execPath, [join(temporary, 'scripts', script)]),
+    );
+  }
 } catch (error) {
   if (error.stdout) process.stderr.write(error.stdout);
   if (error.stderr) process.stderr.write(error.stderr);
