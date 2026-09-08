@@ -69,6 +69,8 @@ class Bridge(BaseCallbackHandler):
             attrs = {}
             if kind in ("chat", "text_completion", "execute_tool", "invoke_agent"):
                 attrs[ai.GEN_AI_OPERATION_NAME] = kind
+            if kind == "retriever":
+                attrs[ai.GEN_AI_OPERATION_NAME] = "retrieval"
             if kind == "execute_tool":
                 attrs[ai.GEN_AI_TOOL_NAME] = title
             # The token is local to this synchronous callback, never saved on a run.

@@ -39,6 +39,7 @@ def instrument(runtime):
         lambda original, method: wrapper(
             begin,
             finish,
+            runtime=runtime,
             asynchronous=inspect.iscoroutinefunction(inspect.unwrap(original)),
             manager=Manager if method == "stream" else None,
         ),

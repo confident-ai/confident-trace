@@ -23,7 +23,7 @@ def patch(target, name, wrapper, undo):
     undo.append(restore)
 
 
-def instrument(rt):
+def instrument(rt, *, auto_register=True):
     previous = getattr(rt, "_langchain_bridge", None)
     if previous is not None and not previous.closed:
         return []
@@ -39,7 +39,8 @@ def instrument(rt):
 
     try:
         module = importlib.import_module("langchain_core.callbacks.manager")
-        patch(module, "_configure", configure, undo)
+        if auto_register:
+            patch(module, "_configure", configure, undo)
         for path in (
             "langchain_core.runnables.config",
             "langchain_core.runnables.base",

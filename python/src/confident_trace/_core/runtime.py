@@ -100,6 +100,14 @@ _lock = threading.RLock()
 _runtime: Runtime | None = None
 
 
+_embedded = {}
+
+
+def for_integration(integration):
+    """Resolve private embedding ownership without changing public init state."""
+    return _embedded.get(integration) or _runtime
+
+
 def current():
     return _runtime
 

@@ -104,9 +104,9 @@ def finish_call(
     return value
 
 
-def wrapper(begin, finish, *, asynchronous=False, manager=None):
+def wrapper(begin, finish, *, asynchronous=False, manager=None, runtime=None):
     def bypass():
-        rt = _runtime.current()
+        rt = runtime or _runtime.current()
         return (
             not rt
             or not rt.active

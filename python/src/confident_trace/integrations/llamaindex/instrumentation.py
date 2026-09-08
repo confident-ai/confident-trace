@@ -10,13 +10,30 @@ from .._shared.execution import patch
 from .bridge import Bridge
 
 
-def instrument(rt):
+def instrument(rt, *, dispatcher=None, include_llm=False):
     previous = getattr(rt, "_llamaindex_bridge", None)
     if previous is not None and not previous.closed:
-        return []
+        undo = []
+        old_include_llm = getattr(previous, "include_llm", False)
+        if include_llm and not old_include_llm:
+            previous.include_llm = True
+            undo.append(lambda: setattr(previous, "include_llm", old_include_llm))
+        if dispatcher is not None and previous.handler not in dispatcher.span_handlers:
+            dispatcher.add_span_handler(previous.handler)
+
+            def remove_dispatcher():
+                dispatcher.span_handlers[:] = [
+                    handler
+                    for handler in dispatcher.span_handlers
+                    if handler is not previous.handler
+                ]
+
+            undo.append(remove_dispatcher)
+        return undo
     bridge = Bridge(rt)
+    bridge.include_llm = include_llm
     rt._llamaindex_bridge = bridge
-    root = get_dispatcher()
+    root = dispatcher if dispatcher is not None else get_dispatcher()
     root.add_span_handler(bridge.handler)
     undo = []
 

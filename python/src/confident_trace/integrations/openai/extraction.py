@@ -3,7 +3,6 @@
 from urllib.parse import urlsplit
 
 from ... import _attributes as confident
-from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
@@ -203,7 +202,7 @@ def request(op, kwargs):
         safe(op.span.set_attribute, ai.GEN_AI_CONVERSATION_ID, conversation)
         if op.is_entry:
             safe(op.span.set_attribute, confident.TRACE_THREAD_ID, conversation)
-    rt = _runtime.current()
+    rt = op.runtime
     if rt and rt.policy.enabled:
         value = kwargs.get("messages", kwargs.get("input", kwargs.get("contents", [])))
         normalized = messages(value)
