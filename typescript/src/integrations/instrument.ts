@@ -3,7 +3,7 @@ import type { Tracer } from '@opentelemetry/api';
 import { isDisabled } from '@/config/resolve';
 import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
-import { state, suppress, patched } from '@/runtime/state';
+import { state, suppress, patched, automaticOriginals } from '@/runtime/state';
 import { VERSION } from '@/runtime/version';
 import { Capture, get } from '@/integrations/extract';
 import type { Provider } from '@/integrations/extract';
@@ -34,7 +34,12 @@ export function instrument(
   const undo: (() => void)[] = [];
   try {
     for (const [target, key] of targets) {
-      const original = Reflect.get(target, key) as Method;
+      const current = Reflect.get(target, key) as Method;
+      const automatic = automaticOriginals.get(current);
+      const name = provider === 'google_genai' ? 'google-genai' : provider;
+      const original = (
+        automatic && !state.auto.selected.has(name) ? automatic : current
+      ) as Method;
       if (typeof original !== 'function' || patched.has(original)) continue;
       const descriptor = Object.getOwnPropertyDescriptor(target, key);
       const wrapped: Method = function (this: unknown, ...args) {

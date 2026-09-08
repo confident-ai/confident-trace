@@ -56,3 +56,16 @@ cross-process trace reconstruction and server-side Realtime traces are excluded.
 All three subpaths are checked in packed ESM/CommonJS and declaration consumers
 without optional SDK packages. See the TypeScript README for shutdown, content,
 and capacity controls.
+
+### TypeScript automatic startup
+
+`node --import confident-trace/register <existing-entry>` plus synchronous `init()`
+activates all eight existing integrations. Automatic attachments reuse the manual
+adapters and their version/method boundaries. `instrumentations: []` selects manual
+setup. The preload handles ESM, CommonJS, later imports, and worker preload
+inheritance; every worker initializes its own runtime. Bundled SDK code is excluded.
+
+The automatic acceptance suite executes each public entry example against fake
+model responses and a local OTLP collector. It verifies model-span counts, privacy,
+ESM/CommonJS, late imports, runtime isolation, lifecycle, and tsx startup. SDK
+updates must pass both manual adapter tests and automatic startup tests.

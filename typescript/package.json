@@ -111,6 +111,9 @@
         "types": "./dist/openai-agents.d.cts",
         "default": "./dist/openai-agents.cjs"
       }
+    },
+    "./register": {
+      "import": "./dist/register.mjs"
     }
   },
   "files": [
@@ -118,58 +121,67 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/register.mjs"
+  ],
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:packaging": "node scripts/test-package.mjs",
     "check:shared": "node ../scripts/sync-shared.mjs --check",
-    "check": "pnpm check:shared && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm test:packaging",
+    "check": "pnpm check:shared && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm test:packaging && node scripts/test-auto.mjs && node scripts/test-auto-examples.mjs",
     "prepack": "pnpm build",
     "test:minimum": "node scripts/test-minimum.mjs",
-    "examples": "node scripts/run-examples.mjs"
+    "examples": "node scripts/run-examples.mjs",
+    "test:auto": "pnpm build && node scripts/test-auto.mjs && node scripts/test-auto-examples.mjs"
   },
   "peerDependencies": {
     "@ai-sdk/otel": ">=1.0.93 <2",
     "@anthropic-ai/sdk": ">=0.124.0 <0.125",
     "@google/genai": ">=2.21.0 <3",
-    "@mastra/core": ">=1.64.0 <2",
-    "@mastra/observability": ">=1.17.5 <2",
-    "@opentelemetry/api": ">=1.9.0 <2",
-    "ai": ">=7.0.93 <8",
-    "openai": ">=7.10.0 <8",
     "@langchain/core": ">=1.2.9 <2",
     "@langchain/langgraph": ">=1.4.14 <2",
+    "@mastra/core": ">=1.64.0 <2",
+    "@mastra/observability": ">=1.17.5 <2",
+    "@openai/agents": ">=0.17.0 <0.18",
+    "@opentelemetry/api": ">=1.9.0 <2",
+    "ai": ">=7.0.93 <8",
     "langchain": ">=1.5.10 <2",
-    "@openai/agents": ">=0.17.0 <0.18"
+    "openai": ">=7.10.0 <8"
   },
   "dependencies": {
+    "@ai-sdk/otel": "1.0.93",
     "@grpc/grpc-js": "^1.14.0",
+    "@mastra/observability": "1.17.5",
     "@opentelemetry/context-async-hooks": "^2.0.0",
     "@opentelemetry/core": "^2.0.0",
     "@opentelemetry/exporter-trace-otlp-grpc": ">=0.200.0 <0.223.0",
     "@opentelemetry/exporter-trace-otlp-proto": ">=0.200.0 <0.223.0",
     "@opentelemetry/resources": "^2.0.0",
     "@opentelemetry/sdk-trace-base": "^2.0.0",
-    "@opentelemetry/sdk-trace-node": "^2.0.0"
+    "@opentelemetry/sdk-trace-node": "^2.0.0",
+    "import-in-the-middle": "3.3.3",
+    "require-in-the-middle": "8.0.1",
+    "semver": "7.7.4"
   },
   "devDependencies": {
-    "@ai-sdk/otel": "^1.0.93",
+    "@ai-sdk/openai": "^4.0.60",
     "@anthropic-ai/sdk": "^0.124.0",
     "@eslint/js": "^10.0.0",
     "@google/genai": "^2.21.0",
     "@grpc/proto-loader": "^0.8.0",
     "@langchain/core": "^1.2.9",
     "@langchain/langgraph": "^1.4.14",
+    "@langchain/openai": "^1.5.11",
     "@mastra/core": "^1.64.0",
-    "@mastra/observability": "^1.17.5",
     "@openai/agents": "^0.17.0",
     "@opentelemetry/api": "^1.9.0",
     "@types/node": "^22.0.0",
+    "@types/semver": "^7.8.0",
     "ai": "^7.0.93",
     "dts-bundle-generator": "^9.5.0",
     "esbuild": "^0.28.0",
@@ -178,6 +190,7 @@
     "openai": "^7.10.0",
     "prettier": "^3.0.0",
     "protobufjs": "^7.5.0",
+    "tsx": "^4.23.13",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.0.0",
     "vitest": "^4.0.0"

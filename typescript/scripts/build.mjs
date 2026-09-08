@@ -77,3 +77,29 @@ for (const [name, entry] of Object.entries(entries)) {
     );
   }
 }
+
+// The preload installs hooks when evaluated: never execute it for export discovery.
+await build({
+  absWorkingDir: root,
+  entryPoints: ['src/auto/register.ts'],
+  outfile: 'dist/register.mjs',
+  bundle: true,
+  packages: 'external',
+  platform: 'node',
+  target: 'node22',
+  format: 'esm',
+  sourcemap: true,
+  tsconfig: 'tsconfig.build.json',
+  define: { __CONFIDENT_TRACE_VERSION__: JSON.stringify(metadata.version) },
+  plugins: [
+    {
+      name: 'preload-shared-state',
+      setup(build) {
+        build.onResolve({ filter: /^@\/runtime\/state$/ }, () => ({
+          path: './state.cjs',
+          external: true,
+        }));
+      },
+    },
+  ],
+});
