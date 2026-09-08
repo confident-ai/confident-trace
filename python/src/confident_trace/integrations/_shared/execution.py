@@ -43,7 +43,7 @@ class State:
     def enabled(self):
         return (
             not self.closed
-            and self.rt is runtime.current()
+            and self.rt is runtime.for_integration(self.integration)
             and self.rt.active
             and not runtime.disabled()
         )

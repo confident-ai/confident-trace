@@ -1,7 +1,6 @@
 """Bounded accumulation of normalized text, tool calls, and completion reasons."""
 
 from ... import _attributes as confident
-from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
@@ -15,7 +14,7 @@ class Accumulator:
         self.truncated = False
 
     def ready(self, op):
-        rt = _runtime.current()
+        rt = op.runtime
         if op.ended or not op.span.is_recording() or not rt or not rt.policy.enabled:
             return False
         if self.remaining is None:

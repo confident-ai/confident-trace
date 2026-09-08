@@ -8,8 +8,11 @@ from .._shared.lifecycle import register_native_inference
 from ._constants import SCOPE_NAME
 
 
-def instrument(runtime):
+def instrument(runtime, *, explicit_processor=False):
     distribution("openai-agents")
+    if explicit_processor:
+        runtime.processor.integration_scopes[SCOPE_NAME] = Integration.OPENAI_AGENTS
+        return []
     from openinference.instrumentation.openai_agents import OpenAIAgentsInstrumentor
 
     bridge = OpenAIAgentsInstrumentor()
@@ -25,3 +28,15 @@ def instrument(runtime):
         attribute=native.OPENINFERENCE_KIND,
         values={native.OPENINFERENCE_LLM},
     )
+
+
+def create_processor(runtime):
+    """Construct an explicit processor; do not register it with the Agents SDK."""
+    from openinference.instrumentation import OITracer, TraceConfig
+    from openinference.instrumentation.openai_agents._processor import (
+        OpenInferenceTracingProcessor,
+    )
+
+    runtime.processor.integration_scopes[SCOPE_NAME] = Integration.OPENAI_AGENTS
+    tracer = OITracer(runtime.provider.get_tracer(SCOPE_NAME), config=TraceConfig())
+    return OpenInferenceTracingProcessor(tracer)

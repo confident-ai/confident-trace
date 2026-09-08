@@ -19,7 +19,7 @@ _ENTRY = context.create_key(confident.ENTRY_CONTEXT_KEY)
 
 
 def content(span, key, value):
-    rt = _runtime.current()
+    rt = getattr(span, "_confident_runtime", None) or _runtime.current()
     if rt and span.is_recording():
         shape = {
             ai.GEN_AI_INPUT_MESSAGES: "input-messages",
@@ -72,7 +72,8 @@ class Operation:
         kind=otel.SpanKind.INTERNAL,
         trace_fields=None,
     ):
-        rt = _runtime.current()
+        rt = _runtime.for_integration(integration)
+        self.runtime = rt
         if not rt or not rt.active or _runtime.disabled():
             self.parent = context.get_current()
             self.ctx = self.parent
@@ -89,7 +90,7 @@ class Operation:
         self.entry = context.get_value(_ENTRY, self.parent)
         self.span = (
             safe(
-                _runtime.tracer().start_span,
+                rt.tracer().start_span,
                 name,
                 context=self.parent,
                 kind=kind,
@@ -97,6 +98,8 @@ class Operation:
             )
             or otel.INVALID_SPAN
         )
+        if self.span.is_recording():
+            self.span._confident_runtime = rt
         self.is_entry = self.entry is None
         self.ctx = otel.set_span_in_context(self.span, self.parent)
         if self.is_entry:

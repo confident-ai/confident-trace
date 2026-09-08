@@ -47,7 +47,7 @@ class State:
     def enabled(self):
         return (
             not self.closed
-            and self.rt is runtime.current()
+            and self.rt is runtime.for_integration(Integration.CREWAI)
             and self.rt.active
             and not runtime.disabled()
         )
@@ -60,6 +60,14 @@ class State:
                 if type(call[1]) is str:
                     attributes[ai.GEN_AI_TOOL_CALL_ID] = call[1]
         op = Operation(name, attributes=attributes, integration=Integration.CREWAI)
+        if kind in ("llm", "tool"):
+            from opentelemetry import context
+
+            from .._shared.lifecycle import _SUPPRESS
+
+            # LLM.call may itself execute a tool; provider calls made by that
+            # tool must remain visible even when inference is already recorded.
+            op.ctx = context.set_value(_SUPPRESS, kind == "llm", op.ctx)
         with self.lock:
             closed = self.closed
             if not closed:
@@ -67,6 +75,9 @@ class State:
         if closed:
             op.end()
             return None
+        callback = getattr(self, "on_operation_start", None)
+        if callback is not None:
+            safe(callback, kind, instance, op)
         safe(extraction.request, op, kind, instance, params, args, kwargs)
         return op
 

@@ -45,18 +45,55 @@ TARGETS = (
 )
 
 
-def instrument(rt):
+def instrument(rt, *, include_llm=False):
     import crewai  # noqa: F401 — selected adapters alone import their framework.
 
     previous = getattr(rt, "_crewai_state", None)
-    if previous is not None and not previous.closed:
+    owned = previous is None or previous.closed
+    if not owned and not include_llm:
         return []
-    state = State(rt)
+    state = State(rt) if owned else previous
     rt._crewai_state = state
     undo = []
-    for module, class_name, method, kind in TARGETS:
+    targets = TARGETS + (
+        (("crewai", "LLM", "call", "llm"), ("crewai", "LLM", "acall", "llm"))
+        if include_llm
+        else ()
+    )
+    for module, class_name, method, kind in targets:
         safe(patch, module, class_name, method, kind, state, undo)
-    return [*undo, state.close]
+    if include_llm:
+        from crewai import LLM
+        from crewai.llms.base_llm import BaseLLM
+
+        from .._shared.execution import patch as patch_method
+
+        def instrument_model(cls):
+            for method in ("call", "acall"):
+                original = getattr(cls, method, None)
+                if original is not None:
+                    patch_method(
+                        cls, method, execution_wrapper(state, "llm", original), undo
+                    )
+
+        pending = list(BaseLLM.__subclasses__())
+        seen = set()
+        while pending:
+            cls = pending.pop()
+            if cls in seen:
+                continue
+            seen.add(cls)
+            instrument_model(cls)
+            pending.extend(cls.__subclasses__())
+
+        def create(wrapped, instance, args, kwargs):
+            result = wrapped(*args, **kwargs)
+            if state.enabled():
+                instrument_model(type(result))
+            return result
+
+        patch_method(LLM, "__new__", create, undo)
+    return [*undo, state.close] if owned else undo
 
 
 def patch(module, class_name, method, kind, state, undo):

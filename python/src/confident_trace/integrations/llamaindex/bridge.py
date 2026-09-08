@@ -12,6 +12,7 @@ from pydantic import PrivateAttr
 
 from ..._attributes import Integration
 from ..._core.safety import safe
+from ..._semconv import genai_v1_37_0 as ai
 from .._shared.execution import State, stream
 from . import extraction
 
@@ -61,9 +62,21 @@ class Bridge(State):
     def enter(self, id_, bound_args, instance=None, parent_id=None, **kwargs):
         if not self.enabled():
             return
-        description = extraction.describe(id_, instance)
+        description = extraction.describe(
+            id_, instance, include_llm=getattr(self, "include_llm", False)
+        )
         if description is None:
             return
+        # Native chat methods may delegate to complete/stream_complete. Keep
+        # one inference operation, while preserving ordinary nested tool spans.
+        if description[1].get(ai.GEN_AI_OPERATION_NAME) == "chat":
+            from opentelemetry import trace
+
+            current = trace.get_current_span()
+            if (getattr(current, "attributes", None) or {}).get(
+                ai.GEN_AI_OPERATION_NAME
+            ) == "chat":
+                return
         with self.lock:
             if id_ in self.claimed:
                 return
@@ -72,6 +85,10 @@ class Bridge(State):
         token = context.attach(parent.ctx) if parent else None
         try:
             op = self.start(*description)
+            if description[1].get(ai.GEN_AI_OPERATION_NAME) == "chat":
+                from .._shared.lifecycle import _SUPPRESS
+
+                op.ctx = context.set_value(_SUPPRESS, True, op.ctx)
             with self.lock:
                 if not self.closed:
                     self.runs[id_] = op

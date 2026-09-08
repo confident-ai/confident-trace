@@ -10,8 +10,9 @@ from .extraction import connection, request, response
 from .streaming import Accumulator
 
 TARGETS = [
-    ("openai.resources.chat.completions", c, "create")
+    ("openai.resources.chat.completions", c, method)
     for c in ("Completions", "AsyncCompletions")
+    for method in ("create", "parse")
 ] + [
     ("openai.resources.responses", c, "create") for c in ("Responses", "AsyncResponses")
 ]
@@ -40,6 +41,7 @@ def instrument(runtime):
         lambda original, method: wrapper(
             begin,
             finish,
+            runtime=runtime,
             asynchronous=inspect.iscoroutinefunction(inspect.unwrap(original)),
             manager=None,
         ),
