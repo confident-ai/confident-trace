@@ -130,3 +130,12 @@ The SDKs export traces; they do not provide a metrics or logs pipeline.
 ## License
 
 [Apache License 2.0](LICENSE).
+
+### Manual tracing parity
+
+Both SDKs support five span types, span/trace content updates, conversation turns,
+manual model/token/USD-per-token fields, test-case IDs, and separate thread tags
+and metadata. Request scopes select project exporters or suppress supported
+instrumentation before work starts. Initialize once; completed spans retain
+normal batched export. See the language READMEs for APIs, custom-exporter factory
+support, receiver limitations, and collector-side outcome-based dropping.

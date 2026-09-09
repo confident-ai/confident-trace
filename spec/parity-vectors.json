@@ -1,0 +1,20 @@
+{
+  "thread": {
+    "id": "chat-42",
+    "tags": [
+      "conversation"
+    ],
+    "metadata": {
+      "topic": "support"
+    }
+  },
+  "llm": {
+    "model": "custom-model",
+    "provider": "custom",
+    "input_token_count": 0,
+    "output_token_count": 4,
+    "cost_per_input_token": 0,
+    "cost_per_output_token": 0.002
+  },
+  "test_case_id": "case-42"
+}

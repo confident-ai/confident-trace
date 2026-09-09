@@ -186,7 +186,7 @@ def test_thread_id_groups_traces_without_changing_parentage(telemetry):
     roots = [s for s in result if s.parent is None]
     assert len(roots) == 2
     assert all(s.attributes["confident.trace.thread_id"] == "s" for s in roots)
-    assert not hasattr(ct, "turn")
+    assert callable(ct.turn)
 
 
 def test_resource_env_and_explicit_exporter_precedence(monkeypatch):

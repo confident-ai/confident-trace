@@ -13,6 +13,8 @@ export interface ExportOptions {
   compression?: 'gzip' | 'none';
   /** Ownership transfers to the returned processor/runtime. */
   exporter?: SpanExporter;
+  /** Synchronous factory; each returned exporter is owned by this runtime. */
+  projectExporterFactory?: (apiKey: string) => SpanExporter;
 }
 
 export interface InitOptions extends ExportOptions, ContentOptions {

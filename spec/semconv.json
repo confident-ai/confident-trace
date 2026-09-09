@@ -44,7 +44,13 @@
     "ATTR_GEN_AI_SYSTEM_INSTRUCTIONS": "gen_ai.system_instructions",
     "ATTR_GEN_AI_TOOL_NAME": "gen_ai.tool.name",
     "ATTR_GEN_AI_USAGE_INPUT_TOKENS": "gen_ai.usage.input_tokens",
-    "ATTR_GEN_AI_USAGE_OUTPUT_TOKENS": "gen_ai.usage.output_tokens"
+    "ATTR_GEN_AI_USAGE_OUTPUT_TOKENS": "gen_ai.usage.output_tokens",
+    "ATTR_CONFIDENT_THREAD_ID": "confident.trace.thread.id",
+    "ATTR_CONFIDENT_THREAD_TAGS": "confident.trace.thread.tags",
+    "ATTR_CONFIDENT_THREAD_METADATA": "confident.trace.thread.metadata",
+    "ATTR_CONFIDENT_TRACE_TEST_CASE_ID": "confident.trace.test_case_id",
+    "ATTR_CONFIDENT_LLM_COST_PER_INPUT_TOKEN": "confident.llm.cost_per_input_token",
+    "ATTR_CONFIDENT_LLM_COST_PER_OUTPUT_TOKEN": "confident.llm.cost_per_output_token"
   },
   "integrations": {
     "openai": "OpenAI",

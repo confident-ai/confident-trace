@@ -1,7 +1,14 @@
+import { context } from '@opentelemetry/api';
+import { requestSuppressionKey } from '@/runtime/state';
 import type { ExportOptions, ResolvedExportOptions } from '@/config/types';
 
-export function isDisabled(): boolean {
+export function sdkDisabled(): boolean {
   return process.env.OTEL_SDK_DISABLED?.toLowerCase() === 'true';
+}
+export function isDisabled(): boolean {
+  return (
+    sdkDisabled() || Boolean(context.active().getValue(requestSuppressionKey))
+  );
 }
 
 export function resolveExportOptions(

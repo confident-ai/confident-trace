@@ -27,9 +27,12 @@ assert.deepEqual(Object.keys(esm).sort(), [
   'shutdown',
   'span',
   'turn',
+  'updateLlmSpan',
   'updateSpan',
   'updateTrace',
+  'withProject',
   'withSpan',
+  'withTracingSuppressed',
 ]);
 const conventions = await import('confident-trace/semconv');
 assert.equal(

@@ -46,3 +46,7 @@ export const automaticOriginals = new WeakMap<
   object,
   (...args: never[]) => unknown
 >();
+
+export const requestSuppressionKey = createContextKey(
+  'confident-trace.request-suppressed',
+);

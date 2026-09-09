@@ -2,7 +2,6 @@ import { types } from 'node:util';
 import {
   context,
   trace,
-  ROOT_CONTEXT,
   SpanKind,
   SpanStatusCode,
   createContextKey,
@@ -19,6 +18,15 @@ import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
 import { isDisabled } from '@/config/resolve';
 import { state } from '@/runtime/state';
+import { detachedContext } from '@/runtime/scopes';
+import {
+  applyLlmFields,
+  applyThreadFields,
+  validateFields,
+  llmAttributes,
+} from '@/spans/fields';
+import type { ThreadFields, LlmFields } from '@/spans/fields';
+export type { ThreadFields, LlmFields } from '@/spans/fields';
 import { VERSION } from '@/runtime/version';
 import * as S from '@/semconv/generated';
 
@@ -35,22 +43,27 @@ export interface SpanFields {
   expectedTools?: readonly Record<string, unknown>[] | null;
 }
 export interface TraceFields extends SpanFields {
+  thread?: ThreadFields;
+  testCaseId?: string;
   tags?: readonly string[];
   userId?: string;
   threadId?: string;
   turnId?: string;
   environment?: string;
 }
-export interface SpanOptions extends SpanFields, ContentOptions {
-  type?: SpanType;
-  attributes?: Attributes;
-  tracer?: Tracer;
-}
-export interface TurnOptions extends TraceFields, ContentOptions {
-  threadId: string;
-  previous?: SpanContext;
-  tracer?: Tracer;
-}
+export type SpanOptions = SpanFields &
+  ContentOptions & {
+    attributes?: Attributes;
+    tracer?: Tracer;
+  } & (
+    | ({ type: 'llm' } & LlmFields)
+    | ({ type?: Exclude<SpanType, 'llm'> } & { [K in keyof LlmFields]?: never })
+  );
+export type TurnOptions = TraceFields &
+  ContentOptions & {
+    previous?: SpanContext;
+    tracer?: Tracer;
+  } & ({ threadId: string } | { thread: ThreadFields & { id: string } });
 const roles: readonly string[] = [
   'agent',
   'llm',
@@ -75,13 +88,19 @@ const traceKeys: Record<string, string> = {
   threadId: 'thread_id',
   turnId: 'turn_id',
   environment: 'environment',
+  testCaseId: 'test_case_id',
 };
 const spanFields = new Set(['name', ...Object.keys(contentKeys)]);
-const traceFields = new Set([...spanFields, ...Object.keys(traceKeys)]);
+const traceFields = new Set([
+  ...spanFields,
+  ...Object.keys(traceKeys),
+  'thread',
+]);
 const configuration = ['captureContent', 'maxContentBytes', 'redact', 'tracer'];
 const spanOptions = new Set([
   ...spanFields,
   ...configuration,
+  ...Object.keys(llmAttributes),
   'type',
   'attributes',
 ]);
@@ -98,6 +117,7 @@ function safe(action: () => void): void {
   }
 }
 function validate(options: object, allowed: Set<string>): void {
+  validateFields(options);
   for (const key of Object.keys(options)) {
     if (!allowed.has(key))
       throw new TypeError(`Unknown tracing option: ${key}`);
@@ -116,6 +136,13 @@ function role(options: SpanOptions): SpanType {
       : (options.attributes?.[S.ATTR_CONFIDENT_SPAN_TYPE] ?? 'custom');
   if (typeof value !== 'string' || !roles.includes(value))
     throw new TypeError(`Unsupported span type: ${String(value)}`);
+  if (
+    Object.keys(llmAttributes).some(
+      (k) => (options as Record<string, unknown>)[k] !== undefined,
+    ) &&
+    value !== 'llm'
+  )
+    throw new TypeError('Model and usage options require type=llm');
   return value as SpanType;
 }
 function policy(
@@ -173,6 +200,8 @@ function apply(
   contentPolicy: ContentPolicy,
 ): void {
   if (!span.isRecording()) return;
+  if (scope === 'trace')
+    applyThreadFields(span, fields as TraceFields, contentPolicy);
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined) continue;
     if (key === 'name' && scope === 'span') {
@@ -221,14 +250,54 @@ function update(
   );
 }
 /** Update the active OTel span. Explicit fields override automatic capture. */
-export function updateSpan(fields: SpanFields): void {
-  validate(fields, spanFields);
+export function updateSpan(fields: SpanFields & LlmFields): void {
+  validate(fields, new Set([...spanFields, ...Object.keys(llmAttributes)]));
   update(fields, 'span');
+  if (isDisabled()) return;
+  const current = trace.getSpan(context.active());
+  if (current) safe(() => updateLlmFields(current, fields));
 }
 /** Update the package entry span, or the current OTel span if there is no entry. */
 export function updateTrace(fields: TraceFields): void {
   validate(fields, traceFields);
   update(fields, 'trace');
+}
+
+const warnedLlmTargets = new Set<string>();
+function updateLlmFields(span: Span, fields: LlmFields): void {
+  if (
+    !span.isRecording() ||
+    !Object.keys(llmAttributes).some(
+      (key) => (fields as Record<string, unknown>)[key] !== undefined,
+    )
+  )
+    return;
+  const attrs = (span as Span & { attributes?: Attributes }).attributes ?? {};
+  const category = attrs[S.ATTR_CONFIDENT_SPAN_TYPE];
+  const modelSpan =
+    category === 'llm' ||
+    (category === undefined &&
+      ['chat', 'generate_content', 'text_completion', 'embeddings'].includes(
+        String(attrs[S.ATTR_GEN_AI_OPERATION_NAME]),
+      ));
+  if (modelSpan) applyLlmFields(span, fields);
+  else if (
+    !warnedLlmTargets.has(
+      roles.includes(String(category)) ? String(category) : 'unclassified',
+    )
+  ) {
+    warnedLlmTargets.add(
+      roles.includes(String(category)) ? String(category) : 'unclassified',
+    );
+    console.warn(
+      '[confident-trace] updateSpan skipped LLM fields: the active span is not an LLM span. Use span({ type: "llm" }, ...) or update inside an instrumented model span. General span fields were still applied.',
+    );
+  }
+}
+/** Compatibility alias for LLM fields; prefer updateSpan. */
+export function updateLlmSpan(fields: LlmFields): void {
+  validate(fields, new Set(Object.keys(llmAttributes)));
+  updateSpan(fields);
 }
 
 class Operation {
@@ -276,6 +345,12 @@ class Operation {
     for (const key of Object.keys(options.attributes ?? {}))
       remember(this.span, key);
     safe(() => apply(this.span, options, 'span', this.policy));
+    safe(() => applyLlmFields(this.span, options));
+    const parentSpan = trace.getSpan(parent) as
+      (Span & { attributes?: Attributes }) | undefined;
+    const conversation = parentSpan?.attributes?.['gen_ai.conversation.id'];
+    if (typeof conversation === 'string')
+      this.span.setAttribute('gen_ai.conversation.id', conversation);
     if (this.entry)
       safe(() =>
         apply(
@@ -396,16 +471,17 @@ export function withSpan<T>(
 /** Execute a conversation turn in a new trace, optionally linking a previous span. */
 export function turn<T>(options: TurnOptions, callback: (span: Span) => T): T {
   validate(options, turnOptions);
-  if (typeof options.threadId !== 'string')
-    throw new TypeError('turn requires threadId');
-  effectivePolicy(options, ROOT_CONTEXT);
+  if (typeof (options.threadId ?? options.thread?.id) !== 'string')
+    throw new TypeError('turn requires threadId or thread.id');
+  const parent = detachedContext();
+  effectivePolicy(options, parent);
   const config: SpanOptions = Object.fromEntries(
     Object.entries(options).filter(([key]) => configuration.includes(key)),
   );
   const op = start(
     options.name ?? 'agent turn',
     config,
-    ROOT_CONTEXT,
+    parent,
     options,
     options.previous,
   );

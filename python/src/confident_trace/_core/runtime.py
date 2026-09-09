@@ -13,7 +13,6 @@ from opentelemetry import trace
 from opentelemetry.sdk import environment_variables as otel_env
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.util.re import parse_env_headers
 
 from .. import _attributes as confident
@@ -22,6 +21,7 @@ from .._semconv.genai_v1_37_0 import SEMCONV_VERSION as SEMCONV_VERSION
 from .content import ContentPolicy
 from .otlp import child_environment
 from .safety import safe
+from .scopes import RoutingProcessor, suppressed
 
 VERSION = "0.1.0"
 log = logging.getLogger(confident.SCOPE_NAME)
@@ -29,7 +29,7 @@ log.addHandler(logging.NullHandler())
 
 
 def disabled():
-    return os.getenv(otel_env.OTEL_SDK_DISABLED, "").lower() == "true"
+    return os.getenv(otel_env.OTEL_SDK_DISABLED, "").lower() == "true" or suppressed()
 
 
 class OwnedProcessor(SpanProcessor):
@@ -45,8 +45,11 @@ class OwnedProcessor(SpanProcessor):
         self.integration_scopes: dict[str, confident.Integration] = {}
 
     def on_start(self, span, parent_context=None):
-        if self.closed or disabled():
+        if self.closed:
             return
+        if disabled():
+            return
+        self.delegate.on_start(span, parent_context)
         try:
             scope = span.instrumentation_scope
             integration = self.integration_scopes.get(scope.name) if scope else None
@@ -118,6 +121,7 @@ def init(
     compression=None,
     tracer_provider=None,
     exporter=None,
+    project_exporter_factory=None,
     resource_attributes=None,
     capture_content=True,
     max_content_bytes=16384,
@@ -132,7 +136,7 @@ def init(
     """
     global _runtime
     with _lock:
-        if disabled():
+        if os.getenv(otel_env.OTEL_SDK_DISABLED, "").lower() == "true":
             shutdown()
             return Runtime(trace.NoOpTracerProvider(), active=False)
         if _runtime and _runtime.active:
@@ -156,6 +160,10 @@ def init(
                 provider = trace.get_tracer_provider()
             if not isinstance(provider, TracerProvider):
                 raise TypeError("A standard SDK TracerProvider is required")
+            default_key = (
+                api_key if api_key is not None else os.getenv("CONFIDENT_API_KEY")
+            )
+            factory = project_exporter_factory
             if exporter is None:
                 selected = (
                     protocol
@@ -198,6 +206,7 @@ def init(
                     resolved["x-confident-api-key"] = key
                 resolved.update({k.lower(): v for k, v in (headers or {}).items()})
                 kwargs["headers"] = resolved
+                default_key = resolved.get("x-confident-api-key")
                 if timeout is not None:
                     kwargs["timeout"] = timeout
                 if compression is not None:
@@ -218,7 +227,19 @@ def init(
                 otlp_environment = safe(
                     child_environment, selected, kwargs, compression=compression
                 )
-            processor = OwnedProcessor(BatchSpanProcessor(exporter))
+                if factory is None:
+
+                    def factory(project_key):
+                        project_kwargs = {
+                            **kwargs,
+                            "headers": {
+                                **kwargs.get("headers", {}),
+                                "x-confident-api-key": project_key,
+                            },
+                        }
+                        return OTLPSpanExporter(**project_kwargs)
+
+            processor = OwnedProcessor(RoutingProcessor(exporter, factory, default_key))
             provider.add_span_processor(processor)
             runtime = Runtime(
                 provider,

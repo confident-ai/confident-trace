@@ -27,8 +27,8 @@ code.
 
 Spans sharing an OTel trace ID make up a trace. Setting
 `confident.trace.thread_id` associates that trace with a conversation, where it
-represents a turn. This is metadata, not a separate SDK scope or object, and does
-not change span parentage or merge traces. Explicit thread IDs also populate the standard
+represents a turn. The thread ID does not change parentage or merge traces. The optional `turn()`
+scope starts a fresh trace for each turn. Explicit thread IDs also populate the standard
 `gen_ai.conversation.id` on the entry and subsequent package spans. See `examples/conversation.py` for
 adding conversation metadata to an optional custom entry point.
 
@@ -102,7 +102,7 @@ provider or its other processors. Finish/close active streams before shutdown.
 
 ## Content and spans
 
-`@span`, `@span(name="step")`, and `@span(kind="tool")` preserve function return
+`@span`, `@span(name="step")`, and `@span(type="tool")` preserve function return
 values and exceptions. `with span("step") as s:` yields the real OTel span.
 `update_trace()` updates the entry span, falling back to the current OTel span.
 
@@ -235,3 +235,58 @@ Claude Agent SDK's label is available as `Integration.CLAUDE_AGENT_SDK`, but its
 CLI subprocess exports directly to OTLP and bypasses the Python span processor.
 Stamping those remote spans requires support in the CLI or the receiving
 Collector; this SDK does not add duplicate local spans.
+
+## Manual span and request APIs
+
+Initialize once before traced calls; decorators never initialize exporters. Python
+supports `type="agent"`, `"llm"`, `"retriever"`, `"tool"`, or `"custom"` (default).
+`kind="step"` / `kind="tool"` remain deprecated aliases; conflicting values raise.
+`span` scopes support `with` and `async with`.
+
+`update_span()` updates the current span, and `update_trace()` updates the entry
+span (or the current OTel span). Both accept input/output, metadata, context,
+retrieval_context, expected_output, tools_called and expected_tools. Explicit
+content overrides automatic capture; supplied metadata replaces the object.
+Omitted fields remain unchanged. Content redaction and limits apply.
+
+`update_span(model=..., provider=..., input_token_count=...,
+output_token_count=..., cost_per_input_token=..., cost_per_output_token=...)`
+records the active model span's fields. The same options work on `span(type="llm")`.
+Counts are nonnegative integers; rates are finite nonnegative USD per token, not
+per million tokens. Zero is retained. No metric execution or price calculation
+is performed. Updates require an active recording span.
+
+`turn(thread_id=..., previous=...)` starts a new trace, optionally linked to a
+previous SpanContext, and supports sync/async scopes. Alternatively supply
+`thread={"id": "chat", "tags": ["support"], "metadata": {"topic": "billing"}}`
+on `turn()` or `update_trace()`. Thread fields emit `confident.trace.thread.*`;
+ID also emits legacy `confident.trace.thread_id`. Conflicting IDs raise. Thread
+metadata/tags remain separate from trace metadata/tags; supplied values replace
+within a trace. Backend merging/storage requires receiver support.
+`update_trace(test_case_id=...)` emits `confident.trace.test_case_id`; validate
+AI Connection linkage with the receiving deployment.
+
+Use `with suppress_tracing():` (or `async with`) before work to skip supported
+instrumentation. Use `with project(api_key=tenant_key):` before traced work to
+select its exporter. These scopes work in undecorated handlers that call
+instrumented clients; concurrent requests remain isolated. An active span cannot
+switch projects. Keys stay in private context and auth headers, never attributes
+or baggage. A fixed custom exporter needs `project_exporter_factory(key)`;
+the returned exporters become runtime-owned. Idle routes are bounded to 64 after
+successful cleanup; active/queued routes are preserved. Flush/shutdown cover all
+owned routes. Independently exporting subprocesses and unrelated exporters keep
+their own configuration.
+
+Spans export in normal batches as they finish. There is no late drop flag or
+whole-trace buffering. Outcome-based dropping requires collector tail sampling;
+a metadata flag without collector configuration drops nothing.
+
+LLM fields on a non-LLM span are skipped with a warning once per incompatible category per process; general
+fields still apply. Updates without a recording span remain no-ops. The legacy
+`update_llm_span` helper remains a compatibility alias.
+
+The same update helper works on `agent`, `llm`, `retriever`, `tool`, and `custom`
+spans. Input, output, metadata, context, retrieval context, expected output, and
+called/expected tools are shared fields on every category. Model, provider,
+tokens, and per-token costs require an LLM span. No separate category-specific
+update imports are needed.

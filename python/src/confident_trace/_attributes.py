@@ -64,3 +64,33 @@ TRACE_FIELDS = MappingProxyType(
         "turn_id": TRACE_TURN_ID,
     }
 )
+
+# Shared manual tracing extensions.
+SPAN_TYPE = "confident.span.type"
+PROJECT_CONTEXT_KEY = "confident_trace.project"
+SUPPRESS_CONTEXT_KEY = "confident_trace.suppressed"
+THREAD_ID = "confident.trace.thread.id"
+THREAD_TAGS = "confident.trace.thread.tags"
+THREAD_METADATA = "confident.trace.thread.metadata"
+LLM_COST_PER_INPUT_TOKEN = "confident.llm.cost_per_input_token"
+LLM_COST_PER_OUTPUT_TOKEN = "confident.llm.cost_per_output_token"
+CONTENT_FIELDS = frozenset(
+    (
+        "input",
+        "output",
+        "metadata",
+        "retrieval_context",
+        "context",
+        "expected_output",
+        "tools_called",
+        "expected_tools",
+    )
+)
+SPAN_FIELDS = {key: f"confident.span.{key}" for key in CONTENT_FIELDS}
+TRACE_FIELDS = MappingProxyType(
+    {
+        **TRACE_FIELDS,
+        **{key: f"confident.trace.{key}" for key in CONTENT_FIELDS},
+        "test_case_id": "confident.trace.test_case_id",
+    }
+)

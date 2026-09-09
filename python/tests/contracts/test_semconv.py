@@ -34,11 +34,8 @@ def test_generated_files_and_provenance():
     assert REGISTRY["groups"]["span.gen_ai.inference.client"]["attributes"][
         ai.SERVER_PORT
     ]["requirement_level"]
-    assert (
-        not list((ROOT / "typescript").iterdir())
-        if (ROOT / "typescript").exists()
-        else True
-    )
+    shared = json.loads((ROOT / "spec/semconv.json").read_text())
+    assert shared["semconvVersion"] == ct.SEMCONV_VERSION
 
 
 @pytest.mark.parametrize("case", VECTORS["cases"], ids=lambda c: c["name"])

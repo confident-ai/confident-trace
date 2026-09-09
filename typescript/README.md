@@ -235,7 +235,7 @@ await turn(
 );
 ```
 
-`turn` requires `threadId`, starts a new root trace, and optionally links a valid
+`turn` requires `threadId` or `thread.id`, starts a new root trace, and optionally links a valid
 previous OTel `SpanContext`. Its default name is `agent turn` and type is `custom`.
 Regular scopes preserve their OTel parent. Finish child work before the entry ends
 when it needs to update trace fields; no detached work is awaited automatically.
@@ -673,3 +673,46 @@ The attribute is set at span creation (or Mastra export conversion), so streamin
 and failed calls are typed too. OTel kind, GenAI operation, and Mastra's original
 `mastra.span.type` remain available. Native application spans are unchanged.
 Import `ATTR_CONFIDENT_SPAN_TYPE` from `confident-trace/semconv` to read this field.
+
+## Request scopes and manual model fields
+
+Call `init()` once. `withTracingSuppressed(callback)` suppresses supported
+instrumentation in an isolated sync/async request scope. `withProject({ apiKey },
+callback)` selects an isolated project exporter before traced work starts.
+Both work without an application wrapper when provider calls are instrumented.
+Changing projects within an active span throws. Existing spans retain their route
+when the scope exits; errors never fall back to another project. Authentication
+keys are never span attributes or baggage.
+
+Custom exporters require `projectExporterFactory(apiKey)` to create separately
+owned exporters. Idle routes are capped at 64 after successful cleanup, with
+active and queued routes retained. Runtime flush/shutdown include all routes.
+Completed spans still export in ordinary batches; there is no late drop flag.
+Outcome-based whole-trace dropping requires collector tail sampling, not merely
+a metadata field. Independent Mastra exporters, subprocess exporters, and
+unrelated pipelines retain their own configuration.
+
+`updateSpan({ model, provider, inputTokenCount, outputTokenCount,
+costPerInputToken, costPerOutputToken })` records fields on the active model span.
+Equivalent options work on `span` / `withSpan` with `type: 'llm'`. Counts must be
+nonnegative integers and rates finite nonnegative USD per token. Zero is retained.
+These helpers do not run evaluations or calculate authoritative totals.
+
+`updateTrace({ testCaseId })` emits `confident.trace.test_case_id`.
+`updateTrace({ thread: { id, tags, metadata } })` and the same options on `turn`
+emit `confident.trace.thread.*`, separate from trace tags/metadata. The ID also
+emits legacy `confident.trace.thread_id`. Conflicting `threadId` and `thread.id`
+values throw. Supplied thread tags/metadata replace the field within the trace;
+omitted fields stay unchanged and metadata obeys content policy. Storage of the
+new namespace, cross-trace merging, and AI Connection linkage require receiver
+verification; no backend changes are included.
+
+LLM fields on a non-LLM span are skipped with a warning once per incompatible category per process; general
+fields still apply. Updates without a recording span remain no-ops. The legacy
+`updateLlmSpan` helper remains a compatibility alias.
+
+The same update helper works on `agent`, `llm`, `retriever`, `tool`, and `custom`
+spans. Input, output, metadata, context, retrieval context, expected output, and
+called/expected tools are shared fields on every category. Model, provider,
+tokens, and per-token costs require an LLM span. No separate category-specific
+update imports are needed.

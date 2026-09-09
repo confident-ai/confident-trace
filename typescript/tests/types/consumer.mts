@@ -96,3 +96,17 @@ span({ type: 'workflow' }, () => 1);
 span({ userId: 'user' }, () => 1);
 // @ts-expect-error Turns require a conversation identifier.
 turn({}, () => 1);
+
+// @ts-expect-error Unknown span option must be rejected by IDEs.
+span({ anything: true }, () => 1);
+// @ts-expect-error Unknown update field must be rejected by IDEs.
+updateSpan({ anything: true });
+// @ts-expect-error Thread fields are a closed typed object.
+updateTrace({ thread: { unknown: true } });
+
+// @ts-expect-error Model usage fields require an explicitly typed LLM span.
+span({ type: 'tool', model: 'test' }, () => 1);
+
+updateSpan({ output: 'answer', model: 'test', inputTokenCount: 0 });
+// @ts-expect-error Token counts must be numbers.
+updateSpan({ inputTokenCount: 'five' });

@@ -19,7 +19,7 @@ import type {
 } from '@opentelemetry/sdk-trace-base';
 import type { InitOptions } from '@/config/types';
 import { isDisabled } from '@/config/resolve';
-import { createSpanProcessor } from '@/runtime/processor';
+import { createCompletedSpanProcessor } from '@/runtime/processor';
 import { withinBudget } from '@/runtime/lifecycle';
 import { VERSION } from '@/runtime/version';
 import {
@@ -71,7 +71,7 @@ export class ConfidentMastraExporter {
     this.resource = defaultResource()
       .merge(detectResources({ detectors: [envDetector] }))
       .merge(resourceFromAttributes(options.resourceAttributes ?? {}));
-    this.processor = createSpanProcessor(options);
+    this.processor = createCompletedSpanProcessor(options);
   }
   init(options: { config?: { serviceName?: string } }): void {
     const serviceName = options.config?.serviceName;

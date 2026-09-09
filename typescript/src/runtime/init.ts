@@ -26,7 +26,7 @@ import {
 } from '@opentelemetry/resources';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { isDisabled } from '@/config/resolve';
+import { isDisabled, sdkDisabled } from '@/config/resolve';
 import type { InitOptions } from '@/config/types';
 import { ContentPolicy } from '@/content/policy';
 import { withinBudget } from '@/runtime/lifecycle';
@@ -86,7 +86,7 @@ class OwnedRuntime implements TraceRuntime {
 }
 
 export function init(options: InitOptions = {}): TraceRuntime {
-  if (isDisabled()) {
+  if (sdkDisabled()) {
     if (runtime?.active) void runtime.shutdown();
     return inactive;
   }
