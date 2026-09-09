@@ -677,8 +677,8 @@ Import `ATTR_CONFIDENT_SPAN_TYPE` from `confident-trace/semconv` to read this fi
 ## Request scopes and manual model fields
 
 Call `init()` once. `withTracingSuppressed(callback)` suppresses supported
-instrumentation in an isolated sync/async request scope. `withProject({ apiKey },
-callback)` selects an isolated project exporter before traced work starts.
+instrumentation in an isolated sync/async request scope. `projectContext({
+apiKey }, callback)` selects an isolated project exporter before traced work starts.
 Both work without an application wrapper when provider calls are instrumented.
 Changing projects within an active span throws. Existing spans retain their route
 when the scope exits; errors never fall back to another project. Authentication

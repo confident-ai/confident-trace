@@ -106,7 +106,7 @@ async def test_concurrent_project_routing_and_early_export():
     try:
 
         async def request(key):
-            async with ct.project(api_key=key):
+            async with ct.project_context(api_key=key):
                 async with ct.span("request-" + key):
                     await asyncio.sleep(0)
                     # An undecorated provider call: routing is captured by the processor.
@@ -119,7 +119,7 @@ async def test_concurrent_project_routing_and_early_export():
                         "model-" + key
                     ]
                     with pytest.raises(RuntimeError):
-                        with ct.project(api_key="other"):
+                        with ct.project_context(api_key="other"):
                             pass
 
         await asyncio.gather(request("a"), request("b"))
@@ -134,7 +134,7 @@ async def test_concurrent_project_routing_and_early_export():
                 "api_key" not in str(s.attributes) for s in output.get_finished_spans()
             )
         # A span can end after its project scope exits.
-        with ct.project(api_key="a"):
+        with ct.project_context(api_key="a"):
             late = provider.get_tracer("provider").start_span("late")
         late.end()
         ct.flush()
@@ -180,7 +180,7 @@ async def test_suppression_isolated_and_external_exporter_owned(telemetry):
 def test_custom_exporter_requires_factory_and_updates_need_active_span(telemetry):
     _, exporter = telemetry
     with pytest.raises(RuntimeError):
-        with ct.project(api_key="tenant"):
+        with ct.project_context(api_key="tenant"):
             pass
     ct.update_trace(thread=V["thread"])
     ct.update_llm_span(model="none")
@@ -205,7 +205,7 @@ def test_generator_parent_and_project_captured_at_call():
         yield 1
 
     try:
-        with ct.project(api_key="tenant"):
+        with ct.project_context(api_key="tenant"):
             stream = generate()
         assert list(stream) == [1]
         ct.flush()
@@ -281,7 +281,7 @@ def test_real_openai_client_scopes_without_application_decorator():
         with ct.suppress_tracing():
             assert ct.init() is rt
             answer()
-        with ct.project(api_key="tenant"):
+        with ct.project_context(api_key="tenant"):
             answer()
         ct.flush()
         assert not fallback.get_finished_spans()
@@ -317,12 +317,12 @@ def test_route_cache_protects_active_spans_and_reopens_old_context():
         yield "ok"
 
     try:
-        with ct.project(api_key="old"):
+        with ct.project_context(api_key="old"):
             generator = delayed()
-        with ct.project(api_key="active"):
+        with ct.project_context(api_key="active"):
             active = provider.get_tracer("native").start_span("active")
         for i in range(70):
-            with ct.project(api_key=str(i)):
+            with ct.project_context(api_key=str(i)):
                 with ct.span("request"):
                     pass
         assert len(rt.processor.delegate.routes) <= 65
@@ -352,7 +352,7 @@ def test_failed_route_does_not_fall_back_or_expose_secret():
     )
     try:
         with pytest.raises(RuntimeError) as error:
-            with ct.project(api_key="secret-credential"):
+            with ct.project_context(api_key="secret-credential"):
                 pytest.fail("must not execute with wrong routing")
         assert "secret-credential" not in str(error.value)
         assert not fallback.get_finished_spans()
@@ -371,11 +371,11 @@ def test_project_auth_overrides_default_header_and_disabled_is_noop(monkeypatch)
         instrumentations=(),
     )
     try:
-        with ct.project(api_key="default"):
+        with ct.project_context(api_key="default"):
             exporter = rt.processor.delegate.routes["default"].processor.span_exporter
             assert exporter._headers["x-confident-api-key"] == "default"
         monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
-        with ct.project(api_key="disabled"):
+        with ct.project_context(api_key="disabled"):
             assert "disabled" not in rt.processor.delegate.routes
     finally:
         ct.shutdown()

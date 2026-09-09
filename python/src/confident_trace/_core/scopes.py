@@ -91,7 +91,7 @@ def suppress_tracing():
     return _Scope()
 
 
-def project(*, api_key):
+def project_context(*, api_key):
     """Choose a project before starting traced work; credentials stay private."""
     if not isinstance(api_key, str) or not api_key.strip():
         raise ValueError("api_key must be a nonempty string")

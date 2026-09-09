@@ -26,4 +26,4 @@ export type {
   InstrumentationStatus,
 } from '@/auto/types';
 
-export { withProject, withTracingSuppressed } from '@/runtime/scopes';
+export { projectContext, withTracingSuppressed } from '@/runtime/scopes';

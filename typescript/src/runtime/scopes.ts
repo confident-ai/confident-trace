@@ -44,7 +44,7 @@ export function withTracingSuppressed<T>(callback: () => T): T {
   );
 }
 /** Select the destination before starting traced work, including automatic spans. */
-export function withProject<T>(
+export function projectContext<T>(
   options: { apiKey: string },
   callback: () => T,
 ): T {

@@ -267,8 +267,8 @@ within a trace. Backend merging/storage requires receiver support.
 AI Connection linkage with the receiving deployment.
 
 Use `with suppress_tracing():` (or `async with`) before work to skip supported
-instrumentation. Use `with project(api_key=tenant_key):` before traced work to
-select its exporter. These scopes work in undecorated handlers that call
+instrumentation. Use `with project_context(api_key=tenant_key):` before traced
+work to select its exporter. These scopes work in undecorated handlers that call
 instrumented clients; concurrent requests remain isolated. An active span cannot
 switch projects. Keys stay in private context and auth headers, never attributes
 or baggage. A fixed custom exporter needs `project_exporter_factory(key)`;

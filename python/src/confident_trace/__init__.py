@@ -4,7 +4,7 @@ from ._attributes import Integration
 from ._bootstrap import init
 from ._core.runtime import flush, shutdown
 from ._core.runtime import VERSION as __version__
-from ._core.scopes import project, suppress_tracing
+from ._core.scopes import project_context, suppress_tracing
 from ._core.spans import (
     SpanType,
     span,
@@ -28,7 +28,7 @@ __all__ = [
     "turn",
     "update_span",
     "update_llm_span",
-    "project",
+    "project_context",
     "suppress_tracing",
     "update_trace",
     "trace_context",

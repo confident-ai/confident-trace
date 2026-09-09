@@ -88,7 +88,7 @@ it('records shared manual LLM, thread and linkage fields', async () => {
 });
 it('isolates concurrent projects and exports child spans before parent ends', async () => {
   const request = (key: string) =>
-    api.withProject({ apiKey: key }, () =>
+    api.projectContext({ apiKey: key }, () =>
       api.withSpan({ name: 'request-' + key }, async () => {
         await Promise.resolve();
         trace
@@ -102,7 +102,7 @@ it('isolates concurrent projects and exports child spans before parent ends', as
             .getFinishedSpans()
             .map((s) => s.name),
         ).toEqual(['model-' + key]);
-        expect(() => api.withProject({ apiKey: 'other' }, () => {})).toThrow();
+        expect(() => api.projectContext({ apiKey: 'other' }, () => {})).toThrow();
       }),
     );
   await Promise.all([request('a'), request('b')]);
@@ -113,7 +113,7 @@ it('isolates concurrent projects and exports child spans before parent ends', as
       'model-' + key,
       'request-' + key,
     ]);
-  const late = api.withProject({ apiKey: 'a' }, () =>
+  const late = api.projectContext({ apiKey: 'a' }, () =>
     trace.getTracer('native').startSpan('late'),
   );
   late.end();
@@ -126,7 +126,7 @@ it('suppresses undecorated native calls and preserves turn routing', async () =>
     trace.getTracer('native').startSpan('hidden').end();
     api.turn({ thread: V.thread }, () => api.withSpan({}, () => {}));
   });
-  await api.withProject({ apiKey: 'a' }, () =>
+  await api.projectContext({ apiKey: 'a' }, () =>
     api.turn({ thread: V.thread }, async () => {
       await Promise.resolve();
       api.withSpan({ name: 'child' }, () => {});
@@ -183,7 +183,7 @@ it('routes and suppresses instrumented OpenAI calls in undecorated handlers', as
       expect(api.init().active).toBe(true);
       await answer();
     });
-    await api.withProject({ apiKey: 'tenant' }, answer);
+    await api.projectContext({ apiKey: 'tenant' }, answer);
     await api.flush();
     expect(fallback.getFinishedSpans()).toHaveLength(0);
     expect(destinations.get('tenant')!.getFinishedSpans()).toHaveLength(1);
@@ -200,12 +200,12 @@ it('cleans idle exporters without losing active or delayed spans', async () => {
   const delayed = api.span({}, function* () {
     yield 'ok';
   });
-  const generator = api.withProject({ apiKey: 'old' }, delayed);
-  const active = api.withProject({ apiKey: 'active' }, () =>
+  const generator = api.projectContext({ apiKey: 'old' }, delayed);
+  const active = api.projectContext({ apiKey: 'active' }, () =>
     trace.getTracer('native').startSpan('active'),
   );
   for (let i = 0; i < 70; i++) {
-    api.withProject({ apiKey: String(i) }, () => api.withSpan({}, () => {}));
+    api.projectContext({ apiKey: String(i) }, () => api.withSpan({}, () => {}));
   }
   await api.flush();
   expect([...generator]).toEqual(['ok']);
@@ -232,10 +232,10 @@ it('uses scoped credentials over default auth headers on the wire', async () => 
       headers: { 'X-Confident-Api-Key': 'header-default' },
       instrumentations: [],
     });
-    api.withProject({ apiKey: 'default' }, () =>
+    api.projectContext({ apiKey: 'default' }, () =>
       api.withSpan({ name: 'first' }, () => {}),
     );
-    api.withProject({ apiKey: 'tenant' }, () =>
+    api.projectContext({ apiKey: 'tenant' }, () =>
       api.withSpan({ name: 'second' }, () => {}),
     );
     await api.flush();
@@ -245,7 +245,7 @@ it('uses scoped credentials over default auth headers on the wire', async () => 
     for (const row of receiver.received)
       expect(JSON.stringify(row.body)).not.toContain('api-key');
     vi.stubEnv('OTEL_SDK_DISABLED', 'true');
-    expect(api.withProject({ apiKey: 'disabled' }, () => 7)).toBe(7);
+    expect(api.projectContext({ apiKey: 'disabled' }, () => 7)).toBe(7);
   } finally {
     await api.shutdown();
     await receiver.close();

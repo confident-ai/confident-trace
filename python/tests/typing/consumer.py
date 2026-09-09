@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator, Iterator
 
 from confident_trace import (
-    project,
+    project_context,
     span,
     suppress_tracing,
     turn,
@@ -45,13 +45,13 @@ with span("manual", type="llm", model="test", input_token_count=0) as current:
     update_span(output=None, metadata={"count": 1})
     update_trace(thread={"id": "chat", "tags": ["support"]})
     update_llm_span(input_token_count=1, cost_per_input_token=0.01)
-with turn(thread_id="chat"), project(api_key="key"), suppress_tracing():
+with turn(thread_id="chat"), project_context(api_key="key"), suppress_tracing():
     pass
 
 
 async def scopes() -> None:
     result: str = await asynchronous(1)
-    async with turn(thread={"id": "chat"}), project(api_key="key"), suppress_tracing():
+    async with turn(thread={"id": "chat"}), project_context(api_key="key"), suppress_tracing():
         async with span(type="agent") as current:
             current.set_attribute("result", result)
 
@@ -64,7 +64,7 @@ update_trace(test_case_id=12)  # type: ignore[arg-type]
 update_trace(thread={"unknown": "value"})  # type: ignore[typeddict-unknown-key]
 update_llm_span(input_token_count="five")  # type: ignore[arg-type]
 turn(anything=True)  # type: ignore[call-overload]
-project(api_key=123)  # type: ignore[arg-type]
+project_context(api_key=123)  # type: ignore[arg-type]
 suppress_tracing(anything=True)  # type: ignore[call-arg]
 decorated("bad")  # type: ignore[arg-type]
 wrong_result: int = decorated(1)  # type: ignore[assignment]
