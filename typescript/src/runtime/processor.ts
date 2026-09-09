@@ -1,3 +1,4 @@
+import { ambientOnStart } from '@/spans/index';
 import { diag } from '@opentelemetry/api';
 import type { Context } from '@opentelemetry/api';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
@@ -115,6 +116,7 @@ class RoutingProcessor implements SpanProcessor, ProjectRouter {
     }
   }
   onStart(span: Span, parent: Context = context.active()): void {
+    ambientOnStart(span, parent);
     if (this.closed || tracingSuppressed(parent)) return;
     let route =
       (parent.getValue(projectKey) as Route | undefined) ?? this.fallback;

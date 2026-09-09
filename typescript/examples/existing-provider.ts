@@ -1,6 +1,6 @@
 import { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
-import { createSpanProcessor } from '@/index';
+import { createSpanProcessor } from '@/otel';
 
 const exporter = new InMemorySpanExporter();
 const provider = new NodeTracerProvider({

@@ -1,4 +1,5 @@
-import { init, createSpanProcessor } from 'confident-trace';
+import { init } from 'confident-trace';
+import { createSpanProcessor } from 'confident-trace/otel';
 import type { InitOptions, TraceRuntime } from 'confident-trace';
 import { SCHEMA_URL } from 'confident-trace/semconv';
 import type { GenAiMessage } from 'confident-trace/semconv';

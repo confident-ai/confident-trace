@@ -18,6 +18,9 @@ from .. import _attributes as confident
 
 log = logging.getLogger(confident.SCOPE_NAME)
 
+_TRACE_CONTEXT = context.create_key(confident.TRACE_CONTEXT_KEY)
+_DEFER_TRACE_CONTEXT = context.create_key(confident.DEFER_TRACE_CONTEXT_KEY)
+
 _ROUTE = context.create_key(confident.PROJECT_CONTEXT_KEY)
 _SUPPRESS = context.create_key(confident.SUPPRESS_CONTEXT_KEY)
 
@@ -32,13 +35,14 @@ def suppressed(ctx=None):
 def detached_context():
     current = context.get_current()
     result = context.Context()
-    for key in (_ROUTE, _SUPPRESS, _SUPPRESS_INSTRUMENTATION_KEY):
+    for key in (_ROUTE, _SUPPRESS, _SUPPRESS_INSTRUMENTATION_KEY, _TRACE_CONTEXT):
         result = context.set_value(key, current.get(key), result)
     return result
 
 
 class _Scope(AbstractContextManager):
-    def __init__(self, api_key=None):
+    def __init__(self, api_key=None, trace_values=None):
+        self.trace_values = trace_values
         self.api_key = api_key
         self.token = None
         self.manager = None
@@ -48,7 +52,11 @@ class _Scope(AbstractContextManager):
         if self.token is not None:
             raise RuntimeError("Create a fresh request scope for each entry")
         ctx = context.get_current()
-        if self.api_key is None:
+        if self.trace_values is not None:
+            from .spans import _prepare_trace_context
+
+            ctx = _prepare_trace_context(ctx, self.trace_values)
+        elif self.api_key is None:
             ctx = context.set_value(_SUPPRESS, True, ctx)
             ctx = context.set_value(_SUPPRESS_INSTRUMENTATION_KEY, True, ctx)
         elif os.getenv(OTEL_SDK_DISABLED, "").lower() != "true":

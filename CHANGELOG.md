@@ -93,3 +93,9 @@ Custom tool spans now follow `execute_tool {name}` naming. Tool argument/result
 attributes from newer conventions are deliberately not emitted under the 1.37.0
 schema URL. Known gaps and supported dependencies are listed in the generated
 compatibility matrix. Backend mapping and metrics/log pipelines are separate work.
+
+## Unreleased — Ambient trace context
+
+- Add trace_context / traceContext with strict set-if-unset defaults and no span.
+- Reuse suppression/project scope propagation; preserve explicit trace updates.
+- Move TypeScript processor imports to confident-trace/otel.

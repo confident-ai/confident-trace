@@ -19,6 +19,7 @@ from .. import _attributes as confident
 from .._semconv import genai_v1_37_0 as ai
 from . import runtime as _runtime
 from .safety import safe
+from .scopes import _Scope, _TRACE_CONTEXT, _DEFER_TRACE_CONTEXT, suppressed
 
 _ENTRY = context.create_key(confident.ENTRY_CONTEXT_KEY)
 
@@ -90,14 +91,16 @@ def validate(values, allowed):
             raise ValueError(key + " must be finite and nonnegative")
 
 
-def fields(span, values, *, scope="trace"):
+def fields(span, values, *, scope="trace", only_unset=False):
     if not span.is_recording():
         return
     for key, value in values.items():
         if key == "thread" and scope == "trace":
+            if only_unset and any(attr in (getattr(span, "attributes", None) or {}) for attr in (confident.THREAD_ID, confident.THREAD_TAGS, confident.THREAD_METADATA, confident.TRACE_THREAD_ID)):
+                continue
             for field, item in (value or {}).items():
                 if field == "id":
-                    fields(span, {"thread_id": item})
+                    fields(span, {"thread_id": item}, only_unset=only_unset)
                 elif field == "metadata":
                     content(span, confident.THREAD_METADATA, item)
                 elif (
@@ -116,6 +119,8 @@ def fields(span, values, *, scope="trace"):
         attr = (confident.TRACE_FIELDS if scope == "trace" else confident.SPAN_FIELDS)[
             key
         ]
+        if only_unset and (attr in (getattr(span, "attributes", None) or {}) or attr in _WRITES.get(span, ())):
+            continue
         if key in _CONTENT:
             _WRITES.setdefault(span, set()).add(attr)
             content(span, attr, value)
@@ -148,6 +153,32 @@ def update_trace(**values):
     """Update entry-span fields; thread fields remain separate from trace metadata."""
     validate(values, _TRACE)
     _update(values, "trace")
+
+
+def trace_context(**values):
+    """Fill unset trace properties in a sync/async scope without creating a span.
+
+    Existing fields and outer defaults win; compound values are never merged.
+    update_trace remains the explicit replacement API.
+    """
+    validate(values, _TRACE)
+    return _Scope(trace_values=values)
+
+
+def _prepare_trace_context(ctx, values):
+    defaults = {**values, **(context.get_value(_TRACE_CONTEXT, ctx) or {})}
+    rt = _runtime.current()
+    if rt and rt.active and not _runtime.disabled() and not suppressed(ctx):
+        target = context.get_value(_ENTRY, ctx) or otel.get_current_span(ctx)
+        safe(fields, target, defaults, only_unset=True)
+    return context.set_value(_TRACE_CONTEXT, defaults, ctx)
+
+
+def ambient_on_start(span, parent_context=None):
+    if _runtime.disabled() or suppressed(parent_context) or context.get_value(_DEFER_TRACE_CONTEXT, parent_context):
+        return
+    if not otel.get_current_span(parent_context).is_recording():
+        safe(fields, span, context.get_value(_TRACE_CONTEXT, parent_context) or {}, only_unset=True)
 
 
 def update_span(**values):
@@ -232,7 +263,7 @@ class Operation:
             safe(
                 _runtime.tracer().start_span,
                 name,
-                context=self.parent,
+                context=context.set_value(_DEFER_TRACE_CONTEXT, True, self.parent),
                 kind=kind,
                 attributes=attributes,
                 links=links,
@@ -248,7 +279,9 @@ class Operation:
             # update_trace/name fields remain deliberate trace-wide updates.
             parent_span = otel.get_current_span(self.parent).get_span_context()
             defaults = {} if parent_span.is_valid else {"name": name}
-            safe(fields, self.span, {**defaults, **(trace_fields or {})})
+            safe(fields, self.span, trace_fields or {})
+            safe(fields, self.span, context.get_value(_TRACE_CONTEXT, self.parent) or {}, only_unset=True)
+            safe(fields, self.span, defaults, only_unset=True)
         # Inherit explicit conversation metadata from the entry without reparenting.
         if self.entry is not None:
             entry_attributes = getattr(self.entry, "attributes", None) or {}

@@ -17,7 +17,7 @@ import type {
 import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
 import { isDisabled } from '@/config/resolve';
-import { state } from '@/runtime/state';
+import { state, traceContextKey, deferTraceContextKey } from '@/runtime/state';
 import { detachedContext } from '@/runtime/scopes';
 import {
   applyLlmFields,
@@ -198,8 +198,17 @@ function apply(
   fields: SpanFields | TraceFields,
   scope: 'span' | 'trace',
   contentPolicy: ContentPolicy,
+  onlyUnset = false,
 ): void {
   if (!span.isRecording()) return;
+  const attrs = (span as Span & { attributes?: Attributes }).attributes ?? {};
+  if (onlyUnset) {
+    fields = Object.fromEntries(Object.entries(fields).filter(([key]) => {
+      if (key === 'thread') return !['confident.trace.thread.id', 'confident.trace.thread_id', 'confident.trace.thread.tags', 'confident.trace.thread.metadata'].some(attr => Object.hasOwn(attrs, attr));
+      const attr = `confident.${scope}.${contentKeys[key] ?? traceKeys[key]}`;
+      return !Object.hasOwn(attrs, attr) && !writes.get(span)?.has(attr);
+    }));
+  }
   if (scope === 'trace')
     applyThreadFields(span, fields as TraceFields, contentPolicy);
   for (const [key, value] of Object.entries(fields)) {
@@ -229,6 +238,7 @@ function apply(
 function update(
   fields: SpanFields | TraceFields,
   scope: 'span' | 'trace',
+  onlyUnset = false,
 ): void {
   if (isDisabled()) return;
   const active = context.active();
@@ -246,6 +256,7 @@ function update(
       fields,
       scope,
       owner?.policy ?? state.policy ?? new ContentPolicy(),
+      onlyUnset,
     ),
   );
 }
@@ -261,6 +272,23 @@ export function updateSpan(fields: SpanFields & LlmFields): void {
 export function updateTrace(fields: TraceFields): void {
   validate(fields, traceFields);
   update(fields, 'trace');
+}
+
+/** Establish ambient defaults without a span; updateTrace explicitly replaces fields. */
+export function traceContext<T>(fields: TraceFields, callback: () => T): T {
+  validate(fields, traceFields);
+  const parent = context.active();
+  const defaults = {
+    ...Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)),
+    ...(parent.getValue(traceContextKey) as TraceFields | undefined),
+  };
+  update(defaults, 'trace', true);
+  return context.with(parent.setValue(traceContextKey, defaults), callback);
+}
+
+export function ambientOnStart(span: Span, parent: Context): void {
+  if (isDisabled() || parent.getValue(deferTraceContextKey) || trace.getSpan(parent)?.isRecording()) return;
+  safe(() => apply(span, (parent.getValue(traceContextKey) as TraceFields | undefined) ?? {}, 'trace', state.policy ?? new ContentPolicy(), true));
 }
 
 const warnedLlmTargets = new Set<string>();
@@ -337,7 +365,7 @@ class Operation {
           ? { links: [{ context: previous }] }
           : {}),
       },
-      parent,
+      parent.setValue(deferTraceContextKey, true),
     );
     this.entry = !parent.getValue(entryKey);
     this.active = trace.setSpan(parent, this.span).setValue(operationKey, this);
@@ -355,16 +383,15 @@ class Operation {
       safe(() =>
         apply(
           this.span,
-          {
-            ...(options.attributes?.[S.ATTR_CONFIDENT_TRACE_NAME] === undefined
-              ? { name }
-              : {}),
-            ...traceValues,
-          },
+          traceValues ?? {},
           'trace',
           this.policy,
         ),
       );
+    if (this.entry) {
+      safe(() => apply(this.span, (parent.getValue(traceContextKey) as TraceFields | undefined) ?? {}, 'trace', this.policy, true));
+      safe(() => apply(this.span, { name }, 'trace', this.policy, true));
+    }
   }
   run<T>(fn: () => T): T {
     return context.with(this.active, fn);

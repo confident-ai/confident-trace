@@ -247,7 +247,7 @@ Install the processor when constructing your application's provider:
 
 ```ts
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
-import { createSpanProcessor } from 'confident-trace';
+import { createSpanProcessor } from 'confident-trace/otel';
 
 const provider = new NodeTracerProvider({
   spanProcessors: [createSpanProcessor()],
@@ -716,3 +716,13 @@ spans. Input, output, metadata, context, retrieval context, expected output, and
 called/expected tools are shared fields on every category. Model, provider,
 tokens, and per-token costs require an LLM span. No separate category-specific
 update imports are needed.
+
+## Ambient trace context
+
+Use `trace_context(**fields)` in Python (`with` or `async with`) or
+`traceContext(fields, callback)` in TypeScript to enrich real work without a
+synthetic span. Both accept the full trace-update field shape. Existing values
+and outer defaults win; tags, metadata, and thread objects are never merged.
+With no active trace, defaults apply to traces started inside the scope.
+Exiting restores ambient context without undoing fields already written.
+Use `update_trace` / `updateTrace` for explicit later replacements.

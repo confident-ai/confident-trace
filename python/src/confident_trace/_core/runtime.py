@@ -51,6 +51,9 @@ class OwnedProcessor(SpanProcessor):
             return
         self.delegate.on_start(span, parent_context)
         try:
+            from .spans import ambient_on_start
+
+            ambient_on_start(span, parent_context)
             scope = span.instrumentation_scope
             integration = self.integration_scopes.get(scope.name) if scope else None
             if integration is not None:

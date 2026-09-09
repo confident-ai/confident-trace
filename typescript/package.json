@@ -114,6 +114,16 @@
     },
     "./register": {
       "import": "./dist/register.mjs"
+    },
+    "./otel": {
+      "import": {
+        "types": "./dist/otel.d.mts",
+        "default": "./dist/otel.mjs"
+      },
+      "require": {
+        "types": "./dist/otel.d.cts",
+        "default": "./dist/otel.cjs"
+      }
     }
   },
   "files": [

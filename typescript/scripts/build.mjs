@@ -12,6 +12,7 @@ await rm(new URL('../dist', import.meta.url), { recursive: true, force: true });
 await mkdir(new URL('../dist', import.meta.url), { recursive: true });
 const entries = {
   index: 'src/index.ts',
+  otel: 'src/otel.ts',
   semconv: 'src/semconv/index.ts',
   state: 'src/runtime/state.ts',
   openai: 'src/integrations/openai/index.ts',

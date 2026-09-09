@@ -6,7 +6,7 @@ import {
 } from '@opentelemetry/api';
 import type { Context } from '@opentelemetry/api';
 import { suppressTracing, isTracingSuppressed } from '@opentelemetry/core';
-import { requestSuppressionKey } from '@/runtime/state';
+import { requestSuppressionKey, traceContextKey } from '@/runtime/state';
 
 export const projectKey = createContextKey('confident-trace.project-route');
 export interface RouteScope {
@@ -34,7 +34,7 @@ export function detachedContext(): Context {
   );
   if (tracingSuppressed())
     parent = suppressTracing(parent).setValue(requestSuppressionKey, true);
-  return parent;
+  return parent.setValue(traceContextKey, context.active().getValue(traceContextKey));
 }
 /** Suppress supported instrumentation; unrelated exporters remain application-owned. */
 export function withTracingSuppressed<T>(callback: () => T): T {

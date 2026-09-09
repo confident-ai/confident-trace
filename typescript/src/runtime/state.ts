@@ -50,3 +50,6 @@ export const automaticOriginals = new WeakMap<
 export const requestSuppressionKey = createContextKey(
   'confident-trace.request-suppressed',
 );
+
+export const traceContextKey = createContextKey('confident-trace.trace-context');
+export const deferTraceContextKey = createContextKey('confident-trace.defer-trace-context');

@@ -94,3 +94,6 @@ TRACE_FIELDS = MappingProxyType(
         "test_case_id": "confident.trace.test_case_id",
     }
 )
+
+TRACE_CONTEXT_KEY: Final = "confident_trace.trace_context"
+DEFER_TRACE_CONTEXT_KEY: Final = "confident_trace.defer_trace_context"
