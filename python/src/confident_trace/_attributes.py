@@ -18,6 +18,8 @@ TRACE_USER_ID: Final = "confident.trace.user_id"
 TRACE_THREAD_ID: Final = "confident.trace.thread_id"
 TRACE_TURN_ID: Final = "confident.trace.turn_id"
 
+GATEWAY_NAME: Final = "confident.gateway.name"
+
 SPAN_INTEGRATION: Final = "confident.span.integration"
 
 
@@ -28,6 +30,8 @@ class Integration(str, Enum):
     CREWAI = "CrewAI"
     LLAMAINDEX = "LlamaIndex"
     OPENAI_AGENTS = "OpenAI Agents"
+    LITELLM = "LiteLLM"
+    PORTKEY = "Portkey"
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
     PYDANTIC_AI = "PydanticAI"

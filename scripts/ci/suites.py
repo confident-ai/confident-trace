@@ -124,6 +124,7 @@ def python_owner(nodeid, profile):
     if path.startswith(("core/", "contracts/")):
         return "core"
     direct = {
+        "gateways": "openai",
         "openai": "openai",
         "anthropic": "anthropic",
         "google_genai": "google-genai",

@@ -61,7 +61,8 @@ export function wrapConstructor(
   return wrapped;
 }
 export function observed(name: InstrumentationName): void {
-  if (!['failed', 'unsupported'].includes(state.auto.observed.get(name) ?? ''))
+  // A supported SDK copy can coexist with an unsupported transitive dependency.
+  if (state.auto.observed.get(name) !== 'failed')
     state.auto.observed.set(name, 'enabled');
 }
 export function attempt(name: InstrumentationName, task: () => void): void {

@@ -11,7 +11,8 @@ def install_targets(targets, wrapper_factory):
     undo = []
     for module, class_name, method in targets:
         try:
-            cls = getattr(importlib.import_module(module), class_name)
+            loaded = importlib.import_module(module)
+            cls = getattr(loaded, class_name) if class_name else loaded
             original = getattr(cls, method)
             if isinstance(
                 original,

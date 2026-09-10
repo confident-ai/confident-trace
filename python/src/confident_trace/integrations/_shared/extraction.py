@@ -11,7 +11,10 @@ def get(value, key, default=None):
     # SDK models store data in __dict__; avoid invoking arbitrary properties.
     try:
         data = object.__getattribute__(value, "__dict__")
-        return data.get(key, default) if type(data) is dict else default
+        if type(data) is dict and key in data:
+            return data[key]
+        extras = object.__getattribute__(value, "__pydantic_extra__")
+        return extras.get(key, default) if type(extras) is dict else default
     except (AttributeError, TypeError):
         return default
 

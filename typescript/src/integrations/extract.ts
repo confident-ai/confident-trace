@@ -4,11 +4,17 @@ import { ContentPolicy } from '@/content/policy';
 import type { GenAiMessage, GenAiPart } from '@/semconv/messages';
 import * as S from '@/semconv/generated';
 
-export type Provider = 'openai' | 'anthropic' | 'google_genai';
+export type Provider =
+  'openai' | 'anthropic' | 'google_genai' | 'openrouter' | 'portkey';
 export function get(value: unknown, key: string): unknown {
   if (!value || typeof value !== 'object' || types.isProxy(value))
     return undefined;
-  const d = Object.getOwnPropertyDescriptor(value, key);
+  const camelKey = key.replace(/_([a-z])/g, (_, letter: string) =>
+    letter.toUpperCase(),
+  );
+  const d =
+    Object.getOwnPropertyDescriptor(value, key) ??
+    Object.getOwnPropertyDescriptor(value, camelKey);
   return d && 'value' in d ? d.value : undefined;
 }
 export function list(value: unknown): unknown[] {
@@ -155,6 +161,11 @@ export class Capture {
       );
   }
   response(value: unknown, captureOutput = true) {
+    if (
+      (this.provider === 'openrouter' || this.provider === 'portkey') &&
+      get(value, 'error')
+    )
+      this.span.setStatus({ code: 2 });
     this.set(
       S.ATTR_GEN_AI_RESPONSE_ID,
       get(value, 'id') ?? get(value, 'responseId'),
@@ -186,7 +197,10 @@ export class Capture {
     if (!this.policy.enabled || !captureOutput) return;
     if (this.provider === 'anthropic' && get(value, 'content') !== undefined)
       this.output([{ role: 'assistant', parts: parts(get(value, 'content')) }]);
-    else if (this.provider === 'openai' && get(value, 'output') !== undefined)
+    else if (
+      (this.provider === 'openai' || this.provider === 'portkey') &&
+      get(value, 'output') !== undefined
+    )
       this.output(messages(get(value, 'output')));
     else
       this.output(

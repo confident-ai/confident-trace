@@ -139,3 +139,5 @@ and metadata. Request scopes select project exporters or suppress supported
 instrumentation before work starts. Initialize once; completed spans retain
 normal batched export. See the language READMEs for APIs, custom-exporter factory
 support, receiver limitations, and collector-side outcome-based dropping.
+
+Gateway support includes LiteLLM, OpenRouter, Portkey, Bifrost and TrueFoundry. See the Python and TypeScript READMEs for native SDK and proxy configuration.

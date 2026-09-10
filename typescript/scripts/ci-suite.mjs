@@ -9,6 +9,12 @@ const groups = JSON.parse(
 );
 export function owner(file, name) {
   if (/^tests\/(unit|runtime|contract)\//.test(file)) return 'core';
+  if (
+    /^tests\/integrations\/(openrouter|portkey|bifrost|truefoundry)\.test\.ts$/.test(
+      file,
+    )
+  )
+    return 'openai';
   if (file === 'tests/integrations/langchain.test.ts') return 'langchain';
   if (file === 'tests/integrations/openai-agents.test.ts')
     return 'openai-agents';

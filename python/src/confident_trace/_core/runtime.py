@@ -92,6 +92,12 @@ class Runtime:
     processor: OwnedProcessor | None = None
     active: bool = True
     undo: list = field(default_factory=list)
+    litellm_proxy_urls: tuple[str, ...] = ()
+    openrouter_proxy_urls: tuple[str, ...] = ()
+    portkey_proxy_urls: tuple[str, ...] = ()
+    bifrost_proxy_urls: tuple[str, ...] = ()
+    truefoundry_proxy_urls: tuple[str, ...] = ()
+
     otlp_environment: dict[str, str] | None = field(default=None, repr=False)
 
     def tracer(self):
@@ -129,6 +135,11 @@ def init(
     capture_content=True,
     max_content_bytes=16384,
     redact=None,
+    litellm_proxy_urls=(),
+    openrouter_proxy_urls=(),
+    portkey_proxy_urls=(),
+    bifrost_proxy_urls=(),
+    truefoundry_proxy_urls=(),
     _instrument=None,
 ):
     """Initialize once. Explicit values override OTel environment configuration.
@@ -251,6 +262,11 @@ def init(
                 otlp_environment=otlp_environment,
             )
             _runtime = runtime
+            runtime.litellm_proxy_urls = tuple(litellm_proxy_urls)
+            runtime.openrouter_proxy_urls = tuple(openrouter_proxy_urls)
+            runtime.portkey_proxy_urls = tuple(portkey_proxy_urls)
+            runtime.bifrost_proxy_urls = tuple(bifrost_proxy_urls)
+            runtime.truefoundry_proxy_urls = tuple(truefoundry_proxy_urls)
             runtime.undo = _instrument(runtime) if _instrument else []
             return runtime
         except Exception:

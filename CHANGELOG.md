@@ -99,3 +99,8 @@ compatibility matrix. Backend mapping and metrics/log pipelines are separate wor
 - Add trace_context / traceContext with strict set-if-unset defaults and no span.
 - Reuse suppression/project scope propagation; preserve explicit trace updates.
 - Move TypeScript processor imports to confident-trace/otel.
+
+## Unreleased — LLM gateways
+
+- Add native LiteLLM (Python), OpenRouter and Portkey instrumentation, plus explicit LiteLLM, Bifrost and TrueFoundry gateway endpoint identification through supported provider clients.
+- Include gateway configuration, streaming/privacy/error tests and TypeScript preload fixtures.

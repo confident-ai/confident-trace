@@ -52,7 +52,8 @@
     "ATTR_CONFIDENT_THREAD_METADATA": "confident.trace.thread.metadata",
     "ATTR_CONFIDENT_TRACE_TEST_CASE_ID": "confident.trace.test_case_id",
     "ATTR_CONFIDENT_LLM_COST_PER_INPUT_TOKEN": "confident.llm.cost_per_input_token",
-    "ATTR_CONFIDENT_LLM_COST_PER_OUTPUT_TOKEN": "confident.llm.cost_per_output_token"
+    "ATTR_CONFIDENT_LLM_COST_PER_OUTPUT_TOKEN": "confident.llm.cost_per_output_token",
+    "ATTR_CONFIDENT_GATEWAY_NAME": "confident.gateway.name"
   },
   "integrations": {
     "openai": "OpenAI",
@@ -62,6 +63,9 @@
     "vercel_ai": "Vercel AI SDK",
     "langchain": "LangChain",
     "langgraph": "LangGraph",
-    "openai_agents": "OpenAI Agents SDK"
+    "openai_agents": "OpenAI Agents SDK",
+    "litellm": "LiteLLM",
+    "openrouter": "OpenRouter",
+    "portkey": "Portkey"
   }
 }

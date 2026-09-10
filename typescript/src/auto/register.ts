@@ -16,6 +16,8 @@ import type { InstrumentationName } from '@/auto/types';
 import type { Foreign } from '@/auto/patch';
 
 const packages: Record<string, [InstrumentationName, string]> = {
+  'portkey-ai': ['portkey', '>=3.1.0 <3.2'],
+  '@openrouter/sdk': ['openrouter', '>=1.2.116 <1.3'],
   openai: ['openai', '>=7.10.0 <8'],
   '@anthropic-ai/sdk': ['anthropic', '>=0.124.0 <0.125'],
   '@google/genai': ['google-genai', '>=2.21.0 <3'],
@@ -40,7 +42,10 @@ function attach(exports: Foreign, packageName: string, base: string): void {
       );
       seen.set(base, satisfies(version, range));
       if (!seen.get(base)) {
-        state.auto.observed.set(name, 'unsupported');
+        if (
+          !['enabled', 'failed'].includes(state.auto.observed.get(name) ?? '')
+        )
+          state.auto.observed.set(name, 'unsupported');
         warn(
           `unsupported:${base}`,
           `${name}: unsupported SDK version ${version}; supported range is ${range}. Use a supported version or manual tracing.`,
@@ -49,7 +54,11 @@ function attach(exports: Foreign, packageName: string, base: string): void {
       }
     }
     if (!seen.get(base)) return;
-    if (['openai', 'anthropic', 'google-genai'].includes(name))
+    if (
+      ['openai', 'openrouter', 'portkey', 'anthropic', 'google-genai'].includes(
+        name,
+      )
+    )
       attachProvider(exports, name);
     else if (name === 'langchain') attachLangChain(exports);
     else if (name === 'langgraph') attachLangGraph(exports);
@@ -65,7 +74,7 @@ function attach(exports: Foreign, packageName: string, base: string): void {
 if (!state.auto.registered) {
   const names = Object.keys(packages);
   const pattern =
-    /\/node_modules\/(openai|ai|@anthropic-ai\/sdk|@google\/genai|@langchain\/(?:core|langgraph)|@mastra\/core|@openai\/agents(?:-core|-openai)?)(?=\/)/;
+    /\/node_modules\/(openai|ai|portkey-ai|@openrouter\/sdk|@anthropic-ai\/sdk|@google\/genai|@langchain\/(?:core|langgraph)|@mastra\/core|@openai\/agents(?:-core|-openai)?)(?=\/)/;
   addHook((url, exports) => {
     const path = fileURLToPath(url);
     const match = pattern.exec(path);

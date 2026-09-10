@@ -128,6 +128,8 @@ try {
   // Exercise the actual tarball, not the workspace self-reference, with all SDKs.
   for (const name of [
     'openai',
+    '@openrouter/sdk',
+    'portkey-ai',
     '@anthropic-ai/sdk',
     '@google/genai',
     '@langchain/core',

@@ -16,6 +16,8 @@ const entries = {
   semconv: 'src/semconv/index.ts',
   state: 'src/runtime/state.ts',
   openai: 'src/integrations/openai/index.ts',
+  openrouter: 'src/integrations/openrouter/index.ts',
+  portkey: 'src/integrations/portkey/index.ts',
   anthropic: 'src/integrations/anthropic/index.ts',
   'google-genai': 'src/integrations/google-genai/index.ts',
   'vercel-ai': 'src/integrations/vercel-ai/index.ts',

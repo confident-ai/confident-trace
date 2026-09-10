@@ -1,3 +1,4 @@
+import { gatewayName, matchesEndpoint } from '@/integrations/gateway';
 import { context, trace, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import type { Tracer } from '@opentelemetry/api';
 import { isDisabled } from '@/config/resolve';
@@ -10,6 +11,12 @@ import type { Provider } from '@/integrations/extract';
 import * as S from '@/semconv/generated';
 
 export interface InstrumentationOptions extends ContentOptions {
+  /** Exact OpenAI client base URLs served by LiteLLM. */
+  litellmProxyUrls?: readonly string[];
+  openrouterProxyUrls?: readonly string[];
+  portkeyProxyUrls?: readonly string[];
+  bifrostProxyUrls?: readonly string[];
+  truefoundryProxyUrls?: readonly string[];
   /** Optional application-owned tracer; otherwise uses the global OTel provider. */
   tracer?: Tracer;
 }
@@ -28,7 +35,15 @@ export function instrument(
   options: InstrumentationOptions = {},
 ): () => void {
   // Validate explicit content options at setup, before modifying any client.
-  const explicit = Object.keys(options).some((k) => k !== 'tracer')
+  const explicit = Object.keys(options).some(
+    (k) =>
+      k !== 'tracer' &&
+      k !== 'litellmProxyUrls' &&
+      k !== 'openrouterProxyUrls' &&
+      k !== 'portkeyProxyUrls' &&
+      k !== 'bifrostProxyUrls' &&
+      k !== 'truefoundryProxyUrls',
+  )
     ? new ContentPolicy(options)
     : undefined;
   const undo: (() => void)[] = [];
@@ -60,7 +75,39 @@ export function instrument(
         const parent = context.active();
         const operation =
           provider === 'google_genai' ? 'generate_content' : 'chat';
-        const model = get(args[0], 'model');
+        const request =
+          provider === 'openrouter'
+            ? (get(args[0], 'chatRequest') ?? args[0])
+            : args[0];
+        const model = get(request, 'model');
+        const bifrostUrls =
+          options.bifrostProxyUrls ?? state.auto.options.bifrostProxyUrls ?? [];
+        const truefoundryUrls =
+          options.truefoundryProxyUrls ??
+          state.auto.options.truefoundryProxyUrls ??
+          [];
+        const gateway =
+          provider === 'openai'
+            ? gatewayName(
+                this,
+                options.litellmProxyUrls ??
+                  state.auto.options.litellmProxyUrls ??
+                  [],
+                options.openrouterProxyUrls ??
+                  state.auto.options.openrouterProxyUrls ??
+                  [],
+                options.portkeyProxyUrls ??
+                  state.auto.options.portkeyProxyUrls ??
+                  [],
+                bifrostUrls,
+                truefoundryUrls,
+              )
+            : provider === 'anthropic' && matchesEndpoint(this, bifrostUrls)
+              ? 'bifrost'
+              : provider === 'anthropic' &&
+                  matchesEndpoint(this, truefoundryUrls)
+                ? 'truefoundry'
+                : undefined;
         const span = tracer.startSpan(
           `${operation} ${typeof model === 'string' ? model : 'unknown'}`,
           {
@@ -68,8 +115,12 @@ export function instrument(
             attributes: {
               [S.ATTR_CONFIDENT_SPAN_INTEGRATION]: S.INTEGRATIONS[provider],
               [S.ATTR_CONFIDENT_SPAN_TYPE]: 'llm',
-              [S.ATTR_GEN_AI_PROVIDER_NAME]:
-                provider === 'google_genai' ? 'gcp.gen_ai' : provider,
+              ...(gateway ? { [S.ATTR_CONFIDENT_GATEWAY_NAME]: gateway } : {}),
+              [S.ATTR_GEN_AI_PROVIDER_NAME]: gateway
+                ? gateway
+                : provider === 'google_genai'
+                  ? 'gcp.gen_ai'
+                  : provider,
               [S.ATTR_GEN_AI_OPERATION_NAME]: operation,
             },
           },
@@ -104,7 +155,7 @@ export function instrument(
         const observe = (fn: () => void) => {
           if (!ended && span.isRecording()) safe(fn);
         };
-        observe(() => capture.request(args[0]));
+        observe(() => capture.request(request));
         const failed = (error: unknown): never => {
           end(error);
           throw error;

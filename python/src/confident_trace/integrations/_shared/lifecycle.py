@@ -66,11 +66,32 @@ def begin_call(
     *,
     integration: confident.Integration,
 ):
+    from .gateways import gateway_name, matches_endpoint
+
+    rt = _runtime.current()
+    gateway = None
+    if rt and integration == confident.Integration.OPENAI:
+        gateway = gateway_name(
+            instance,
+            rt.litellm_proxy_urls,
+            rt.openrouter_proxy_urls,
+            rt.portkey_proxy_urls,
+            rt.bifrost_proxy_urls,
+            rt.truefoundry_proxy_urls,
+        )
+    elif rt and integration == confident.Integration.ANTHROPIC:
+        if matches_endpoint(instance, rt.bifrost_proxy_urls):
+            gateway = "bifrost"
+        elif matches_endpoint(instance, rt.truefoundry_proxy_urls):
+            gateway = "truefoundry"
     model_name = model if type(model) is str else "unknown"
     attrs = {
         ai.GEN_AI_OPERATION_NAME: operation,
         **(safe(connection, instance) or {ai.GEN_AI_PROVIDER_NAME: fallback_provider}),
     }
+    if gateway:
+        attrs[confident.GATEWAY_NAME] = gateway
+        attrs[ai.GEN_AI_PROVIDER_NAME] = gateway
     if type(model) is str:
         attrs[ai.GEN_AI_REQUEST_MODEL] = model
     op = Operation(
@@ -104,7 +125,7 @@ def finish_call(
     return value
 
 
-def wrapper(begin, finish, *, asynchronous=False, manager=None):
+def wrapper(begin, finish, *, asynchronous=False, manager=None, positional=()):
     def bypass():
         rt = _runtime.current()
         return (
@@ -120,7 +141,7 @@ def wrapper(begin, finish, *, asynchronous=False, manager=None):
         async def call(wrapped, instance, args, kwargs):
             if bypass():
                 return await wrapped(*args, **kwargs)
-            op = begin(kwargs, instance)
+            op = begin({**dict(zip(positional, args)), **kwargs}, instance)
             try:
                 with op.active():
                     result = await wrapped(*args, **kwargs)
@@ -136,7 +157,7 @@ def wrapper(begin, finish, *, asynchronous=False, manager=None):
             return wrapped(*args, **kwargs)
         if manager:
             return manager(wrapped(*args, **kwargs), kwargs, instance)
-        op = begin(kwargs, instance)
+        op = begin({**dict(zip(positional, args)), **kwargs}, instance)
         try:
             with op.active():
                 result = wrapped(*args, **kwargs)

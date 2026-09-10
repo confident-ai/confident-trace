@@ -740,3 +740,171 @@ traceContext({ metricCollection: 'answer-checks', testCaseId: 'case-1', turnId: 
   });
 });
 ```
+
+## LiteLLM proxy
+
+Use the existing OpenAI SDK instrumentation with the exact LiteLLM client base URL:
+
+```ts
+import { init } from 'confident-trace';
+
+init({ litellmProxyUrls: ['http://localhost:4000/v1'] });
+// Run with node --import confident-trace/register ... as described above.
+```
+
+Manual `instrumentOpenAI(client, { litellmProxyUrls: [...] })` also supports this
+option. Matching includes the full base path and ignores trailing slashes. Proxy
+calls retain the `OpenAI` integration label and add `confident.gateway.name=litellm`
+and `gen_ai.provider.name=litellm`. Requested aliases and returned models remain
+separate; upstream providers are not inferred from model names. Content capture,
+streaming, and error handling follow the existing OpenAI integration.
+
+This instruments application-side Chat Completions/Responses calls. LiteLLM's
+native Python SDK is covered by the Python package. Gateway-internal retries,
+fallbacks and trace propagation require separate gateway/HTTP OTel setup.
+
+## OpenRouter
+
+With the standard `--import confident-trace/register` preload and `init()`, native
+`@openrouter/sdk` chat calls are automatically instrumented. Select
+`instrumentations: ['openrouter', 'openai']` to enable just these SDKs.
+
+The tested SDK version (`1.2.116`) uses a `chatRequest` wrapper:
+
+```ts
+import { init } from 'confident-trace';
+import { OpenRouter } from '@openrouter/sdk';
+
+init();
+const client = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
+const result = await client.chat.send({
+  chatRequest: {
+    model: 'openai/gpt-4o-mini',
+    messages: [{ role: 'user', content: 'Hello' }],
+  },
+});
+```
+
+Manual setup is available with `instrumentOpenRouter(client)` from
+`confident-trace/openrouter`. It patches the client in place and returns a restore
+function. Native `chat.send` supports regular and streaming responses, camelCase
+usage and tool-call fields, content controls, and errors. The native SDK is ESM;
+CommonJS applications can load it with dynamic `import()`.
+
+OpenAI clients pointed at `https://openrouter.ai/api/v1` are automatically labeled
+with `confident.gateway.name=openrouter`. For custom endpoints, pass
+`openrouterProxyUrls: ['https://gateway.example/api/v1']` to `init()` or
+`instrumentOpenAI()`. Matching uses the exact origin and path, ignoring trailing
+slashes. Explicit LiteLLM mappings take precedence over OpenRouter detection.
+
+Native spans use integration `OpenRouter`; gateway calls through OpenAI retain
+integration `OpenAI`. Provider name is `openrouter`; requested and returned models
+remain separate. Gateway-internal routing, fallback attempts, the Agent SDK,
+embeddings, native Responses and functional SDK helpers are outside this scope.
+
+## Portkey
+
+With `node --import confident-trace/register app.mjs` and `init()`, Portkey SDK
+calls are automatically instrumented. Use `instrumentations: ['portkey']` to
+select just this SDK, or include `'openai'` for OpenAI clients calling a gateway.
+
+```ts
+import { init } from 'confident-trace';
+import { Portkey } from 'portkey-ai';
+
+init();
+const client = new Portkey({ apiKey: process.env.PORTKEY_API_KEY });
+const result = await client.chat.completions.create({
+  model: 'gpt-4o-mini',
+  messages: [{ role: 'user', content: 'Hello' }],
+});
+```
+
+Manual setup is `instrumentPortkey(client)` from `confident-trace/portkey`;
+it returns a restoration function and coexists with automatic instrumentation.
+Covers `chat.completions.create` and `responses.create`, including streaming,
+usage, tool calls, errors and early iteration exit. Content controls apply as
+usual; request arguments, Portkey headers and routing configuration are preserved.
+Nested Confident provider spans are suppressed.
+
+OpenAI clients pointed at `https://api.portkey.ai/v1` are identified automatically.
+For custom endpoints, pass `portkeyProxyUrls: ['https://gateway.example/v1']` to
+`init()` or `instrumentOpenAI()`. Exact origin/path matching ignores trailing
+slashes. Overlapping mappings use LiteLLM → OpenRouter → Portkey precedence.
+
+Native spans use integration `Portkey`; OpenAI proxy spans retain `OpenAI` and
+add `confident.gateway.name=portkey`. Provider name is `portkey`; requested and
+returned models remain separate. Headers, keys and gateway URLs are not exported.
+Tested with `portkey-ai==3.1.0`. Gateway-internal routing/retries, prompt-management
+APIs, embeddings and separate streaming helpers are outside this integration.
+
+### Bifrost gateway
+
+Use the existing OpenAI or Anthropic instrumentation with explicit Bifrost base URLs:
+
+```ts
+import { init } from 'confident-trace';
+import OpenAI from 'openai';
+
+const runtime = init({
+  bifrostProxyUrls: [
+    'http://localhost:8080/openai',
+    'http://localhost:8080/anthropic',
+  ],
+});
+const client = new OpenAI({
+  baseURL: 'http://localhost:8080/openai',
+  apiKey: '<virtual-key>',
+});
+await client.chat.completions.create({
+  model: 'openai/gpt-4o-mini',
+  messages: [],
+});
+await runtime.shutdown();
+```
+
+Start Node with `node --import confident-trace/register app.mjs`; automatic SDK
+patching requires this preload plus `init()`. For manual setup, pass
+`{ bifrostProxyUrls: [...] }` to `instrumentOpenAI` or `instrumentAnthropic`.
+Supported surfaces are OpenAI chat completions/Responses and Anthropic Messages,
+including streams and the Messages stream helper. Spans retain the SDK integration
+label and set `confident.gateway.name` and `gen_ai.provider.name` to `bifrost`.
+Matching uses the exact origin and base path, ignoring trailing slashes; there is
+no automatic localhost detection. URLs and virtual-key headers are not exported.
+This captures application calls, not Bifrost's internal routing, retries, fallbacks
+or background inference polling lifecycle. Native Go, GenAI and Bedrock clients
+are outside this integration's scope.
+
+### TrueFoundry gateway
+
+Configure the full gateway base URL with `truefoundryProxyUrls`:
+
+```ts
+import { init } from 'confident-trace';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+
+const baseURL = process.env.TRUEFOUNDRY_GATEWAY_BASE_URL!;
+const apiKey = process.env.TRUEFOUNDRY_API_KEY!;
+const runtime = init({ truefoundryProxyUrls: [baseURL] });
+const openai = new OpenAI({ baseURL, apiKey });
+const anthropic = new Anthropic({
+  baseURL,
+  apiKey,
+  defaultHeaders: { Authorization: `Bearer ${apiKey}` },
+});
+// Call either client normally, using your TrueFoundry model names.
+// Shut down after your application has finished its calls:
+await runtime.shutdown();
+```
+
+Automatic instrumentation requires `node --import confident-trace/register app.mjs`
+plus `init()`. For manual setup, pass `{ truefoundryProxyUrls: [baseURL] }` to
+`instrumentOpenAI` or `instrumentAnthropic` instead of using the preload.
+OpenAI chat completions/Responses and Anthropic Messages, including streams and
+the Messages stream helper, retain their SDK integration labels and set
+`confident.gateway.name` and `gen_ai.provider.name` to `truefoundry`.
+Matching uses the exact origin and base path, ignoring trailing slashes; configure
+hosted and custom endpoints explicitly. Client URLs and authentication headers
+are not exported. This is application-side tracing; Google GenAI/Bedrock gateway
+detection and gateway-internal routing/retries are outside this integration's scope.

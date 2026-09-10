@@ -312,3 +312,176 @@ with trace_context(metric_collection="answer-checks", test_case_id="case-1", tur
         update_span(metric_collection="updated-retrieval-checks")
         update_trace(metric_collection="updated-answer-checks")
 ```
+
+## LiteLLM
+
+Install `pip install 'confident-trace[litellm]'`. Native LiteLLM instrumentation
+is enabled by default when installed. Initialize before importing function aliases:
+
+```python
+import confident_trace as ct
+ct.init(instrumentations=("litellm", "openai"))
+
+import litellm
+response = litellm.completion(
+    model="openai/gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+```
+
+Covers `completion`, `acompletion`, `Router.completion`, and `Router.acompletion`,
+including sync/async streaming. One logical LLM span includes the requested model
+(or Router alias), returned model, usage, messages and tool calls. Nested Confident
+provider spans are suppressed. Existing LiteLLM callbacks are left untouched;
+if another instrumentor already owns these calls, select only one instrumentation.
+Function aliases saved before `init()` are not retroactively replaced.
+
+For an OpenAI client calling a LiteLLM proxy, configure the exact client base URL:
+
+```python
+ct.init(litellm_proxy_urls=("http://localhost:4000/v1",))
+```
+
+These spans retain `confident.span.integration=OpenAI` and add
+`confident.gateway.name=litellm`; native spans use integration `LiteLLM`.
+`gen_ai.provider.name=litellm` identifies the intermediary, without guessing the
+upstream provider from an alias. URLs match the origin and full base path, ignoring
+trailing slashes; no credentials or URL values are exported.
+
+This is application-side tracing. Gateway-internal retries, fallback attempts,
+caching and distributed trace propagation require separate gateway/HTTP OTel
+setup. Embeddings, legacy text completions, and other LiteLLM APIs are not covered.
+LiteLLM 1.81.0 is tested on Python 3.10 and 1.100.1 on Python 3.13; the latter
+fails to import on Python 3.10 due to an upstream `typing.NotRequired` import.
+
+## OpenRouter
+
+Install `pip install 'confident-trace[openrouter]'`. Native OpenRouter instrumentation
+is enabled by default when installed, or select it explicitly:
+
+```python
+import confident_trace as ct
+ct.init(instrumentations=("openrouter", "openai"))
+
+from openrouter import OpenRouter
+with OpenRouter(api_key="...") as client:
+    result = client.chat.send(
+        model="openai/gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hello"}],
+    )
+```
+
+Covers `chat.send` and `chat.send_async`, including streaming, usage, messages,
+tool calls and errors. Initialize before caching bound method aliases. Messages
+supplied as lists are captured; instrumentation does not consume input generators.
+
+OpenAI SDK calls to `https://openrouter.ai/api/v1` are automatically identified as
+OpenRouter gateway calls. Custom endpoints can be listed in
+`ct.init(openrouter_proxy_urls=("https://gateway.example/api/v1",))`.
+Matching includes the exact origin and path (ignoring trailing slashes); model
+names and lookalike domains do not trigger detection. Explicit LiteLLM mappings
+have precedence if the same endpoint is configured for both gateways.
+
+Native spans use integration `OpenRouter`; OpenAI client spans retain `OpenAI`
+and add `confident.gateway.name=openrouter`. Both use provider name `openrouter`,
+with requested and returned model names kept separate. Upstream routing is not
+inferred. Existing content privacy settings apply. This covers application-side
+chat calls, not gateway internals, embeddings, Responses, or the Agent SDK.
+Tested with `openrouter==1.1.136`.
+
+## Portkey
+
+Install `pip install 'confident-trace[portkey]'`. Native Portkey instrumentation
+is enabled by default when installed, or select it explicitly:
+
+```python
+import confident_trace as ct
+ct.init(instrumentations=("portkey", "openai"))
+
+from portkey_ai import Portkey
+with Portkey(api_key="...", provider="@openai-prod") as client:
+    result = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": "Hello"}],
+    )
+```
+
+Covers `chat.completions.create` and `responses.create` on `Portkey` and
+`AsyncPortkey`, including streaming, usage, tool calls, errors and early stream
+closure. Initialize before caching bound methods. Clients created by
+`with_options()` remain instrumented; Portkey headers and routing configuration
+are preserved. Existing content capture and redaction settings apply.
+
+OpenAI SDK calls to `https://api.portkey.ai/v1` are automatically identified as
+Portkey gateway calls. For self-hosted/custom endpoints, use
+`ct.init(portkey_proxy_urls=("https://gateway.example/v1",))`.
+Exact origin and base path must match; trailing slashes are ignored. Matching
+uses the existing LiteLLM → OpenRouter → Portkey precedence for overlapping
+configurations. No keys, headers or gateway URLs are exported.
+
+Native spans use integration `Portkey`; OpenAI SDK proxy spans retain `OpenAI`
+and add `confident.gateway.name=portkey`. Provider name is `portkey`, without
+guessing upstream providers from aliases or config IDs. Requested and returned
+models stay separate. Confident-owned nested provider spans are suppressed.
+
+Tested with `portkey-ai==2.3.4` on Python 3.10/3.13. This covers application-side
+calls, not Portkey's internal routing/retries, prompt-management endpoints,
+embeddings, separate streaming helpers, or gateway-side OTel configuration.
+
+### Bifrost gateway
+
+Bifrost calls through the OpenAI and Anthropic SDKs use their existing automatic
+instrumentation. Register each client's full base URL explicitly:
+
+```python
+import confident_trace as ct
+from openai import OpenAI
+
+ct.init(bifrost_proxy_urls=[
+    "http://localhost:8080/openai",
+    "http://localhost:8080/anthropic",
+])
+client = OpenAI(base_url="http://localhost:8080/openai", api_key="<virtual-key>")
+client.chat.completions.create(model="openai/gpt-4o-mini", messages=[])
+```
+
+Supported surfaces are OpenAI chat completions/Responses and Anthropic Messages,
+including sync/async calls and streams. Spans retain their `OpenAI` or `Anthropic`
+SDK integration and set `confident.gateway.name` and `gen_ai.provider.name` to
+`bifrost`. Matching uses the exact origin and base path, ignoring trailing slashes;
+localhost is not detected automatically. URLs and virtual-key headers are not
+exported. This captures application calls, not Bifrost's internal routing, retries,
+fallbacks or background inference polling lifecycle. Native Go, GenAI and Bedrock
+clients are outside this integration's scope.
+
+### TrueFoundry gateway
+
+Register your full TrueFoundry gateway base URL to identify calls made through
+OpenAI or Anthropic clients:
+
+```python
+import os
+import confident_trace as ct
+from openai import OpenAI
+from anthropic import Anthropic
+
+base_url = os.environ["TRUEFOUNDRY_GATEWAY_BASE_URL"]
+api_key = os.environ["TRUEFOUNDRY_API_KEY"]
+ct.init(truefoundry_proxy_urls=[base_url])
+openai_client = OpenAI(base_url=base_url, api_key=api_key)
+anthropic_client = Anthropic(
+    base_url=base_url,
+    api_key=api_key,
+    default_headers={"Authorization": f"Bearer {api_key}"},
+)
+```
+
+Call the clients normally using your TrueFoundry model names. OpenAI chat
+completions/Responses and Anthropic Messages use the existing SDK hooks, including
+sync/async calls and streaming helpers. Spans retain `OpenAI` or `Anthropic` as
+`confident.span.integration` and set gateway/provider identity to `truefoundry`.
+Exact origin and base path matching ignores trailing slashes. No hostname or model
+name guessing is used; configure custom or hosted endpoints explicitly. Client
+URLs and authentication headers are not exported. This is application-side tracing;
+Google GenAI/Bedrock gateway detection and gateway-internal routing/retries are
+outside this integration's scope.

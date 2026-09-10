@@ -1,5 +1,7 @@
 export const instrumentationNames = [
   'openai',
+  'openrouter',
+  'portkey',
   'anthropic',
   'google-genai',
   'vercel-ai',

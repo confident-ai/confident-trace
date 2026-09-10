@@ -17,6 +17,12 @@ function run(file, args = [], env = {}) {
 }
 try {
   const preload = ['--import', 'confident-trace/register'];
+  run('tests/auto/truefoundry.mjs', preload);
+  run('tests/auto/truefoundry.cjs', preload);
+  run('tests/auto/bifrost.mjs', preload);
+  run('tests/auto/bifrost.cjs', preload);
+  run('tests/auto/portkey.cjs', preload);
+  run('tests/auto/openrouter.cjs', preload);
   run('tests/auto/smoke.mjs', preload);
   run('tests/auto/dynamic.mjs', preload);
   run('tests/auto/frameworks.mjs', preload);

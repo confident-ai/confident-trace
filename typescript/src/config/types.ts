@@ -18,6 +18,12 @@ export interface ExportOptions {
 }
 
 export interface InitOptions extends ExportOptions, ContentOptions {
+  litellmProxyUrls?: readonly string[];
+  openrouterProxyUrls?: readonly string[];
+  portkeyProxyUrls?: readonly string[];
+  bifrostProxyUrls?: readonly string[];
+  truefoundryProxyUrls?: readonly string[];
+
   /** Automatic integrations enabled by the preload. [] selects manual-only tracing. */
   instrumentations?: 'all' | readonly InstrumentationName[];
   resourceAttributes?: Attributes;

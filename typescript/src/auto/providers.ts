@@ -26,7 +26,7 @@ function methods(
         [[holder, 'call']],
         name === 'google-genai'
           ? 'google_genai'
-          : (name as 'openai' | 'anthropic'),
+          : (name as 'openai' | 'anthropic' | 'openrouter' | 'portkey'),
       );
       const wrapped = function (this: Foreign, ...args: Foreign[]) {
         return (enabled(name) ? holder.call : original).apply(this, args);
@@ -44,9 +44,13 @@ export function attachProvider(
   const className =
     name === 'openai'
       ? 'OpenAI'
-      : name === 'anthropic'
-        ? 'Anthropic'
-        : 'GoogleGenAI';
+      : name === 'portkey'
+        ? 'Portkey'
+        : name === 'openrouter'
+          ? 'OpenRouter'
+          : name === 'anthropic'
+            ? 'Anthropic'
+            : 'GoogleGenAI';
   for (const key of [className, 'default']) {
     if (typeof exports[key] !== 'function') continue;
     // Only SDK client constructors, not arbitrary default exports from resource modules.
@@ -56,10 +60,12 @@ export function attachProvider(
       key,
       wrapConstructor(exports[key], (client) =>
         attempt(name, () => {
-          if (name === 'openai') {
+          if (name === 'openai' || name === 'portkey') {
             methods(client.chat?.completions, ['create'], name);
             methods(client.responses, ['create'], name);
-          } else if (name === 'anthropic')
+          } else if (name === 'openrouter')
+            methods(client.chat, ['send'], name);
+          else if (name === 'anthropic')
             methods(client.messages, ['create', 'stream'], name);
           else
             methods(
@@ -82,6 +88,9 @@ export function attachProvider(
       methods(exports.Responses.prototype, ['create'], name);
       observed(name);
     }
+  } else if (name === 'openrouter' && exports.Chat) {
+    methods(exports.Chat.prototype, ['send'], name);
+    observed(name);
   } else if (name === 'anthropic' && exports.Messages) {
     methods(exports.Messages.prototype, ['create', 'stream'], name);
     observed(name);

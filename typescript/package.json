@@ -124,6 +124,26 @@
         "types": "./dist/otel.d.cts",
         "default": "./dist/otel.cjs"
       }
+    },
+    "./openrouter": {
+      "import": {
+        "types": "./dist/openrouter.d.mts",
+        "default": "./dist/openrouter.mjs"
+      },
+      "require": {
+        "types": "./dist/openrouter.d.cts",
+        "default": "./dist/openrouter.cjs"
+      }
+    },
+    "./portkey": {
+      "import": {
+        "types": "./dist/portkey.d.mts",
+        "default": "./dist/portkey.mjs"
+      },
+      "require": {
+        "types": "./dist/portkey.d.cts",
+        "default": "./dist/portkey.cjs"
+      }
     }
   },
   "files": [
@@ -161,7 +181,9 @@
     "@opentelemetry/api": ">=1.9.0 <2",
     "ai": ">=7.0.93 <8",
     "langchain": ">=1.5.10 <2",
-    "openai": ">=7.10.0 <8"
+    "openai": ">=7.10.0 <8",
+    "@openrouter/sdk": ">=1.2.116 <1.3",
+    "portkey-ai": ">=3.1.0 <3.2"
   },
   "dependencies": {
     "@ai-sdk/otel": "1.0.93",
@@ -203,7 +225,9 @@
     "tsx": "^4.23.13",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^4.0.0"
+    "vitest": "^4.0.0",
+    "@openrouter/sdk": "^1.2.116",
+    "portkey-ai": "^3.1.0"
   },
   "peerDependenciesMeta": {
     "openai": {
@@ -237,6 +261,12 @@
       "optional": true
     },
     "@openai/agents": {
+      "optional": true
+    },
+    "@openrouter/sdk": {
+      "optional": true
+    },
+    "portkey-ai": {
       "optional": true
     }
   }
