@@ -87,11 +87,13 @@ CONTENT_FIELDS = frozenset(
     )
 )
 SPAN_FIELDS = {key: f"confident.span.{key}" for key in CONTENT_FIELDS}
+SPAN_FIELDS["metric_collection"] = "confident.span.metric_collection"
 TRACE_FIELDS = MappingProxyType(
     {
         **TRACE_FIELDS,
         **{key: f"confident.trace.{key}" for key in CONTENT_FIELDS},
         "test_case_id": "confident.trace.test_case_id",
+        "metric_collection": "confident.trace.metric_collection",
     }
 )
 

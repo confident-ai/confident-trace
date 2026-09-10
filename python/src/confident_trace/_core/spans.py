@@ -48,7 +48,7 @@ _CONTENT = {
     "expected_tools",
 }
 _TRACE = set(confident.TRACE_FIELDS) | _CONTENT | {"test_case_id", "thread"}
-_SPAN = _CONTENT | {"name"}
+_SPAN = _CONTENT | {"name", "metric_collection"}
 _WRITES = WeakKeyDictionary()
 _TYPES = ("agent", "llm", "retriever", "tool", "custom")
 SpanType = Literal["agent", "llm", "retriever", "tool", "custom"]

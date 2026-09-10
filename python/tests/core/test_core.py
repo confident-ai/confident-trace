@@ -401,3 +401,26 @@ def test_parented_local_entry_does_not_rename_trace(telemetry, remote):
     with ct.span("request"):
         pass
     assert spans(telemetry[1])[-1].attributes["confident.trace.name"] == "request"
+
+
+def test_collection_scopes_and_evaluation_ids(telemetry):
+    _, exporter = telemetry
+    with ct.trace_context(metric_collection="trace-checks", test_case_id="case-1", turn_id="turn-1"):
+        with ct.span("root", metric_collection="root-checks", capture_content=False) as root:
+            assert root.attributes["confident.trace.metric_collection"] == "trace-checks"
+            with ct.trace_context(metric_collection="ignored"):
+                with ct.span("child", metric_collection="child-checks"):
+                    ct.update_span(metric_collection="updated-child")
+                    ct.update_trace(metric_collection="updated-trace")
+            assert root.attributes["confident.trace.metric_collection"] == "updated-trace"
+    with ct.turn("turn", thread_id="chat", metric_collection="turn-checks", test_case_id="case-2", turn_id="turn-2"):
+        pass
+    result = {s.name: s.attributes for s in spans(exporter)}
+    assert result["root"]["confident.span.metric_collection"] == "root-checks"
+    assert result["root"]["confident.trace.test_case_id"] == "case-1"
+    assert result["root"]["confident.trace.turn_id"] == "turn-1"
+    assert result["child"]["confident.span.metric_collection"] == "updated-child"
+    assert "confident.trace.metric_collection" not in result["child"]
+    assert result["turn"]["confident.trace.metric_collection"] == "turn-checks"
+    assert result["turn"]["confident.trace.test_case_id"] == "case-2"
+    assert result["turn"]["confident.trace.turn_id"] == "turn-2"

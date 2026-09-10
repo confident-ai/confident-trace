@@ -300,3 +300,15 @@ and outer defaults win; tags, metadata, and thread objects are never merged.
 With no active trace, defaults apply to traces started inside the scope.
 Exiting restores ambient context without undoing fields already written.
 Use `update_trace` / `updateTrace` for explicit later replacements.
+
+Metric collections are plain string names supported by span creation, trace context,
+trace updates, span updates, and turn creation. They export as
+`confident.span.metric_collection` or `confident.trace.metric_collection`,
+independent of content capture. Evaluation IDs remain trace-level fields.
+
+```python
+with trace_context(metric_collection="answer-checks", test_case_id="case-1", turn_id="turn-1"):
+    with span("retrieve", metric_collection="retrieval-checks"):
+        update_span(metric_collection="updated-retrieval-checks")
+        update_trace(metric_collection="updated-answer-checks")
+```

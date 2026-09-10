@@ -726,3 +726,17 @@ and outer defaults win; tags, metadata, and thread objects are never merged.
 With no active trace, defaults apply to traces started inside the scope.
 Exiting restores ambient context without undoing fields already written.
 Use `update_trace` / `updateTrace` for explicit later replacements.
+
+Metric collections are plain string names supported by span creation, trace context,
+trace updates, span updates, and turn creation. They export as
+`confident.span.metric_collection` or `confident.trace.metric_collection`,
+independent of content capture. Evaluation IDs remain trace-level fields.
+
+```ts
+traceContext({ metricCollection: 'answer-checks', testCaseId: 'case-1', turnId: 'turn-1' }, () => {
+  withSpan({ name: 'retrieve', metricCollection: 'retrieval-checks' }, () => {
+    updateSpan({ metricCollection: 'updated-retrieval-checks' });
+    updateTrace({ metricCollection: 'updated-answer-checks' });
+  });
+});
+```

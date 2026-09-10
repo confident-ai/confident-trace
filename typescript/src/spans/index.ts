@@ -32,6 +32,7 @@ import * as S from '@/semconv/generated';
 
 export type SpanType = 'agent' | 'llm' | 'retriever' | 'tool' | 'custom';
 export interface SpanFields {
+  metricCollection?: string;
   name?: string;
   input?: unknown;
   output?: unknown;
@@ -90,7 +91,8 @@ const traceKeys: Record<string, string> = {
   environment: 'environment',
   testCaseId: 'test_case_id',
 };
-const spanFields = new Set(['name', ...Object.keys(contentKeys)]);
+const scalarKeys: Record<string, string> = { metricCollection: 'metric_collection' };
+const spanFields = new Set(['name', ...Object.keys(contentKeys), ...Object.keys(scalarKeys)]);
 const traceFields = new Set([
   ...spanFields,
   ...Object.keys(traceKeys),
@@ -205,7 +207,7 @@ function apply(
   if (onlyUnset) {
     fields = Object.fromEntries(Object.entries(fields).filter(([key]) => {
       if (key === 'thread') return !['confident.trace.thread.id', 'confident.trace.thread_id', 'confident.trace.thread.tags', 'confident.trace.thread.metadata'].some(attr => Object.hasOwn(attrs, attr));
-      const attr = `confident.${scope}.${contentKeys[key] ?? traceKeys[key]}`;
+      const attr = `confident.${scope}.${contentKeys[key] ?? scalarKeys[key] ?? traceKeys[key]}`;
       return !Object.hasOwn(attrs, attr) && !writes.get(span)?.has(attr);
     }));
   }
@@ -218,7 +220,7 @@ function apply(
       continue;
     }
     const suffix =
-      contentKeys[key] ?? (scope === 'trace' ? traceKeys[key] : undefined);
+      contentKeys[key] ?? scalarKeys[key] ?? (scope === 'trace' ? traceKeys[key] : undefined);
     if (!suffix) continue;
     const attribute = `confident.${scope}.${suffix}`;
     remember(span, attribute);
