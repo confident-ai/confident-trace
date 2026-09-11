@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { init, traceContext } from 'confident-trace';
+import { init, traceContext, turn } from 'confident-trace';
 import { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
 const warnings = [];
 console.warn = (message) => warnings.push(message);
@@ -48,6 +48,47 @@ for (let i = 0; i < 2; i++) {
     assert.ok(JSON.stringify(root.attributes).includes('regression'));
   }
 }
+// Returning the SDK object from a turn must preserve its identity while
+// capturing its public text as the parent output (the docs' scenario 5).
+let sdkResult;
+const returned = await turn(
+  { name: 'result-capture', threadId: 'test' },
+  async () => {
+    sdkResult = await generateText({
+      model: new MockLanguageModelV3({
+        doGenerate: {
+          content: [{ type: 'text', text: 'Turn answer' }],
+          finishReason: { unified: 'stop', raw: 'stop' },
+          usage: { inputTokens: { total: 2 }, outputTokens: { total: 1 } },
+          warnings: [],
+        },
+      }),
+      prompt: 'Hi',
+    });
+    return sdkResult;
+  },
+);
+assert.equal(returned, sdkResult);
+assert.equal(returned.text, 'Turn answer');
+await turn(
+  { name: 'private-result', threadId: 'test', captureContent: false },
+  () => returned,
+);
+await rt.flush();
+const root = sink.getFinishedSpans().find((s) => s.name === 'result-capture');
+assert.equal(
+  root.attributes['confident.span.output'],
+  JSON.stringify('Turn answer'),
+);
+assert.equal(
+  root.attributes['confident.trace.output'],
+  JSON.stringify('Turn answer'),
+);
+const privateRoot = sink
+  .getFinishedSpans()
+  .find((s) => s.name === 'private-result');
+assert.equal(privateRoot.attributes['confident.span.output'], undefined);
+assert.equal(privateRoot.attributes['confident.trace.output'], undefined);
 assert.equal(
   rt.getInstrumentationStatus().integrations['vercel-ai'],
   'enabled',

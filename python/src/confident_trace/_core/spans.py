@@ -300,20 +300,21 @@ class Operation:
         finally:
             context.detach(token)
 
-    def input(self, value):
-        if confident.SPAN_INPUT not in _WRITES.get(
-            self.span, ()
-        ) and confident.SPAN_INPUT not in (
-            getattr(self.span, "attributes", None) or {}
-        ):
-            content(self.span, confident.SPAN_INPUT, value)
-        if (
-            self.is_entry
-            and confident.TRACE_INPUT not in _WRITES.get(self.span, ())
-            and confident.TRACE_INPUT
-            not in (getattr(self.span, "attributes", None) or {})
-        ):
-            content(self.span, confident.TRACE_INPUT, value)
+    def input(self, value, *, replace_automatic=False):
+        # Streaming callbacks may correct their initial placeholder at end.
+        # Only replace fields this operation captured, never explicit user fields.
+        captured = getattr(self, "_captured_inputs", set())
+        keys = [confident.SPAN_INPUT]
+        if self.is_entry:
+            keys.append(confident.TRACE_INPUT)
+        for key in keys:
+            if key in _WRITES.get(self.span, ()):
+                continue
+            attrs = getattr(self.span, "attributes", None) or {}
+            if key not in attrs or (replace_automatic and key in captured):
+                content(self.span, key, value)
+                captured.add(key)
+        self._captured_inputs = captured
 
     def output(self, value):
         if confident.SPAN_OUTPUT not in _WRITES.get(

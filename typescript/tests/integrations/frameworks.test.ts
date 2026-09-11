@@ -361,8 +361,8 @@ it('exports real Mastra agent/model/tool trees with original IDs and usage', asy
     input: 'Hi',
   });
   const llm = agent.createChildSpan({
-    type: SpanType.MODEL_GENERATION,
-    name: 'generation',
+    type: SpanType.MODEL_INFERENCE,
+    name: 'inference',
     input: [{ role: 'user', content: 'Hi' }],
     attributes: { model: 'test-model', provider: 'openai' },
   });
@@ -393,7 +393,7 @@ it('exports real Mastra agent/model/tool trees with original IDs and usage', asy
   expect(
     result.find((s) => s.name === 'lookup')!.attributes['confident.span.type'],
   ).toBe('tool');
-  const child = result.find((s) => s.name === 'generation')!;
+  const child = result.find((s) => s.name === 'inference')!;
   expect(child.spanContext()).toMatchObject({
     spanId: llm.id,
     traceId: agent.traceId,

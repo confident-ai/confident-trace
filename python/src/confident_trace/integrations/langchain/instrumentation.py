@@ -55,6 +55,11 @@ def instrument(rt):
             graph = importlib.import_module("langgraph._internal._runnable")
             from langgraph.errors import GraphBubbleUp
 
+            from langgraph.pregel import Pregel
+
+            for method, mode in (("invoke", "sync"), ("ainvoke", "async"),
+                                 ("stream", "stream"), ("astream", "astream")):
+                patch(Pregel, method, frame_wrapper(bridge, ("chain", "invoke_agent"), mode, graph=True), undo)
             bridge.control_flow += (GraphBubbleUp,)
             patch(graph, "set_config_context", config_wrapper(bridge), undo)
             # Python 3.10 cannot run a coroutine in an explicit Context. These

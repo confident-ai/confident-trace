@@ -3,7 +3,7 @@ export type IntegrationSpanType =
   'llm' | 'agent' | 'tool' | 'retriever' | 'custom';
 
 export function mastraSpanType(type: string): IntegrationSpanType {
-  if (type === 'model_generation' || type === 'model_inference') return 'llm';
+  if (type === 'model_inference') return 'llm';
   if (type === 'agent_run') return 'agent';
   if (type === 'tool_call' || type.endsWith('_tool_call')) return 'tool';
   return 'custom';

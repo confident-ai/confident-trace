@@ -27,6 +27,7 @@ class Integration(str, Enum):
     """Canonical Cloud UI labels for SDK and framework integrations."""
 
     LANGCHAIN = "LangChain"
+    LANGGRAPH = "LangGraph"
     CREWAI = "CrewAI"
     LLAMAINDEX = "LlamaIndex"
     OPENAI_AGENTS = "OpenAI Agents"

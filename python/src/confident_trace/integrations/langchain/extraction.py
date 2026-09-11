@@ -4,6 +4,7 @@ from itertools import islice
 
 from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage
+from langchain_core.prompt_values import ChatPromptValue, StringPromptValue
 
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
@@ -74,6 +75,15 @@ def messages(values, *, output=False):
 def generic(value, depth=0):
     if depth > 6:
         return "[truncated]"
+    if isinstance(value, ChatPromptValue):
+        # Read known data fields, not arbitrary to_string/to_messages hooks.
+        prompt_messages = vars(value).get("messages", [])
+        if type(prompt_messages) in (list, tuple):
+            return messages(prompt_messages)
+        return value
+    if isinstance(value, StringPromptValue):
+        text = vars(value).get("text")
+        return text if type(text) is str else value
     if isinstance(value, BaseMessage):
         return messages([value])
     if isinstance(value, Document):

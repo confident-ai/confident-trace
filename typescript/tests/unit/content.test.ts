@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
+import { frameworkOutputs } from '@/runtime/state';
 import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
 
@@ -82,4 +83,45 @@ it('bounds depth, nodes, Unicode bytes, and omits content before redaction when 
     expect(() => JSON.parse(encoded)).not.toThrow();
   }
   expect(() => new ContentPolicy({ maxContentBytes: 63 })).toThrow();
+});
+
+it('applies redaction, size limits and opt-out to normalized framework output', () => {
+  const result = new (class Result {})();
+  frameworkOutputs.set(result, 'private answer');
+  const redact = vi.fn(() => 'redacted');
+  expect(new ContentPolicy({ redact }).encode(result)).toBe('"redacted"');
+  expect(redact).toHaveBeenCalledWith('private answer');
+  redact.mockClear();
+  expect(
+    new ContentPolicy({ captureContent: false, redact }).encode(result),
+  ).toBeUndefined();
+  expect(redact).not.toHaveBeenCalled();
+  frameworkOutputs.set(result, 'x'.repeat(1000));
+  expect(new ContentPolicy({ maxContentBytes: 64 }).encode(result)).toBe(
+    '"[truncated]"',
+  );
+});
+
+it('normalizes nested framework results before redaction without invoking getters', () => {
+  const message = new (class Message {})();
+  frameworkOutputs.set(message, 'secret');
+  const getter = vi.fn(() => {
+    throw new Error('must not run');
+  });
+  const input = {
+    messages: [message],
+    get other() {
+      return getter();
+    },
+  };
+  const redact = vi.fn((value: unknown) => {
+    const data = value as { messages: string[] };
+    expect(data.messages).toEqual(['secret']);
+    return { messages: ['redacted'] };
+  });
+  expect(new ContentPolicy({ redact }).encode(input)).toBe(
+    '{"messages":["redacted"]}',
+  );
+  expect(getter).not.toHaveBeenCalled();
+  expect(input.messages[0]).toBe(message);
 });

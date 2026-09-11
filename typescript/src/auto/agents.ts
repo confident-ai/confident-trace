@@ -1,6 +1,6 @@
 import { ConfidentOpenAIAgentsProcessor } from '@/integrations/openai-agents';
 import { enabled, onActivate } from '@/auto/control';
-import { state } from '@/runtime/state';
+import { state, frameworkOutputs } from '@/runtime/state';
 import { observed, replace, suppressMethods } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
 
@@ -45,6 +45,31 @@ function processor(): Foreign {
   return automatic;
 }
 export function attachAgents(exports: Foreign): void {
+  if (exports.Runner)
+    replace(
+      exports.Runner.prototype,
+      'run',
+      (original) =>
+        function (this: Foreign, ...args: Foreign[]) {
+          const result = original.apply(this, args);
+          if (
+            !enabled('openai-agents') ||
+            state.auto.options.captureContent === false ||
+            args[2]?.stream
+          )
+            return result;
+          return result.then((value: Foreign) => {
+            try {
+              const output = value.finalOutput;
+              if (output !== undefined) frameworkOutputs.set(value, output);
+            } catch {
+              /* Never change the application's result on capture failure. */
+            }
+            return value;
+          });
+        },
+    );
+
   if (
     typeof exports.addTraceProcessor === 'function' &&
     !installed.has(exports.addTraceProcessor)

@@ -16,6 +16,8 @@ from opentelemetry import context
 from ..._core.safety import safe
 from .._shared.lifecycle import _SUPPRESS
 
+_GRAPH = ContextVar("confident_langgraph_execution", default=False)
+
 _FRAME = ContextVar("langchain_execution_frame", default=None)
 
 
@@ -38,7 +40,8 @@ def run_context(run):
 
 
 class Frame:
-    def __init__(self, bridge, kinds):
+    def __init__(self, bridge, kinds, graph=False):
+        self.graph = graph
         self.bridge = bridge
         self.kinds = kinds
         self.run_id = None
@@ -47,6 +50,7 @@ class Frame:
     @contextmanager
     def active(self):
         tokens = []
+        graph_token = _GRAPH.set(True) if self.graph else None
         token = _FRAME.set((self, owner(), tokens))
         if self.run is not None:
             tokens.append(context.attach(run_context(self.run)))
@@ -56,6 +60,8 @@ class Frame:
             for item in reversed(tokens):
                 context.detach(item)
             _FRAME.reset(token)
+            if graph_token is not None:
+                _GRAPH.reset(graph_token)
 
     def finish(self, error=None):
         if self.run_id is not None:
@@ -150,11 +156,11 @@ class AsyncIterator:
                 self.frame.finish()
 
 
-def frame_wrapper(bridge, kinds, mode):
+def frame_wrapper(bridge, kinds, mode, *, graph=False):
     def wrapper(wrapped, instance, args, kwargs):
         if not bridge.enabled():
             return wrapped(*args, **kwargs)
-        frame = Frame(bridge, kinds)
+        frame = Frame(bridge, kinds, graph=graph)
         if mode in ("stream", "astream"):
             value = wrapped(*args, **kwargs)
             cls = Iterator if mode == "stream" else AsyncIterator

@@ -13,9 +13,9 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const temporary = await mkdtemp(join(root, '.auto-tests-'));
-function run(file, args = [], env = {}) {
+function run(file, args = [], env = {}, scriptArgs = []) {
   process.stdout.write(
-    execFileSync(process.execPath, [...args, file], {
+    execFileSync(process.execPath, [...args, file, ...scriptArgs], {
       cwd: root,
       env: { ...process.env, ...env },
       timeout: 60000,
@@ -25,6 +25,17 @@ function run(file, args = [], env = {}) {
 }
 try {
   const preload = ['--import', 'confident-trace/register'];
+  for (const provider of [
+    'openai',
+    'anthropic',
+    'openrouter',
+    'portkey',
+    'google',
+  ])
+    run('tests/auto/provider-results.mjs', preload, {}, [provider]);
+  run('tests/auto/mastra-result.mjs', preload);
+  run('tests/auto/framework-results.mjs', preload);
+  run('tests/auto/langchain-result.mjs', preload);
   run('tests/auto/vercel-loading.mjs', preload);
   // A real second ai copy, with dependencies resolved from its original install.
   const require = createRequire(import.meta.url);

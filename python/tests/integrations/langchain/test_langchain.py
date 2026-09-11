@@ -806,3 +806,36 @@ def test_extraction_failure_is_fail_open(tracing, monkeypatch, caplog):
     assert "secret extraction payload" not in caplog.text
     assert "private prompt" not in caplog.text
     assert not bridge.runs
+
+
+def test_graph_integration_label_and_isolation(tracing):
+    from langgraph.graph import StateGraph, START, END
+    from langchain_core.language_models.fake_chat_models import FakeListChatModel
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_core.output_parsers import StrOutputParser
+
+    _, exporter, _, _ = tracing
+    chain = ChatPromptTemplate.from_template('Explain {topic}.') | FakeListChatModel(responses=['Answer']) | StrOutputParser()
+
+    def node(state):
+        return {'topic': chain.invoke(state)}
+
+    graph = StateGraph(dict).add_node('answer', node).add_edge(START, 'answer').add_edge('answer', END).compile(name='Custom graph name')
+    graph.invoke({'topic': 'volcanoes'})
+    list(graph.stream({'topic': 'penguins'}))
+
+    async def run():
+        await graph.ainvoke({'topic': 'bees'})
+        return [chunk async for chunk in graph.astream({'topic': 'owls'})]
+
+    asyncio.run(run())
+    chain.invoke({'topic': 'standalone'})
+    captured = spans(exporter)
+    roots = [s for s in captured if s.parent is None]
+    assert len(roots) == 5
+    for root in roots:
+        expected = 'LangGraph' if root.name == 'Custom graph name' else 'LangChain'
+        members = [s for s in captured if s.context.trace_id == root.context.trace_id]
+        assert all(s.attributes.get('confident.span.integration') == expected for s in members)
+        prompt = next(s for s in members if s.name == 'ChatPromptTemplate')
+        assert '[unsupported]' not in prompt.attributes['confident.span.output']

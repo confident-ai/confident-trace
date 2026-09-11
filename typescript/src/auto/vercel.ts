@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { context } from '@opentelemetry/api';
 import { createVercelAITracer } from '@/integrations/vercel-ai';
 import { enabled, failed, onActivate } from '@/auto/control';
-import { state, suppress } from '@/runtime/state';
+import { state, suppress, frameworkOutputs } from '@/runtime/state';
 import { observed, replace } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
 
@@ -128,11 +128,27 @@ export function attachVercel(exports: Foreign, bridgePath: string): void {
                   },
                 })
               : model;
-          return original.call(this, {
+          const result = original.call(this, {
             ...options,
             model: tracedModel,
             telemetry,
           });
+          // Only normalize results obtained from this known SDK boundary. Generic
+          // serialization must not inspect arbitrary classes or invoke getters.
+          if (
+            key === 'generateText' &&
+            state.auto.options.captureContent !== false
+          )
+            return result.then((value: Foreign) => {
+              try {
+                const text = value.text;
+                if (typeof text === 'string') frameworkOutputs.set(value, text);
+              } catch {
+                // Output capture must never change the application's result.
+              }
+              return value;
+            });
+          return result;
         },
     );
   observed('vercel-ai');

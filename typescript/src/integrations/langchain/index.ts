@@ -1,3 +1,4 @@
+import { frameworkOutputs } from '@/runtime/state';
 import { CallbackRuns } from '@/integrations/callback-runs';
 import type { CallbackOptions } from '@/integrations/callback-runs';
 import { frameworkMessages, safely } from '@/integrations/framework';
@@ -36,6 +37,13 @@ function messages(values: unknown): unknown {
           : {}),
         arguments: get(call, 'args'),
       });
+    if (value && typeof value === 'object')
+      frameworkOutputs.set(
+        value,
+        typeof content === 'string' && calls.length === 0
+          ? content
+          : normalized,
+      );
     return normalized;
   });
 }
@@ -126,8 +134,13 @@ export class ConfidentLangChainCallbackHandler {
       this.runs.content(runId, 'input', input);
     });
   };
-  handleToolEnd = (output: unknown, runId: string): void =>
+  handleToolEnd = (output: unknown, runId: string): void => {
+    // LangChain wraps tool results in ToolMessage when invoked by an agent.
+    const content = get(output, 'content');
+    if (output && typeof output === 'object' && content !== undefined)
+      frameworkOutputs.set(output, content);
     this.finish(output, runId);
+  };
   handleToolError = this.handleChainError;
   handleRetrieverStart = (
     retriever: unknown,

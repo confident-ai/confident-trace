@@ -291,6 +291,27 @@ export function traceContext<T>(fields: TraceFields, callback: () => T): T {
 export function ambientOnStart(span: Span, parent: Context): void {
   if (isDisabled() || parent.getValue(deferTraceContextKey) || trace.getSpan(parent)?.isRecording()) return;
   safe(() => apply(span, (parent.getValue(traceContextKey) as TraceFields | undefined) ?? {}, 'trace', state.policy ?? new ContentPolicy(), true));
+  // Give the backend an explicit root name before any child finishes exporting.
+  const automatic = span as Span & { name?: string; attributes?: Attributes };
+  const name = automatic.attributes?.['confident.span.integration'] ? automatic.name : undefined;
+  if (name) safe(() => apply(span, { name }, 'trace', state.policy ?? new ContentPolicy(), true));
+}
+
+/** Encode ambient defaults for frameworks that export completed native spans. */
+export function ambientTraceAttributes(parent: Context, policy: ContentPolicy): Attributes {
+  const attributes: Attributes = {};
+  if (isDisabled() || parent.getValue(deferTraceContextKey) || trace.getSpan(parent)?.isRecording()) return attributes;
+  // apply only needs this recording attribute sink; no OTel span is created.
+  const sink = {
+    attributes,
+    isRecording: () => true,
+    setAttribute(key: string, value: Attributes[string]) {
+      attributes[key] = value;
+      return this;
+    },
+  } as unknown as Span;
+  safe(() => apply(sink, (parent.getValue(traceContextKey) as TraceFields | undefined) ?? {}, 'trace', policy, true));
+  return attributes;
 }
 
 const warnedLlmTargets = new Set<string>();

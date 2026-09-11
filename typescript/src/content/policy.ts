@@ -1,4 +1,5 @@
 import { types } from 'node:util';
+import { normalizeFrameworkOutput } from '@/content/normalize';
 import type { ContentOptions } from '@/content/types';
 
 type JsonValue =
@@ -30,7 +31,8 @@ export class ContentPolicy {
   encode(value: unknown): string | undefined {
     if (!this.enabled) return undefined;
     try {
-      const redacted = this.redact ? this.redact(value) : value;
+      const normalized = normalizeFrameworkOutput(value);
+      const redacted = this.redact ? this.redact(normalized) : normalized;
       let remaining = Math.min(this.maxBytes, 1024);
       const ancestors = new Set<object>();
       const clean = (item: unknown, depth = 0): JsonValue => {

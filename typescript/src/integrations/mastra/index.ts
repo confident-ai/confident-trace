@@ -1,5 +1,6 @@
 import {
   diag,
+  context,
   isSpanContextValid,
   SpanKind,
   SpanStatusCode,
@@ -21,6 +22,7 @@ import type { InitOptions } from '@/config/types';
 import { isDisabled } from '@/config/resolve';
 import { createCompletedSpanProcessor } from '@/runtime/processor';
 import { withinBudget } from '@/runtime/lifecycle';
+import { ambientTraceAttributes } from '@/spans/index';
 import { VERSION } from '@/runtime/version';
 import {
   frameworkMessages,
@@ -64,6 +66,10 @@ export class ConfidentMastraExporter {
   readonly name = 'confident-trace';
   private readonly processor: SpanProcessor;
   private resource: Resource;
+  // Step input may arrive after the inference starts. Mastra does not copy
+  // that update into the inference, so retain the latest step input until end.
+  private readonly stepInputs = new Map<string, unknown>();
+  private readonly rootDefaults = new Map<string, Attributes>();
   private closed = false;
   private closing: Promise<void> | undefined;
   constructor(private readonly options: MastraExporterOptions = {}) {
@@ -84,9 +90,43 @@ export class ConfidentMastraExporter {
       );
   }
   async exportTracingEvent(event: MastraTracingEvent): Promise<void> {
-    if (this.closed || isDisabled() || event.type !== 'span_ended') return;
+    if (this.closed || isDisabled()) return;
+    const eventSource = event.exportedSpan;
+    const eventKey = `${eventSource.traceId}:${eventSource.id}`;
+    if (
+      eventSource.isRootSpan &&
+      !eventSource.parentSpanId &&
+      !eventSource.externalParentSpanId &&
+      !this.rootDefaults.has(eventKey)
+    ) {
+      if (this.rootDefaults.size >= 4096)
+        this.rootDefaults.delete(this.rootDefaults.keys().next().value!);
+      this.rootDefaults.set(
+        eventKey,
+        ambientTraceAttributes(context.active(), frameworkPolicy(this.options)),
+      );
+    }
+    if (eventSource.type === 'model_step' && eventSource.input !== undefined) {
+      if (this.stepInputs.size >= 4096 && !this.stepInputs.has(eventKey))
+        this.stepInputs.delete(this.stepInputs.keys().next().value!);
+      this.stepInputs.set(eventKey, eventSource.input);
+    }
+    if (event.type !== 'span_ended') return;
+    if (eventSource.type === 'model_step') this.stepInputs.delete(eventKey);
+    const defaults = this.rootDefaults.get(eventKey);
+    this.rootDefaults.delete(eventKey);
     try {
-      const source = event.exportedSpan;
+      const original = event.exportedSpan;
+      const inheritedInput =
+        original.type === 'model_inference' &&
+        original.input === undefined &&
+        original.parentSpanId
+          ? this.stepInputs.get(`${original.traceId}:${original.parentSpanId}`)
+          : undefined;
+      const source =
+        inheritedInput === undefined
+          ? original
+          : { ...original, input: inheritedInput };
       const spanContext: SpanContext = {
         traceId: source.traceId,
         spanId: source.id,
@@ -139,7 +179,8 @@ export class ConfidentMastraExporter {
         'client_tool_call',
         'provider_tool_call',
       ].includes(source.type);
-      if (model) attributes[S.ATTR_GEN_AI_OPERATION_NAME] = 'chat';
+      const inference = source.type === 'model_inference';
+      if (inference) attributes[S.ATTR_GEN_AI_OPERATION_NAME] = 'chat';
       else if (tool) {
         attributes[S.ATTR_GEN_AI_OPERATION_NAME] = 'execute_tool';
         set(
@@ -154,9 +195,13 @@ export class ConfidentMastraExporter {
         ['responseId', S.ATTR_GEN_AI_RESPONSE_ID],
       ] as const)
         set(attr, get(data, key));
-      const usage = get(data, 'usage');
-      set(S.ATTR_GEN_AI_USAGE_INPUT_TOKENS, get(usage, 'inputTokens'));
-      set(S.ATTR_GEN_AI_USAGE_OUTPUT_TOKENS, get(usage, 'outputTokens'));
+      // Mastra repeats aggregate usage on generation/step parents. Only the
+      // provider inference represents a billable request; do not count it twice.
+      if (inference) {
+        const usage = get(data, 'usage');
+        set(S.ATTR_GEN_AI_USAGE_INPUT_TOKENS, get(usage, 'inputTokens'));
+        set(S.ATTR_GEN_AI_USAGE_OUTPUT_TOKENS, get(usage, 'outputTokens'));
+      }
       const finish = get(data, 'finishReason');
       if (typeof finish === 'string')
         attributes[S.ATTR_GEN_AI_RESPONSE_FINISH_REASONS] = [finish];
@@ -195,7 +240,7 @@ export class ConfidentMastraExporter {
           content(S.ATTR_CONFIDENT_SPAN_INPUT, source.input);
           content(S.ATTR_CONFIDENT_SPAN_OUTPUT, source.output);
         }
-        if (source.isRootSpan) {
+        if (source.isRootSpan && !parentId) {
           if (source.input !== undefined)
             content(
               S.ATTR_CONFIDENT_TRACE_INPUT,
@@ -213,20 +258,22 @@ export class ConfidentMastraExporter {
           content(S.ATTR_CONFIDENT_TRACE_METADATA, source.metadata);
         }
       }
-      if (source.isRootSpan) {
+      if (source.isRootSpan && !parentId) {
         set(S.ATTR_CONFIDENT_TRACE_NAME, source.name);
         if (source.tags)
           attributes[S.ATTR_CONFIDENT_TRACE_TAGS] = list(source.tags).filter(
             (v): v is string => typeof v === 'string',
           );
       }
+      if (source.isRootSpan && !parentId && defaults)
+        for (const [key, value] of Object.entries(defaults))
+          attributes[key] = value;
       if (source.errorInfo != null)
         attributes[S.ATTR_ERROR_TYPE] = 'framework_error';
       const span: ReadableSpan = {
         name: source.name,
         kind:
-          source.type === 'model_inference' ||
-          source.type === 'model_generation'
+          source.type === 'model_inference'
             ? SpanKind.CLIENT
             : SpanKind.INTERNAL,
         spanContext: () => spanContext,
@@ -273,6 +320,8 @@ export class ConfidentMastraExporter {
   shutdown(): Promise<void> {
     if (!this.closing) {
       this.closed = true;
+      this.stepInputs.clear();
+      this.rootDefaults.clear();
       this.closing = (async () => {
         const ok = await withinBudget(
           () => this.processor.shutdown(),

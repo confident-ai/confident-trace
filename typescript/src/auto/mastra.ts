@@ -1,8 +1,9 @@
+import { context, trace, isSpanContextValid } from '@opentelemetry/api';
 import { createRequire } from 'node:module';
 import { ConfidentMastraExporter } from '@/integrations/mastra';
-import { state } from '@/runtime/state';
-import { onActivate } from '@/auto/control';
-import { observed, wrapConstructor, setExport } from '@/auto/patch';
+import { state, frameworkOutputs } from '@/runtime/state';
+import { enabled, onActivate } from '@/auto/control';
+import { observed, replace, wrapConstructor, setExport } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
 
 // Loaded only after Mastra is encountered and tracing is activated.
@@ -11,6 +12,49 @@ const requireBridge = createRequire(
 );
 const instances = new WeakSet<object>();
 export function attachMastra(exports: Foreign, bridgePath: string): void {
+  if (exports.Agent)
+    replace(
+      exports.Agent.prototype,
+      'generate',
+      (original) =>
+        function (this: Foreign, ...args: Foreign[]) {
+          // Mastra uses its own tracing context; bridge an enclosing OTel turn
+          // through its public correlation options before execution starts.
+          const parent = trace.getSpan(context.active());
+          if (enabled('mastra') && parent?.isRecording()) {
+            const ids = parent.spanContext();
+            const options = args[1] ?? {};
+            const tracingOptions = options.tracingOptions ?? {};
+            if (
+              isSpanContextValid(ids) &&
+              tracingOptions.traceId === undefined &&
+              tracingOptions.parentSpanId === undefined &&
+              !options.tracingContext?.currentSpan
+            )
+              args[1] = {
+                ...options,
+                tracingOptions: {
+                  ...tracingOptions,
+                  traceId: ids.traceId,
+                  parentSpanId: ids.spanId,
+                },
+              };
+          }
+          const result = original.apply(this, args);
+          if (!enabled('mastra') || state.auto.options.captureContent === false)
+            return result;
+          return result.then((value: Foreign) => {
+            try {
+              const output = value.object ?? value.text;
+              if (output !== undefined) frameworkOutputs.set(value, output);
+            } catch {
+              /* Never change the application's result on capture failure. */
+            }
+            return value;
+          });
+        },
+    );
+
   if (typeof exports.Mastra !== 'function') return;
   setExport(
     exports,

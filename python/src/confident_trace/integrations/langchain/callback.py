@@ -34,6 +34,7 @@ if hasattr(os, "register_at_fork"):
 class Run:
     operation: Operation
     kind: str
+    integration: Integration = Integration.LANGCHAIN
 
 
 class Bridge(BaseCallbackHandler):
@@ -65,6 +66,9 @@ class Bridge(BaseCallbackHandler):
             self.claimed.add(run_id)
             parent = self.runs.get(parent_run_id)
         try:
+            from .execution import _GRAPH
+            integration = (Integration.LANGGRAPH if _GRAPH.get()
+                           else parent.integration if parent else Integration.LANGCHAIN)
             title = extraction.name(serialized, options)
             attrs = {}
             if kind in ("chat", "text_completion", "execute_tool", "invoke_agent"):
@@ -79,14 +83,14 @@ class Bridge(BaseCallbackHandler):
                 op = Operation(
                     title,
                     attributes=attrs,
-                    integration=Integration.LANGCHAIN,
+                    integration=integration,
                     kind=trace.SpanKind.CLIENT
                     if kind in ("chat", "text_completion")
                     else trace.SpanKind.INTERNAL,
                 )
             finally:
                 context.detach(token)
-            run = Run(op, kind)
+            run = Run(op, kind, integration)
             with self.lock:
                 closed = self.closed
                 if not closed:
@@ -103,12 +107,14 @@ class Bridge(BaseCallbackHandler):
                 self.claimed.discard(run_id)
             raise
 
-    def finish(self, run_id, value=None, error=None):
+    def finish(self, run_id, value=None, error=None, inputs=None):
         with self.lock:
             run = self.runs.pop(run_id, None)
             self.claimed.discard(run_id)
         if run is not None:
             try:
+                if inputs is not None and run.kind in ("chain", "invoke_agent"):
+                    safe(run.operation.input, extraction.generic(inputs), replace_automatic=True)
                 if error is None:
                     safe(extraction.response, run.operation, run.kind, value)
             finally:
@@ -170,7 +176,7 @@ class Bridge(BaseCallbackHandler):
         )
 
     def on_chain_end(self, outputs, *, run_id, **kwargs):
-        safe(self.finish, run_id, outputs)
+        safe(self.finish, run_id, outputs, inputs=kwargs.get("inputs"))
 
     def on_llm_end(self, response, *, run_id, **kwargs):
         safe(self.finish, run_id, response)
@@ -182,7 +188,7 @@ class Bridge(BaseCallbackHandler):
         safe(self.finish, run_id, documents)
 
     def on_chain_error(self, error, *, run_id, **kwargs):
-        safe(self.finish, run_id, error=error)
+        safe(self.finish, run_id, error=error, inputs=kwargs.get("inputs"))
 
     on_llm_error = on_chain_error
     on_tool_error = on_chain_error

@@ -1,3 +1,4 @@
+import { frameworkOutputs } from '@/runtime/state';
 import { types } from 'node:util';
 import type { Span, AttributeValue } from '@opentelemetry/api';
 import { ContentPolicy } from '@/content/policy';
@@ -195,21 +196,20 @@ export class Capture {
     if (reasons.length)
       this.set(S.ATTR_GEN_AI_RESPONSE_FINISH_REASONS, reasons);
     if (!this.policy.enabled || !captureOutput) return;
-    if (this.provider === 'anthropic' && get(value, 'content') !== undefined)
-      this.output([{ role: 'assistant', parts: parts(get(value, 'content')) }]);
-    else if (
-      (this.provider === 'openai' || this.provider === 'portkey') &&
-      get(value, 'output') !== undefined
-    )
-      this.output(messages(get(value, 'output')));
-    else
-      this.output(
-        choices.flatMap((c) => {
-          const m = get(c, 'message') ?? get(c, 'content');
-          return m ? messages([m]) : [];
-        }),
-      );
+    const output =
+      this.provider === 'anthropic' && get(value, 'content') !== undefined
+        ? [{ role: 'assistant', parts: parts(get(value, 'content')) }]
+        : (this.provider === 'openai' || this.provider === 'portkey') &&
+            get(value, 'output') !== undefined
+          ? messages(get(value, 'output'))
+          : choices.flatMap((c) => {
+              const message = get(c, 'message') ?? get(c, 'content');
+              return message ? messages([message]) : [];
+            });
+    if (value && typeof value === 'object') frameworkOutputs.set(value, output);
+    this.output(output);
   }
+
   private append(value: unknown): string {
     if (typeof value !== 'string' || this.full) return '';
     const room = Math.max(0, Math.floor(this.policy.maxBytes / 6) - this.used);
