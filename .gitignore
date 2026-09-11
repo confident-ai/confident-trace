@@ -16,3 +16,6 @@ node_modules/
 
 # Grouped CI reports
 /ci-results/
+
+# Local PyPI release credential
+/.pypi-token

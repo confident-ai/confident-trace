@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "confident-trace"
-version = "0.1.0"
+version = "0.1.1"
 description = "OpenTelemetry-first tracing for AI applications"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -18,12 +18,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-portkey = ["portkey-ai>=2.3.4,<2.4"]
-openrouter = ["openrouter>=1.1.136,<1.2"]
-litellm = [
-  "litellm==1.81.0; python_version < '3.11'",
-  "litellm>=1.81,<2; python_version >= '3.11'",
-]
 frameworks-test = ["llama-index-core", "llama-index-llms-openai", "agno", "smolagents[openai]"]
 crewai-test = ["crewai>=1,<2"]
 langchain-test = ["langchain>=1,<2", "langgraph>=1,<2", "langchain-openai>=1,<2"]

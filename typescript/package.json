@@ -1,6 +1,6 @@
 {
   "name": "confident-trace",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "OpenTelemetry-first tracing for AI applications",
   "license": "Apache-2.0",
   "type": "module",

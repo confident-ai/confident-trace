@@ -315,8 +315,8 @@ with trace_context(metric_collection="answer-checks", test_case_id="case-1", tur
 
 ## LiteLLM
 
-Install `pip install 'confident-trace[litellm]'`. Native LiteLLM instrumentation
-is enabled by default when installed. Initialize before importing function aliases:
+With LiteLLM already installed, run `pip install confident-trace`. Native LiteLLM
+instrumentation is enabled by default. Initialize before importing function aliases:
 
 ```python
 import confident_trace as ct
@@ -356,8 +356,8 @@ fails to import on Python 3.10 due to an upstream `typing.NotRequired` import.
 
 ## OpenRouter
 
-Install `pip install 'confident-trace[openrouter]'`. Native OpenRouter instrumentation
-is enabled by default when installed, or select it explicitly:
+With the OpenRouter SDK already installed, run `pip install confident-trace`. Native
+OpenRouter instrumentation is enabled by default, or select it explicitly:
 
 ```python
 import confident_trace as ct
@@ -391,8 +391,8 @@ Tested with `openrouter==1.1.136`.
 
 ## Portkey
 
-Install `pip install 'confident-trace[portkey]'`. Native Portkey instrumentation
-is enabled by default when installed, or select it explicitly:
+With the Portkey SDK already installed, run `pip install confident-trace`. Native
+Portkey instrumentation is enabled by default, or select it explicitly:
 
 ```python
 import confident_trace as ct

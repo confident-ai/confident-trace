@@ -7,8 +7,8 @@ code into OpenTelemetry traces. Python and TypeScript SDKs work with your existi
 provider clients and export through standard OTLP to Confident AI or an
 OpenTelemetry Collector.
 
-- **19 integrations:** 15 agent frameworks and 4 model providers across Python and
-  TypeScript, with language-specific coverage listed below.
+- **24 integrations:** 15 agent frameworks, 4 model providers, and 5 LLM gateways
+  across Python and TypeScript, with language-specific coverage listed below.
 - **OpenTelemetry semantic conventions:** Confident Trace emits GenAI spans using
   the supported subset of GenAI 1.37.0 conventions for model calls, messages, tools,
   and token usage. Native framework spans retain their original conventions.
@@ -97,6 +97,41 @@ embeddings, realtime, provider batch APIs, image/audio generation, and OpenAI's
 separate `responses.stream` helper are outside this scope. Multimodal binary
 payloads are omitted.
 
+## LLM Gateways
+
+Gateway support traces calls from your application through native gateway SDKs or
+supported provider clients configured to use a gateway. Each gateway counts once
+in the integration total, regardless of the client or language used.
+
+| Gateway | Python | TypeScript / JavaScript |
+| --- | --- | --- |
+| LiteLLM | Native `completion` / `acompletion` and Router calls; OpenAI client proxy detection. [Setup](python/README.md#litellm). | OpenAI client proxy detection. [Setup](typescript/README.md#litellm-proxy). |
+| OpenRouter | Native `chat.send` / `send_async`; OpenAI client proxy detection. [Setup](python/README.md#openrouter). | Native `chat.send`; OpenAI client proxy detection. [Setup](typescript/README.md#openrouter). |
+| Portkey | Native chat completions and Responses `create`; OpenAI client proxy detection. [Setup](python/README.md#portkey). | Native chat completions and Responses `create`; OpenAI client proxy detection. [Setup](typescript/README.md#portkey). |
+| Bifrost | OpenAI and Anthropic client proxy detection. [Setup](python/README.md#bifrost-gateway). | OpenAI and Anthropic client proxy detection. [Setup](typescript/README.md#bifrost-gateway). |
+| TrueFoundry | OpenAI and Anthropic client proxy detection. [Setup](python/README.md#truefoundry-gateway). | OpenAI and Anthropic client proxy detection. [Setup](typescript/README.md#truefoundry-gateway). |
+
+Proxy coverage uses the OpenAI Chat Completions/Responses and Anthropic Messages
+APIs listed above, including streaming. Python native gateway integrations also
+support synchronous and asynchronous calls. TypeScript automatic instrumentation
+uses `init()` plus the register preload; OpenRouter and Portkey also have manual
+adapters.
+
+OpenAI clients using the public OpenRouter or Portkey endpoint are recognized
+automatically. Register other full client base URLs with `litellm_proxy_urls`,
+`openrouter_proxy_urls`, `portkey_proxy_urls`, `bifrost_proxy_urls`, or
+`truefoundry_proxy_urls` in Python, or the corresponding `*ProxyUrls` options in
+TypeScript. Matching uses the exact origin and base path, ignoring trailing
+slashes.
+
+Proxy spans retain their provider SDK integration label and add
+`confident.gateway.name`; `gen_ai.provider.name` identifies the gateway. Native
+SDK spans use their gateway integration label. This covers application calls;
+gateway-internal routing, retries, and fallbacks are outside this scope. Bifrost
+and TrueFoundry gateway detection through Google GenAI or Bedrock clients is not
+included. Gateway tests use real SDKs with mock transports, without live gateway
+validation.
+
 ## Custom tracing and OpenTelemetry
 
 - **Application spans:** Python decorators and span scopes; TypeScript function
@@ -130,14 +165,3 @@ The SDKs export traces; they do not provide a metrics or logs pipeline.
 ## License
 
 [Apache License 2.0](LICENSE).
-
-### Manual tracing parity
-
-Both SDKs support five span types, span/trace content updates, conversation turns,
-manual model/token/USD-per-token fields, test-case IDs, and separate thread tags
-and metadata. Request scopes select project exporters or suppress supported
-instrumentation before work starts. Initialize once; completed spans retain
-normal batched export. See the language READMEs for APIs, custom-exporter factory
-support, receiver limitations, and collector-side outcome-based dropping.
-
-Gateway support includes LiteLLM, OpenRouter, Portkey, Bifrost and TrueFoundry. See the Python and TypeScript READMEs for native SDK and proxy configuration.
