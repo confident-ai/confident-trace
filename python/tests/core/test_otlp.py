@@ -17,7 +17,7 @@ def test_child_export_connection_resolution(monkeypatch, protocol, expected):
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://collector.invalid/base/")
     config = child_environment(
         protocol,
-        {"headers": {"authorization": "a,b=c %"}, "timeout": 2},
+        {"endpoint": expected, "headers": {"authorization": "a,b=c %"}, "timeout": 2},
         compression="gzip",
     )
     assert config == {
@@ -30,10 +30,7 @@ def test_child_export_connection_resolution(monkeypatch, protocol, expected):
     monkeypatch.setenv(
         "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "https://signal.invalid/exact"
     )
-    assert (
-        child_environment(protocol, {})["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"]
-        == "https://signal.invalid/exact"
-    )
+    assert child_environment(protocol, {}) is None
     assert (
         child_environment(protocol, {"endpoint": "https://explicit.invalid/exact"})[
             "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"

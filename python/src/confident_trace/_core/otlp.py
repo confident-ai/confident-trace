@@ -1,6 +1,5 @@
 """Serialize our OTLP connection for a separately exporting SDK subprocess."""
 
-import os
 from urllib.parse import quote
 
 from opentelemetry.sdk import environment_variables as env
@@ -9,13 +8,7 @@ from opentelemetry.sdk import environment_variables as env
 def child_environment(protocol, kwargs, *, compression=None):
     # Only called for exporters we construct. Arbitrary caller-supplied exporters
     # (including in-memory exporters) cannot be represented as an OTLP endpoint.
-    endpoint = kwargs.get("endpoint") or os.getenv(
-        env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-    )
-    if not endpoint:
-        endpoint = os.getenv(env.OTEL_EXPORTER_OTLP_ENDPOINT)
-        if endpoint and protocol == "http/protobuf":
-            endpoint = endpoint.rstrip("/") + "/v1/traces"
+    endpoint = kwargs.get("endpoint")
     if not endpoint:
         return None
     values = {

@@ -83,7 +83,7 @@ def test_fork_exporter_worker_recovers(telemetry):
 def test_grpc_configuration(monkeypatch):
     ct.shutdown()
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
-    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://localhost:4317")
+    monkeypatch.setenv("CONFIDENT_OTEL_ENDPOINT", "http://localhost:4317")
     rt = ct.init(
         tracer_provider=TracerProvider(shutdown_on_exit=False), instrumentations=()
     )

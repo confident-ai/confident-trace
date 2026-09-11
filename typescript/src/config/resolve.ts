@@ -27,16 +27,12 @@ export function resolveExportOptions(
   if (options.endpoint !== undefined) result.endpoint = options.endpoint;
   else if (env.CONFIDENT_OTEL_ENDPOINT)
     result.endpoint = env.CONFIDENT_OTEL_ENDPOINT;
-  else if (
-    !env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT &&
-    !env.OTEL_EXPORTER_OTLP_ENDPOINT
-  ) {
+  else {
     if (protocol === 'grpc')
       throw new Error('A gRPC collector endpoint is required');
     result.endpoint = 'https://otel.confident-ai.com/v1/traces';
   }
-  // Keep omitted endpoint/transport values omitted so OTel applies its own
-  // signal-specific environment precedence, TLS and path resolution.
+  // Resolve endpoints explicitly; other transport settings retain OTel defaults.
   const rawHeaders =
     env.OTEL_EXPORTER_OTLP_TRACES_HEADERS ??
     env.OTEL_EXPORTER_OTLP_HEADERS ??

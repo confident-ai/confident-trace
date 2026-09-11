@@ -23,6 +23,7 @@ describe('export configuration', () => {
     vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://localhost:4318');
     expect(resolveExportOptions({})).toEqual({
       protocol: 'http/protobuf',
+      endpoint: 'https://otel.confident-ai.com/v1/traces',
       headers: {},
     });
     expect(
@@ -57,7 +58,10 @@ describe('export configuration', () => {
         .endpoint,
     ).toBe('https://explicit.invalid/traces');
     vi.stubEnv('CONFIDENT_OTEL_ENDPOINT', '');
-    expect(resolveExportOptions({}).endpoint).toBeUndefined();
+    expect(resolveExportOptions({}).endpoint).toBe(
+      'https://otel.confident-ai.com/v1/traces',
+    );
+    expect(() => resolveExportOptions({ protocol: 'grpc' })).toThrow();
   });
   it('merges decoded headers, API key, and explicit headers case-insensitively', () => {
     vi.stubEnv('OTEL_EXPORTER_OTLP_HEADERS', 'generic=ignored');

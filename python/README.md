@@ -61,24 +61,23 @@ are automatically instrumented or fully mapped.
 `init()` reads `CONFIDENT_API_KEY`, `CONFIDENT_OTEL_ENDPOINT`, `OTEL_SDK_DISABLED`,
 `OTEL_RESOURCE_ATTRIBUTES`, and standard OTel exporter settings. Unspecified
 exporter options are delegated to OTel, including TLS certificates/client keys,
-compression, headers, timeouts and HTTP endpoint path resolution.
+compression, headers, and timeouts.
 
 Explicit arguments override environment settings. `CONFIDENT_OTEL_ENDPOINT` is
-the full traces endpoint and takes precedence over standard OTel endpoint variables.
+the full traces endpoint. Standard OTel endpoint variables are ignored.
 Without an endpoint setting, HTTP export defaults to `https://otel.confident-ai.com/v1/traces`. `OTEL_SDK_DISABLED=true`
 always disables package tracing at initialization. Trace-specific exporter
 settings take precedence over generic settings. An explicit `endpoint` is the
-complete traces endpoint; an HTTP generic environment endpoint gets `/v1/traces`
-appended by OTel. Timeouts passed to `init` are seconds; `flush` and `shutdown`
+complete traces endpoint, including `/v1/traces` for HTTP export. Timeouts passed to `init` are seconds; `flush` and `shutdown`
 budgets are milliseconds. Explicit `headers` override environment/auth headers.
 
 ```sh
 export CONFIDENT_API_KEY=...
 export OTEL_RESOURCE_ATTRIBUTES='service.name=my-agent,deployment.environment.name=staging'
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+export CONFIDENT_OTEL_ENDPOINT=http://localhost:4318/v1/traces
 # Or a gRPC Collector:
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export CONFIDENT_OTEL_ENDPOINT=http://localhost:4317
 # Disable in CI:
 export OTEL_SDK_DISABLED=true
 ```

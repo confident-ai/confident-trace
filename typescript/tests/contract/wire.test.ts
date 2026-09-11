@@ -27,7 +27,7 @@ const manifest = JSON.parse(
 };
 beforeEach(() => {
   for (const key of Object.keys(process.env))
-    if (key.startsWith('OTEL_') || key === 'CONFIDENT_API_KEY')
+    if (key.startsWith('OTEL_') || key.startsWith('CONFIDENT_'))
       vi.stubEnv(key, undefined);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -40,7 +40,7 @@ it('native constants match the shared manifest and wire convention version', () 
 });
 it('HTTP/protobuf preserves every shared attribute and legacy event unchanged', async () => {
   const receiver = await httpReceiver();
-  vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', `${receiver.url}/collector`);
+  vi.stubEnv('CONFIDENT_OTEL_ENDPOINT', `${receiver.url}/collector/v1/traces`);
   vi.stubEnv('OTEL_EXPORTER_OTLP_HEADERS', 'environment=present');
   const provider = new NodeTracerProvider({
     spanProcessors: [
@@ -92,13 +92,10 @@ it('HTTP/protobuf preserves every shared attribute and legacy event unchanged', 
     await receiver.close();
   }
 });
-it('trace-specific and explicit HTTP endpoints are complete paths, with explicit headers winning', async () => {
+it('Confident and explicit HTTP endpoints are complete paths, with explicit headers winning', async () => {
   const receiver = await httpReceiver();
   vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://invalid.invalid');
-  vi.stubEnv(
-    'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
-    `${receiver.url}/traces-env`,
-  );
+  vi.stubEnv('CONFIDENT_OTEL_ENDPOINT', `${receiver.url}/traces-env`);
   vi.stubEnv(
     'OTEL_EXPORTER_OTLP_TRACES_HEADERS',
     'x-confident-api-key=environment',

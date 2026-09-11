@@ -166,7 +166,7 @@ def test_configuration(monkeypatch):
         tracer_provider=TracerProvider(shutdown_on_exit=False), instrumentations=()
     )
     exporter = rt.processor.delegate.span_exporter
-    assert exporter._endpoint == "http://localhost:9999/specific"
+    assert exporter._endpoint == "https://otel.confident-ai.com/v1/traces"
     assert exporter._timeout == 2
     assert exporter._headers == {"specific": "two", "x-confident-api-key": "test-key"}
     ct.shutdown()
@@ -210,7 +210,7 @@ def test_resource_env_and_explicit_exporter_precedence(monkeypatch):
     exporter = rt.processor.delegate.span_exporter
     assert rt.provider.resource.attributes["service.name"] == "explicit"
     assert rt.provider.resource.attributes["confident.trace.environment"] == "staging"
-    assert exporter._endpoint == "http://localhost:4318/base/v1/traces"
+    assert exporter._endpoint == "https://otel.confident-ai.com/v1/traces"
     assert exporter._compression == Compression.Gzip
     assert exporter._certificate_file == "/tmp/test-ca.pem"
     ct.shutdown()
@@ -456,7 +456,12 @@ def test_collection_scopes_and_evaluation_ids(telemetry):
             "https://otel.invalid/traces",
             "https://explicit.invalid/traces",
         ),
-        (None, "", "https://otel.invalid/traces", "https://otel.invalid/traces"),
+        (
+            None,
+            "",
+            "https://otel.invalid/traces",
+            "https://otel.confident-ai.com/v1/traces",
+        ),
     ],
 )
 def test_confident_endpoint_precedence(

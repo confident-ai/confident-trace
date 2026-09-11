@@ -200,10 +200,7 @@ def init(
                     kwargs["endpoint"] = endpoint
                 elif os.getenv("CONFIDENT_OTEL_ENDPOINT"):
                     kwargs["endpoint"] = os.environ["CONFIDENT_OTEL_ENDPOINT"]
-                elif not (
-                    os.getenv(otel_env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT)
-                    or os.getenv(otel_env.OTEL_EXPORTER_OTLP_ENDPOINT)
-                ):
+                else:
                     if selected != "http/protobuf":
                         raise ValueError("A gRPC collector endpoint is required")
                     kwargs["endpoint"] = "https://otel.confident-ai.com/v1/traces"

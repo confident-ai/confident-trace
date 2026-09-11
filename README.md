@@ -42,7 +42,7 @@ export CONFIDENT_OTEL_ENDPOINT=https://eu.otel.confident-ai.com/v1/traces
 ```
 
 Explicit endpoint arguments override `CONFIDENT_OTEL_ENDPOINT`. Standard OTel
-endpoint variables remain supported when neither is set.
+endpoint variables do not affect Confident Trace.
 
 ## Agent frameworks
 
@@ -105,11 +105,11 @@ in the integration total, regardless of the client or language used.
 
 | Gateway | Python | TypeScript / JavaScript |
 | --- | --- | --- |
-| LiteLLM | Native `completion` / `acompletion` and Router calls; OpenAI client proxy detection. [Setup](python/README.md#litellm). | OpenAI client proxy detection. [Setup](typescript/README.md#litellm-proxy). |
-| OpenRouter | Native `chat.send` / `send_async`; OpenAI client proxy detection. [Setup](python/README.md#openrouter). | Native `chat.send`; OpenAI client proxy detection. [Setup](typescript/README.md#openrouter). |
-| Portkey | Native chat completions and Responses `create`; OpenAI client proxy detection. [Setup](python/README.md#portkey). | Native chat completions and Responses `create`; OpenAI client proxy detection. [Setup](typescript/README.md#portkey). |
-| Bifrost | OpenAI and Anthropic client proxy detection. [Setup](python/README.md#bifrost-gateway). | OpenAI and Anthropic client proxy detection. [Setup](typescript/README.md#bifrost-gateway). |
-| TrueFoundry | OpenAI and Anthropic client proxy detection. [Setup](python/README.md#truefoundry-gateway). | OpenAI and Anthropic client proxy detection. [Setup](typescript/README.md#truefoundry-gateway). |
+| LiteLLM | Native `completion` / `acompletion` and Router calls; OpenAI client proxy detection. | OpenAI client proxy detection. |
+| OpenRouter | Native `chat.send` / `send_async`; OpenAI client proxy detection. | Native `chat.send`; OpenAI client proxy detection. |
+| Portkey | Native chat completions and Responses `create`; OpenAI client proxy detection. | Native chat completions and Responses `create`; OpenAI client proxy detection. |
+| Bifrost | OpenAI and Anthropic client proxy detection. | OpenAI and Anthropic client proxy detection. |
+| TrueFoundry | OpenAI and Anthropic client proxy detection. | OpenAI and Anthropic client proxy detection. |
 
 Proxy coverage uses the OpenAI Chat Completions/Responses and Anthropic Messages
 APIs listed above, including streaming. Python native gateway integrations also

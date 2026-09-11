@@ -270,7 +270,7 @@ failures and returns an inactive runtime with a content-free diagnostic.
 
 `CONFIDENT_OTEL_ENDPOINT` sets the full traces endpoint (default:
 `https://otel.confident-ai.com/v1/traces` for HTTP export). An explicit `endpoint`
-option takes precedence; standard OTel endpoint variables apply when neither is set.
+option takes precedence. Standard OTel endpoint variables are ignored.
 
 `init()` accepts `instrumentations` (`"all"` or an array of integration names), plus camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
 `timeoutMillis`, `compression`, `exporter`, `resourceAttributes`, `captureContent`,
@@ -282,9 +282,9 @@ configuration. Disabled/invalid-before-construction initialization does not cons
   `https://otel.confident-ai.com/v1/traces`.
 - `grpc` requires a configured collector endpoint.
 - Explicit options override environment values. Trace-specific `OTEL_EXPORTER_OTLP_TRACES_*`
-  values take precedence over generic `OTEL_EXPORTER_OTLP_*` values.
-- An explicit HTTP endpoint is a complete traces endpoint. A generic HTTP environment
-  endpoint gets `/v1/traces` appended by OTel. Unspecified TLS, compression, and timeout
+  values take precedence over generic `OTEL_EXPORTER_OTLP_*` values, except endpoints.
+- An explicit HTTP endpoint is a complete traces endpoint. Include `/v1/traces`
+  for HTTP export. Unspecified TLS, compression, and timeout
   settings remain under the standard exporter's control.
 - Headers merge in this order: environment headers, `apiKey`/`CONFIDENT_API_KEY`, explicit
   headers. Header names are case-insensitive. An empty `apiKey` suppresses the API-key
