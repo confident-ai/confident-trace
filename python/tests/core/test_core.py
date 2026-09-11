@@ -405,15 +405,29 @@ def test_parented_local_entry_does_not_rename_trace(telemetry, remote):
 
 def test_collection_scopes_and_evaluation_ids(telemetry):
     _, exporter = telemetry
-    with ct.trace_context(metric_collection="trace-checks", test_case_id="case-1", turn_id="turn-1"):
-        with ct.span("root", metric_collection="root-checks", capture_content=False) as root:
-            assert root.attributes["confident.trace.metric_collection"] == "trace-checks"
+    with ct.trace_context(
+        metric_collection="trace-checks", test_case_id="case-1", turn_id="turn-1"
+    ):
+        with ct.span(
+            "root", metric_collection="root-checks", capture_content=False
+        ) as root:
+            assert (
+                root.attributes["confident.trace.metric_collection"] == "trace-checks"
+            )
             with ct.trace_context(metric_collection="ignored"):
                 with ct.span("child", metric_collection="child-checks"):
                     ct.update_span(metric_collection="updated-child")
                     ct.update_trace(metric_collection="updated-trace")
-            assert root.attributes["confident.trace.metric_collection"] == "updated-trace"
-    with ct.turn("turn", thread_id="chat", metric_collection="turn-checks", test_case_id="case-2", turn_id="turn-2"):
+            assert (
+                root.attributes["confident.trace.metric_collection"] == "updated-trace"
+            )
+    with ct.turn(
+        "turn",
+        thread_id="chat",
+        metric_collection="turn-checks",
+        test_case_id="case-2",
+        turn_id="turn-2",
+    ):
         pass
     result = {s.name: s.attributes for s in spans(exporter)}
     assert result["root"]["confident.span.metric_collection"] == "root-checks"
@@ -424,3 +438,49 @@ def test_collection_scopes_and_evaluation_ids(telemetry):
     assert result["turn"]["confident.trace.metric_collection"] == "turn-checks"
     assert result["turn"]["confident.trace.test_case_id"] == "case-2"
     assert result["turn"]["confident.trace.turn_id"] == "turn-2"
+
+
+@pytest.mark.parametrize(
+    "explicit,confident,otel,expected",
+    [
+        (None, None, None, "https://otel.confident-ai.com/v1/traces"),
+        (
+            None,
+            "https://eu.otel.confident-ai.com/v1/traces",
+            "https://otel.invalid/traces",
+            "https://eu.otel.confident-ai.com/v1/traces",
+        ),
+        (
+            "https://explicit.invalid/traces",
+            "https://confident.invalid/traces",
+            "https://otel.invalid/traces",
+            "https://explicit.invalid/traces",
+        ),
+        (None, "", "https://otel.invalid/traces", "https://otel.invalid/traces"),
+    ],
+)
+def test_confident_endpoint_precedence(
+    monkeypatch, explicit, confident, otel, expected
+):
+    ct.shutdown()
+    for name in (
+        "CONFIDENT_OTEL_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_PROTOCOL",
+        "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    if confident is not None:
+        monkeypatch.setenv("CONFIDENT_OTEL_ENDPOINT", confident)
+    if otel is not None:
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", otel)
+    try:
+        rt = ct.init(
+            endpoint=explicit,
+            tracer_provider=TracerProvider(shutdown_on_exit=False),
+            instrumentations=(),
+        )
+        assert rt.processor.delegate.span_exporter._endpoint == expected
+    finally:
+        ct.shutdown()

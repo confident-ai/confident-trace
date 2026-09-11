@@ -3,7 +3,7 @@ import { isDisabled, resolveExportOptions } from '@/config/resolve';
 
 beforeEach(() => {
   for (const key of Object.keys(process.env)) {
-    if (key.startsWith('OTEL_') || key === 'CONFIDENT_API_KEY')
+    if (key.startsWith('OTEL_') || key.startsWith('CONFIDENT_'))
       vi.stubEnv(key, undefined);
   }
 });
@@ -38,6 +38,26 @@ describe('export configuration', () => {
       timeoutMillis: 50,
       compression: 'gzip',
     });
+  });
+  it('uses the Confident endpoint before OTel variables and after explicit options', () => {
+    vi.stubEnv(
+      'CONFIDENT_OTEL_ENDPOINT',
+      'https://eu.otel.confident-ai.com/v1/traces',
+    );
+    vi.stubEnv('OTEL_EXPORTER_OTLP_ENDPOINT', 'https://generic.invalid');
+    vi.stubEnv(
+      'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
+      'https://signal.invalid/traces',
+    );
+    expect(resolveExportOptions({}).endpoint).toBe(
+      'https://eu.otel.confident-ai.com/v1/traces',
+    );
+    expect(
+      resolveExportOptions({ endpoint: 'https://explicit.invalid/traces' })
+        .endpoint,
+    ).toBe('https://explicit.invalid/traces');
+    vi.stubEnv('CONFIDENT_OTEL_ENDPOINT', '');
+    expect(resolveExportOptions({}).endpoint).toBeUndefined();
   });
   it('merges decoded headers, API key, and explicit headers case-insensitively', () => {
     vi.stubEnv('OTEL_EXPORTER_OTLP_HEADERS', 'generic=ignored');

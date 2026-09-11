@@ -268,6 +268,10 @@ failures and returns an inactive runtime with a content-free diagnostic.
 
 ## Configuration
 
+`CONFIDENT_OTEL_ENDPOINT` sets the full traces endpoint (default:
+`https://otel.confident-ai.com/v1/traces` for HTTP export). An explicit `endpoint`
+option takes precedence; standard OTel endpoint variables apply when neither is set.
+
 `init()` accepts `instrumentations` (`"all"` or an array of integration names), plus camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
 `timeoutMillis`, `compression`, `exporter`, `resourceAttributes`, `captureContent`,
 `maxContentBytes`, and `redact`. The processor factory accepts export options only.

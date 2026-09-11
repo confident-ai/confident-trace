@@ -58,12 +58,14 @@ are automatically instrumented or fully mapped.
 
 ## Configuration
 
-`init()` reads `CONFIDENT_API_KEY`, `OTEL_SDK_DISABLED`,
+`init()` reads `CONFIDENT_API_KEY`, `CONFIDENT_OTEL_ENDPOINT`, `OTEL_SDK_DISABLED`,
 `OTEL_RESOURCE_ATTRIBUTES`, and standard OTel exporter settings. Unspecified
 exporter options are delegated to OTel, including TLS certificates/client keys,
 compression, headers, timeouts and HTTP endpoint path resolution.
 
-Explicit arguments override environment settings. `OTEL_SDK_DISABLED=true`
+Explicit arguments override environment settings. `CONFIDENT_OTEL_ENDPOINT` is
+the full traces endpoint and takes precedence over standard OTel endpoint variables.
+Without an endpoint setting, HTTP export defaults to `https://otel.confident-ai.com/v1/traces`. `OTEL_SDK_DISABLED=true`
 always disables package tracing at initialization. Trace-specific exporter
 settings take precedence over generic settings. An explicit `endpoint` is the
 complete traces endpoint; an HTTP generic environment endpoint gets `/v1/traces`

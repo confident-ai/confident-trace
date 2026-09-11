@@ -29,20 +29,20 @@ See the [TypeScript setup and examples](typescript/README.md#automatic-setup).
 
 ## Environment variables
 
-Set `CONFIDENT_API_KEY` to your project's API key. The SDK defaults internally to
-`https://otel.confident-ai.com/v1/traces`, so no endpoint variable is needed for
-US Confident Cloud. For EU or on-prem deployments, set `OTEL_EXPORTER_OTLP_ENDPOINT`:
+Set `CONFIDENT_API_KEY` to your project's API key. Use `CONFIDENT_OTEL_ENDPOINT`
+to set the full traces endpoint for EU or self-hosted deployments. It defaults to
+`https://otel.confident-ai.com/v1/traces` for US Confident Cloud.
 
 ```sh
+export CONFIDENT_API_KEY=your-api-key
 # EU Confident Cloud
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://eu.otel.confident-ai.com
-# On-prem: replace with your deployment's OTLP HTTP base URL
-export OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.your-company.com
+export CONFIDENT_OTEL_ENDPOINT=https://eu.otel.confident-ai.com/v1/traces
+# Self-hosted: use your deployment's full traces endpoint
+# export CONFIDENT_OTEL_ENDPOINT=https://otel.your-company.com/v1/traces
 ```
 
-With the default HTTP/protobuf protocol, OTel appends `/v1/traces` to this base URL.
-`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` takes precedence if set and must include the
-full traces path. `CONFIDENT_OTEL_ENDPOINT` is not used by this SDK.
+Explicit endpoint arguments override `CONFIDENT_OTEL_ENDPOINT`. Standard OTel
+endpoint variables remain supported when neither is set.
 
 ## Agent frameworks
 

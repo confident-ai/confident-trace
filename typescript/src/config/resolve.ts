@@ -25,6 +25,8 @@ export function resolveExportOptions(
   }
   const result: ResolvedExportOptions = { protocol, headers: {} };
   if (options.endpoint !== undefined) result.endpoint = options.endpoint;
+  else if (env.CONFIDENT_OTEL_ENDPOINT)
+    result.endpoint = env.CONFIDENT_OTEL_ENDPOINT;
   else if (
     !env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT &&
     !env.OTEL_EXPORTER_OTLP_ENDPOINT
