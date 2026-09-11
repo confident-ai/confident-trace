@@ -68,8 +68,8 @@ export function observed(name: InstrumentationName): void {
 export function attempt(name: InstrumentationName, task: () => void): void {
   try {
     task();
-  } catch {
-    failed(name);
+  } catch (error) {
+    failed(name, error);
   }
 }
 /** Retain scope during lazy generators as well as their initial invocation. */

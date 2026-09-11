@@ -26,11 +26,13 @@ export function warn(
   state.auto.warnings.add(key);
   console.warn(`[confident-trace] ${message}`);
 }
-export function failed(name: InstrumentationName): void {
+export function failed(name: InstrumentationName, error?: unknown): void {
   state.auto.observed.set(name, 'failed');
+  const cause =
+    error instanceof Error ? ` ${error.name}: ${error.message}` : '';
   warn(
     name,
-    `${name}: automatic attachment failed. Use the manual integration and check supported SDK versions.`,
+    `${name}: automatic attachment failed.${cause} Use the manual integration and check supported SDK versions.`,
     name,
   );
 }
@@ -65,8 +67,8 @@ export function onActivate(name: InstrumentationName, task: () => void): void {
     if (!enabled(name)) return;
     try {
       task();
-    } catch {
-      failed(name);
+    } catch (error) {
+      failed(name, error);
     }
   };
   state.auto.activate.add(guarded);

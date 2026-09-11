@@ -67,8 +67,8 @@ function attach(exports: Foreign, packageName: string, base: string): void {
     else if (name === 'mastra')
       attachMastra(exports, packageRequire.resolve('@mastra/observability'));
     else attachAgents(exports);
-  } catch {
-    failed(name);
+  } catch (error) {
+    failed(name, error);
   }
 }
 if (!state.auto.registered) {

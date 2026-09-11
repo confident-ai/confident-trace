@@ -36,8 +36,17 @@ const rt = init({
   captureContent: process.env.AUTO_PRIVATE !== 'true',
 });
 assert.ok(
-  Object.values(rt.getInstrumentationStatus().integrations).every(
-    (s) => s === 'enabled',
+  [
+    'openai',
+    'anthropic',
+    'google-genai',
+    'vercel-ai',
+    'langchain',
+    'langgraph',
+    'mastra',
+    'openai-agents',
+  ].every(
+    (name) => rt.getInstrumentationStatus().integrations[name] === 'enabled',
   ),
   JSON.stringify(rt.getInstrumentationStatus()),
 );

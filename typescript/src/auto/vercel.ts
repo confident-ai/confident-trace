@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import { context } from '@opentelemetry/api';
 import { createVercelAITracer } from '@/integrations/vercel-ai';
-import { enabled, onActivate } from '@/auto/control';
+import { enabled, failed, onActivate } from '@/auto/control';
 import { state, suppress } from '@/runtime/state';
 import { observed, replace } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
@@ -12,9 +12,11 @@ const requireBridge = createRequire(
 const installed = new WeakSet<object>();
 const marker = Symbol.for('confident-trace.telemetry');
 const tracerMarker = Symbol.for('confident-trace.vercel.tracer');
+// AI SDK copies share a process-global telemetry registry. Register only once.
+let integration: Foreign;
 let manualGlobal = false;
 function isManual(item: Foreign): boolean {
-  return Boolean(item?.tracer?.[tracerMarker] && !item?.[marker]);
+  return Boolean(!item?.[marker] && item?.tracer?.[tracerMarker]);
 }
 export function attachVercel(exports: Foreign, bridgePath: string): void {
   if (
@@ -23,7 +25,6 @@ export function attachVercel(exports: Foreign, bridgePath: string): void {
   )
     return;
   installed.add(exports.registerTelemetry);
-  let integration: Foreign;
   replace(
     exports,
     'registerTelemetry',
@@ -35,26 +36,44 @@ export function attachVercel(exports: Foreign, bridgePath: string): void {
   );
   onActivate('vercel-ai', () => {
     if (integration) return;
-    const { OpenTelemetry } = requireBridge(bridgePath);
-    const adapter = new OpenTelemetry({ tracer: createVercelAITracer() });
-    integration = new Proxy(adapter, {
-      get(target, key) {
-        if (key === marker) return true;
-        const method = Reflect.get(target, key, target);
-        if (typeof method !== 'function') return method;
-        return (...args: Foreign[]) => {
-          if (!enabled('vercel-ai') || manualGlobal)
-            return String(key).startsWith('execute')
-              ? args[0].execute()
-              : undefined;
-          if (key === 'executeLanguageModelCall')
-            return context.with(context.active().setValue(suppress, true), () =>
-              method.apply(target, args),
-            );
-          return method.apply(target, args);
-        };
+    let adapter: Foreign;
+    let unavailable = false;
+    // Loading the bridge inside the import hook can return partially initialized
+    // exports: the bridge itself imports ai. Telemetry is read only at call time.
+    integration = new Proxy(
+      {},
+      {
+        get(_target, key) {
+          if (key === marker) return true;
+          if (typeof key !== 'string' || key === 'then') return undefined;
+          if (!enabled('vercel-ai') || manualGlobal) return undefined;
+          if (!adapter && !unavailable) {
+            try {
+              const { OpenTelemetry } = requireBridge(bridgePath);
+              adapter = new OpenTelemetry({ tracer: createVercelAITracer() });
+            } catch (error) {
+              unavailable = true;
+              failed('vercel-ai', error);
+            }
+          }
+          if (unavailable) return undefined;
+          const method = Reflect.get(adapter, key, adapter);
+          if (typeof method !== 'function') return method;
+          return (...args: Foreign[]) => {
+            if (!enabled('vercel-ai') || manualGlobal)
+              return String(key).startsWith('execute')
+                ? args[0].execute()
+                : undefined;
+            if (key === 'executeLanguageModelCall')
+              return context.with(
+                context.active().setValue(suppress, true),
+                () => method.apply(adapter, args),
+              );
+            return method.apply(adapter, args);
+          };
+        },
       },
-    });
+    );
     exports.registerTelemetry(integration);
   });
   for (const key of [

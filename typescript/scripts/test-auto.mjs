@@ -5,12 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const temporary = await mkdtemp(join(root, '.auto-tests-'));
-function run(file, args = [], env = {}) {
+function run(file, args = [], env = {}, timeout = 60000) {
   process.stdout.write(
     execFileSync(process.execPath, [...args, file], {
       cwd: root,
       env: { ...process.env, ...env },
-      timeout: 60000,
+      timeout,
       encoding: 'utf8',
     }),
   );
@@ -26,6 +26,7 @@ try {
   run('tests/auto/smoke.mjs', preload);
   run('tests/auto/dynamic.mjs', preload);
   run('tests/auto/frameworks.mjs', preload);
+  run('scripts/test-framework-loading.mjs', [], {}, 300000);
   run('tests/auto/smoke.mjs', preload, { AUTO_PRIVATE: 'true' });
   const source = await readFile(join(root, 'tests/auto/smoke.mjs'), 'utf8');
   await build({

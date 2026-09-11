@@ -77,7 +77,7 @@ try {
           GOOGLE_MODEL: 'test',
           OTEL_SDK_DISABLED: 'false',
           OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
-          OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: `http://127.0.0.1:${server.address().port}/v1/traces`,
+          CONFIDENT_OTEL_ENDPOINT: `http://127.0.0.1:${server.address().port}/v1/traces`,
         },
       },
     );
