@@ -1,0 +1,21 @@
+{
+  "name": "confident-trace",
+  "version": "1.0.0",
+  "description": "Skills for instrumenting AI applications with the confident-trace SDK and exporting raw OpenTelemetry traces to Confident AI.",
+  "author": {
+    "name": "Confident AI",
+    "email": "open-source@confident-ai.com"
+  },
+  "homepage": "https://www.confident-ai.com",
+  "repository": "https://github.com/confident-ai/confident-trace",
+  "license": "Apache-2.0",
+  "keywords": [
+    "confident-trace",
+    "tracing",
+    "opentelemetry",
+    "otel",
+    "observability",
+    "confident-ai"
+  ],
+  "skills": "./skills/"
+}
