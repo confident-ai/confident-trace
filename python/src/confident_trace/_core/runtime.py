@@ -23,7 +23,7 @@ from .otlp import child_environment
 from .safety import safe
 from .scopes import RoutingProcessor, suppressed
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 log = logging.getLogger(confident.SCOPE_NAME)
 log.addHandler(logging.NullHandler())
 

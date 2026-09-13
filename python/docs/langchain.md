@@ -90,3 +90,26 @@ not suppress provider instrumentation. Existing third-party wrappers are preserv
 Remote graph servers must initialize tracing in their own process. A callback
 installed in a client cannot observe execution inside a remote deployment. Backend
 mapping and real collector delivery are separate from these offline SDK tests.
+
+## Deep Agents
+
+Deep Agents runs through the existing LangGraph callback bridge. Install
+`deepagents` in a Python 3.11+ application and call `confident_trace.init()` before
+running the agent. `instrumentations=("deepagents",)` is a selective alias for the
+same bridge; enabling it alongside `langchain` or `langgraph` does not install
+another handler. Framework spans retain the `LangGraph` integration label.
+
+Coverage is verified with Deep Agents 0.7.13 and the LangChain/LangGraph versions
+in `tests/constraints/langchain.txt`. Offline tests execute real Deep Agents
+through invoke/ainvoke and stream/astream, including two parallel `task`
+delegations, nested research tools, `write_file`, and `write_todos` with
+`TodoListMiddleware` explicitly enabled. Tests also cover concurrent requests,
+human approval interrupt/resume, subagent model errors, and cancellation.
+Model spans include available token usage and tool-call messages; custom spans
+inside subagent tools inherit their tool context.
+
+The same interrupt/resume policy applies: resumed invocations get a new trace
+and retain the conversation ID. These are SDK execution traces, not a filesystem
+audit or tracing of processes inside a remote sandbox. TypeScript Deep Agents and
+the Deep Agents CLI have not been validated. See the
+[example](../examples/deepagents_agent.py) for application setup.

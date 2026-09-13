@@ -104,7 +104,9 @@ def python_case(suite, runtime, profile, deps, work, report, env, log):
             raise RuntimeError("Python LICENSE differs from root LICENSE")
         run([python, "-m", "build", "python"], repo, env, log)
         return
-    required = REQUIRED.get(suite, [])
+    required = list(REQUIRED.get(suite, []))
+    if suite == "langchain" and runtime != "3.10":
+        required.append("deepagents")
     if profile == "mega":
         required = ["claude-agent-sdk", "langchain-openai", "pydantic-ai-slim"]
     if required:

@@ -7,7 +7,7 @@ code into OpenTelemetry traces. Python and TypeScript SDKs work with your existi
 provider clients and export through standard OTLP to Confident AI or an
 OpenTelemetry Collector.
 
-- **24 integrations:** 15 agent frameworks, 4 model providers, and 5 LLM gateways
+- **25 integrations:** 16 agent frameworks, 4 model providers, and 5 LLM gateways
   across Python and TypeScript, with language-specific coverage listed below.
 - **OpenTelemetry semantic conventions:** Confident Trace emits GenAI spans using
   the supported subset of GenAI 1.37.0 conventions for model calls, messages, tools,
@@ -54,6 +54,7 @@ hooks. A dash indicates no dedicated integration in that SDK.
 | --- | --- | --- |
 | LangChain | Chains, models, tools, and retrievers, with execution context and callback hierarchy. | Callback adapter for chains, models, tools, and retrievers. |
 | LangGraph | Local graph execution, nodes, subgraphs, streaming, and checkpoint resume. | Callback adapter for graph runs, nodes, streaming, and checkpoint resume. |
+| Deep Agents | Python 3.11+: agent graphs, nested subagents, tools, streaming, and interrupt/resume through the LangGraph bridge. | — |
 | OpenAI Agents SDK | Agents, models, tools, handoffs, guardrails, and streams through the optional OpenInference bridge. | Trace processor for native agent and workflow span callbacks. |
 | CrewAI | Crews, tasks, agents, tools, and Flows. | — |
 | LlamaIndex | Agents, tools, retrieval, and workflows. | — |

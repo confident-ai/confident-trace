@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "confident-trace"
-version = "0.1.1"
+version = "0.1.2"
 description = "OpenTelemetry-first tracing for AI applications"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 frameworks-test = ["llama-index-core", "llama-index-llms-openai", "agno", "smolagents[openai]"]
 crewai-test = ["crewai>=1,<2"]
-langchain-test = ["langchain>=1,<2", "langgraph>=1,<2", "langchain-openai>=1,<2"]
+langchain-test = ["langchain>=1,<2", "langgraph>=1,<2", "langchain-openai>=1,<2", "deepagents>=0.7.13,<0.8; python_version >= '3.11'"]
 openai-agents = ["openinference-instrumentation-openai-agents>=2.2.1,<3"]
 agent-sdks-test = ["openai-agents", "claude-agent-sdk", "openinference-instrumentation-openai-agents>=2.2.1,<3"]
 microsoft-test = ["agent-framework-core", "agent-framework-openai"]

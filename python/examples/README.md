@@ -75,6 +75,7 @@ tested dependency set if its version requirements conflict.
 |---|---|---|
 | LangChain chain, streaming | `python -m pip install langchain-openai` | `python python/examples/langchain_chain.py` |
 | LangChain agent and tool, async | `python -m pip install langchain langchain-openai` | `python python/examples/langchain_agent.py` |
+| Deep Agents, subagent delegation and tools (Python 3.11+) | `python -m pip install deepagents langchain-openai` | `python python/examples/deepagents_agent.py` |
 | LangGraph agent, tools and conversation memory | `python -m pip install langgraph langchain-openai` | `python python/examples/langgraph_agent.py` |
 | LlamaIndex agent and tool | `python -m pip install llama-index-core llama-index-llms-openai` | `python python/examples/llamaindex_agent.py` |
 | Agno agent and tool | `python -m pip install agno openai` | `python python/examples/agno_agent.py` |

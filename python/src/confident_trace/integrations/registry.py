@@ -31,6 +31,8 @@ _MODULES = {
 }
 # LangGraph shares the callback bridge; its optional context hook lives with it.
 _MODULES["langgraph"] = _MODULES["langchain"]
+# Deep Agents runs on LangGraph; reuse the same runtime-owned bridge.
+_MODULES["deepagents"] = _MODULES["langchain"]
 
 
 def instrument(rt, names):

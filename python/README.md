@@ -39,7 +39,7 @@ Version 0.1.0 is the initial release; the API may change before 1.0.0. See the r
 
 - **Automatically instrumented SDK calls:** OpenAI, Anthropic, Google GenAI, and AWS Bedrock Runtime (Boto3).
   We wrap their supported Python methods and emit OTel spans ourselves.
-- **In-house framework integration:** LangChain and LangGraph; full callback hierarchy,
+- **In-house framework integration:** LangChain, LangGraph, and Deep Agents; full callback hierarchy,
   GenAI model/tool spans, and standard OTel nesting inside nodes and tools.
   CrewAI, LlamaIndex, Agno and smolagents capture execution structure with
   provider-owned inference spans; see [framework ownership](docs/frameworks.md).
@@ -189,10 +189,10 @@ addition to your existing `openai-agents` package. This extra adds the OpenInfer
 tracing bridge. Claude Agent SDK needs no extra; `init()` configures its default
 subprocess's native OTLP export. See [setup and boundaries](docs/integrations.md).
 
-### LangChain and LangGraph
+### LangChain, LangGraph, and Deep Agents
 
 Install the frameworks and model integrations your application uses, then call
-`init()`. No tracing extra or OpenInference dependency is required. Both frameworks
+`init()`. No tracing extra or OpenInference dependency is required. These frameworks
 share one owned callback bridge; `instrumentations=("langgraph",)` also enables it.
 
 ```python
@@ -208,6 +208,12 @@ callback hierarchy. A model's requested tool calls are captured in its output;
 subsequent tool executions follow their framework parent, normally alongside
 the model under the agent/node. Conversation IDs associate separate traces;
 checkpoint resume starts a new invocation.
+
+Deep Agents (`deepagents`, Python 3.11+) uses this same bridge automatically via
+`init()`. For selective instrumentation, use `instrumentations=("deepagents",)`.
+Delegation through `task`, nested subagents, built-in filesystem tools, and
+custom tools retain their callback hierarchy. Spans keep the `LangGraph`
+integration label. See the [Deep Agents example](examples/deepagents_agent.py).
 
 See [execution and concurrency details](docs/langchain.md) and the offline
 [LangGraph example](examples/langgraph_local.py).

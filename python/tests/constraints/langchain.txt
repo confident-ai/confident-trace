@@ -4,3 +4,4 @@ langchain-core==1.6.2
 langgraph==1.2.11
 langgraph-checkpoint==4.2.0
 langchain-openai==1.6.0
+deepagents==0.7.13; python_version >= '3.11'
