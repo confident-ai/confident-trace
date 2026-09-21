@@ -277,6 +277,17 @@ within a trace. Backend merging/storage requires receiver support.
 `update_trace(test_case_id=...)` emits `confident.trace.test_case_id`; validate
 AI Connection linkage with the receiving deployment.
 
+Supply `user={"id": "user-7", "name": "Tomas"}` and
+`customer={"id": "acme", "name": "Acme Hotels"}` on `span()`, `turn()` or
+`update_trace()` to attribute a trace to an end user and the B2B account that
+user belongs to. Both accept `id` and `name` only. Unlike thread fields these
+are encoded whole into `confident.trace.user` and `confident.trace.customer`;
+the ID is also flattened to `confident.trace.user_id` /
+`confident.trace.customer_id`, so the `user_id=` and `customer_id=` shorthands
+remain equivalent to passing an object with just an ID. Supplying both forms
+with conflicting IDs raises. The receiver requires an ID on the object, so a
+name supplied alongside a shorthand ID is merged rather than sent without one.
+
 Use `with suppress_tracing():` (or `async with`) before work to skip supported
 instrumentation. Use `with project_context(api_key=tenant_key):` before traced
 work to select its exporter. These scopes work in undecorated handlers that call

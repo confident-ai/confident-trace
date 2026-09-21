@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Customer and user attribution
+
+- Add `customer` and `user` trace fields to both SDKs, accepting `id` and `name`,
+  alongside a `customer_id` / `customerId` shorthand matching the existing user one.
+- Emit `confident.trace.customer` and `confident.trace.user` as whole JSON objects
+  with the ID also flattened to `confident.trace.customer_id` /
+  `confident.trace.user_id`. Conflicting shorthand and nested IDs raise.
+
+
 ## Unreleased — TypeScript automatic instrumentation
 
 - Add `confident-trace/register` for Node preload instrumentation of all eight

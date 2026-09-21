@@ -15,6 +15,7 @@ TRACE_TAGS: Final = "confident.trace.tags"
 TRACE_METADATA: Final = "confident.trace.metadata"
 TRACE_ENVIRONMENT: Final = "confident.trace.environment"
 TRACE_USER_ID: Final = "confident.trace.user_id"
+TRACE_CUSTOMER_ID: Final = "confident.trace.customer_id"
 TRACE_THREAD_ID: Final = "confident.trace.thread_id"
 TRACE_TURN_ID: Final = "confident.trace.turn_id"
 
@@ -65,6 +66,7 @@ TRACE_FIELDS = MappingProxyType(
         "metadata": TRACE_METADATA,
         "environment": TRACE_ENVIRONMENT,
         "user_id": TRACE_USER_ID,
+        "customer_id": TRACE_CUSTOMER_ID,
         "thread_id": TRACE_THREAD_ID,
         "turn_id": TRACE_TURN_ID,
     }
@@ -74,6 +76,10 @@ TRACE_FIELDS = MappingProxyType(
 SPAN_TYPE = "confident.span.type"
 PROJECT_CONTEXT_KEY = "confident_trace.project"
 SUPPRESS_CONTEXT_KEY = "confident_trace.suppressed"
+# The nested customer and user objects are JSON-encoded whole, which is the
+# shape the Cloud OTLP door reads (unlike the dotted thread.* attributes below).
+CUSTOMER = "confident.trace.customer"
+USER = "confident.trace.user"
 THREAD_ID = "confident.trace.thread.id"
 THREAD_TAGS = "confident.trace.thread.tags"
 THREAD_METADATA = "confident.trace.thread.metadata"

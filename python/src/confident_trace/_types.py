@@ -14,3 +14,17 @@ class ThreadFields(_ThreadOptions, total=False):
 
 class _ThreadWithId(_ThreadOptions):
     id: str
+
+
+class CustomerFields(TypedDict, total=False):
+    """The B2B account an end user belongs to."""
+
+    id: str
+    name: str
+
+
+class UserFields(TypedDict, total=False):
+    """The end user a trace belongs to."""
+
+    id: str
+    name: str

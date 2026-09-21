@@ -14,6 +14,8 @@ export type {
   SpanType,
   LlmFields,
   ThreadFields,
+  CustomerFields,
+  UserFields,
   SpanFields,
   TraceFields,
   SpanOptions,

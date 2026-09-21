@@ -22,11 +22,23 @@ import { detachedContext } from '@/runtime/scopes';
 import {
   applyLlmFields,
   applyThreadFields,
+  applyCustomerFields,
+  applyUserFields,
   validateFields,
   llmAttributes,
 } from '@/spans/fields';
-import type { ThreadFields, LlmFields } from '@/spans/fields';
-export type { ThreadFields, LlmFields } from '@/spans/fields';
+import type {
+  ThreadFields,
+  CustomerFields,
+  UserFields,
+  LlmFields,
+} from '@/spans/fields';
+export type {
+  ThreadFields,
+  CustomerFields,
+  UserFields,
+  LlmFields,
+} from '@/spans/fields';
 import { VERSION } from '@/runtime/version';
 import * as S from '@/semconv/generated';
 
@@ -45,9 +57,12 @@ export interface SpanFields {
 }
 export interface TraceFields extends SpanFields {
   thread?: ThreadFields;
+  customer?: CustomerFields;
+  user?: UserFields;
   testCaseId?: string;
   tags?: readonly string[];
   userId?: string;
+  customerId?: string;
   threadId?: string;
   turnId?: string;
   environment?: string;
@@ -86,6 +101,7 @@ const traceKeys: Record<string, string> = {
   name: 'name',
   tags: 'tags',
   userId: 'user_id',
+  customerId: 'customer_id',
   threadId: 'thread_id',
   turnId: 'turn_id',
   environment: 'environment',
@@ -97,6 +113,8 @@ const traceFields = new Set([
   ...spanFields,
   ...Object.keys(traceKeys),
   'thread',
+  'customer',
+  'user',
 ]);
 const configuration = ['captureContent', 'maxContentBytes', 'redact', 'tracer'];
 const spanOptions = new Set([
@@ -207,12 +225,17 @@ function apply(
   if (onlyUnset) {
     fields = Object.fromEntries(Object.entries(fields).filter(([key]) => {
       if (key === 'thread') return !['confident.trace.thread.id', 'confident.trace.thread_id', 'confident.trace.thread.tags', 'confident.trace.thread.metadata'].some(attr => Object.hasOwn(attrs, attr));
+      if (key === 'customer') return !['confident.trace.customer', 'confident.trace.customer_id'].some(attr => Object.hasOwn(attrs, attr));
+      if (key === 'user') return !['confident.trace.user', 'confident.trace.user_id'].some(attr => Object.hasOwn(attrs, attr));
       const attr = `confident.${scope}.${contentKeys[key] ?? scalarKeys[key] ?? traceKeys[key]}`;
       return !Object.hasOwn(attrs, attr) && !writes.get(span)?.has(attr);
     }));
   }
-  if (scope === 'trace')
+  if (scope === 'trace') {
     applyThreadFields(span, fields as TraceFields, contentPolicy);
+    applyCustomerFields(span, fields as TraceFields, contentPolicy);
+    applyUserFields(span, fields as TraceFields, contentPolicy);
+  }
   for (const [key, value] of Object.entries(fields)) {
     if (value === undefined) continue;
     if (key === 'name' && scope === 'span') {

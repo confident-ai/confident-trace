@@ -161,7 +161,8 @@ There are no `updateCurrent*` aliases or decorator compiler requirements.
 
 Both scopes accept `input`, `output`, `metadata`, `retrievalContext`, `context`,
 `expectedOutput`, `toolsCalled`, and `expectedTools`. Trace fields additionally
-include `tags`, `userId`, `threadId`, `turnId`, and `environment`. Content uses JSON
+include `tags`, `userId`, `customerId`, `threadId`, `turnId`, and `environment`.
+Content uses JSON
 strings; camelCase API fields map to snake_case attribute suffixes. Tool calls are
 plain objects. Backend mapping of evaluation fields requires separate verification;
 these helpers do not execute metrics or accept DeepEval metric/test-case objects.
@@ -717,6 +718,17 @@ values throw. Supplied thread tags/metadata replace the field within the trace;
 omitted fields stay unchanged and metadata obeys content policy. Storage of the
 new namespace, cross-trace merging, and AI Connection linkage require receiver
 verification; no backend changes are included.
+
+`updateTrace({ user: { id, name } })` and `updateTrace({ customer: { id, name } })`
+attribute a trace to an end user and the B2B account that user belongs to. The
+same options work on `span` / `withSpan` and `turn`. Both accept `id` and `name`
+only. Unlike thread fields they are encoded whole into `confident.trace.user`
+and `confident.trace.customer`; the ID is also flattened to
+`confident.trace.user_id` / `confident.trace.customer_id`, so the `userId` and
+`customerId` shorthands stay equivalent to an object carrying only an ID.
+Conflicting `userId` and `user.id` values throw. The receiver requires an ID on
+the object, so a name supplied alongside a shorthand ID is merged rather than
+sent without one.
 
 LLM fields on a non-LLM span are skipped with a warning once per incompatible category per process; general
 fields still apply. Updates without a recording span remain no-ops. The legacy

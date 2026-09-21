@@ -10,7 +10,9 @@ from opentelemetry.util.types import Attributes
 from ._attributes import Integration as Integration
 from ._bootstrap import init as init
 from ._core.runtime import SEMCONV_VERSION as SEMCONV_VERSION
+from ._types import CustomerFields as CustomerFields
 from ._types import ThreadFields as ThreadFields
+from ._types import UserFields as UserFields
 from ._types import _ThreadWithId
 
 SpanType = Literal["agent", "llm", "retriever", "tool", "custom"]
@@ -71,10 +73,13 @@ def span(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str = ...,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: ThreadFields = ...,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
 ) -> Callable[_P, _R]: ...
 @overload
 def span(
@@ -97,10 +102,13 @@ def span(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str = ...,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: ThreadFields = ...,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
 ) -> _SpanScope: ...
 @overload
 def span(
@@ -123,10 +131,13 @@ def span(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str = ...,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: ThreadFields = ...,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
     model: str = ...,
     provider: str = ...,
     input_token_count: int = ...,
@@ -155,10 +166,13 @@ def span(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str = ...,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: ThreadFields = ...,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
     model: str = ...,
     provider: str = ...,
     input_token_count: int = ...,
@@ -200,10 +214,13 @@ def update_trace(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str = ...,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: ThreadFields = ...,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
 ) -> None: ...
 def update_llm_span(
     *,
@@ -231,10 +248,13 @@ def turn(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: ThreadFields = ...,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
 ) -> _SpanScope: ...
 @overload
 def turn(
@@ -253,10 +273,13 @@ def turn(
     tags: list[str] = ...,
     environment: str = ...,
     user_id: str = ...,
+    customer_id: str = ...,
     thread_id: str = ...,
     turn_id: str = ...,
     test_case_id: str = ...,
     thread: _ThreadWithId,
+    customer: CustomerFields = ...,
+    user: UserFields = ...,
 ) -> _SpanScope: ...
 def project(*, api_key: str) -> _RequestScope: ...
 def suppress_tracing() -> _RequestScope: ...

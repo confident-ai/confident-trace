@@ -44,6 +44,10 @@ with span("manual", type="llm", model="test", input_token_count=0) as current:
     current.set_attribute("key", "value")
     update_span(output=None, metadata={"count": 1})
     update_trace(thread={"id": "chat", "tags": ["support"]})
+    update_trace(customer={"id": "acme", "name": "Acme"})
+    update_trace(customer_id="acme")
+    update_trace(user={"id": "user-7", "name": "Tomas"})
+    update_trace(user_id="user-7")
     update_llm_span(input_token_count=1, cost_per_input_token=0.01)
 with turn(thread_id="chat"), project_context(api_key="key"), suppress_tracing():
     pass
@@ -62,6 +66,8 @@ span(input_token_count="five")  # type: ignore[call-overload]
 update_span(anything=True)  # type: ignore[call-arg]
 update_trace(test_case_id=12)  # type: ignore[arg-type]
 update_trace(thread={"unknown": "value"})  # type: ignore[typeddict-unknown-key]
+update_trace(customer={"unknown": "value"})  # type: ignore[typeddict-unknown-key]
+update_trace(user={"unknown": "value"})  # type: ignore[typeddict-unknown-key]
 update_llm_span(input_token_count="five")  # type: ignore[arg-type]
 turn(anything=True)  # type: ignore[call-overload]
 project_context(api_key=123)  # type: ignore[arg-type]

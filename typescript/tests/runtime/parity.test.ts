@@ -60,6 +60,8 @@ it('records shared manual LLM, thread and linkage fields', async () => {
     });
     api.updateTrace({
       thread: V.thread,
+      customer: V.customer,
+      user: V.user,
       testCaseId: V.test_case_id,
       metadata: { trace: true },
     });
@@ -79,12 +81,62 @@ it('records shared manual LLM, thread and linkage fields', async () => {
   expect(JSON.parse(a['confident.trace.thread.metadata'] as string)).toEqual({
     topic: 'support',
   });
+  expect(a['confident.trace.customer_id']).toBe('acme-hotels');
+  expect(JSON.parse(a['confident.trace.customer'] as string)).toEqual(
+    V.customer,
+  );
+  expect(a['confident.trace.user_id']).toBe('user-7');
+  expect(JSON.parse(a['confident.trace.user'] as string)).toEqual(V.user);
   expect(a['confident.trace.test_case_id']).toBe('case-42');
   expect(() => api.updateLlmSpan({ inputTokenCount: -1 })).toThrow();
   expect(() => api.updateLlmSpan({ costPerInputToken: NaN })).toThrow();
   expect(() =>
     api.updateTrace({ threadId: 'a', thread: { id: 'b' } }),
   ).toThrow();
+  expect(() =>
+    api.updateTrace({ customerId: 'a', customer: { id: 'b' } }),
+  ).toThrow();
+  expect(() => api.updateTrace({ userId: 'a', user: { id: 'b' } })).toThrow();
+});
+it('merges a shorthand id into the encoded customer and user', async () => {
+  const shorthand = V.shorthand;
+  api.span({ name: 'shorthand' }, () => {
+    api.updateTrace({
+      customer: shorthand.customer,
+      customerId: shorthand.customer_id,
+      user: shorthand.user,
+      userId: shorthand.user_id,
+    });
+    return null;
+  })();
+  await api.flush();
+  const a = fallback.getFinishedSpans()[0]!.attributes;
+  expect(a['confident.trace.customer_id']).toBe(shorthand.customer_id);
+  expect(JSON.parse(a['confident.trace.customer'] as string)).toEqual({
+    ...shorthand.customer,
+    id: shorthand.customer_id,
+  });
+  expect(a['confident.trace.user_id']).toBe(shorthand.user_id);
+  expect(JSON.parse(a['confident.trace.user'] as string)).toEqual({
+    ...shorthand.user,
+    id: shorthand.user_id,
+  });
+});
+it('never lets traceContext override an identity that is already set', async () => {
+  api.span({ name: 'explicit' }, () => {
+    api.updateTrace({ customerId: 'explicit-acme', userId: 'explicit-user' });
+    api.traceContext(
+      { customer: { id: 'from-context' }, user: { id: 'from-context' } },
+      () => null,
+    );
+    return null;
+  })();
+  await api.flush();
+  const a = fallback.getFinishedSpans()[0]!.attributes;
+  expect(a['confident.trace.customer_id']).toBe('explicit-acme');
+  expect(a['confident.trace.user_id']).toBe('explicit-user');
+  expect(a['confident.trace.customer']).toBeUndefined();
+  expect(a['confident.trace.user']).toBeUndefined();
 });
 it('isolates concurrent projects and exports child spans before parent ends', async () => {
   const request = (key: string) =>

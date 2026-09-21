@@ -53,7 +53,10 @@
     "ATTR_CONFIDENT_TRACE_TEST_CASE_ID": "confident.trace.test_case_id",
     "ATTR_CONFIDENT_LLM_COST_PER_INPUT_TOKEN": "confident.llm.cost_per_input_token",
     "ATTR_CONFIDENT_LLM_COST_PER_OUTPUT_TOKEN": "confident.llm.cost_per_output_token",
-    "ATTR_CONFIDENT_GATEWAY_NAME": "confident.gateway.name"
+    "ATTR_CONFIDENT_GATEWAY_NAME": "confident.gateway.name",
+    "ATTR_CONFIDENT_TRACE_CUSTOMER_ID": "confident.trace.customer_id",
+    "ATTR_CONFIDENT_TRACE_CUSTOMER": "confident.trace.customer",
+    "ATTR_CONFIDENT_TRACE_USER": "confident.trace.user"
   },
   "integrations": {
     "openai": "OpenAI",

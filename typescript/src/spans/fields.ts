@@ -5,6 +5,16 @@ export interface ThreadFields {
   tags?: readonly string[];
   metadata?: Record<string, unknown> | null;
 }
+/** The B2B account an end user belongs to. */
+export interface CustomerFields {
+  id?: string;
+  name?: string;
+}
+/** The end user a trace belongs to. */
+export interface UserFields {
+  id?: string;
+  name?: string;
+}
 export interface LlmFields {
   model?: string;
   provider?: string;
@@ -34,13 +44,49 @@ export function validateFields(fields: object): void {
     )
       throw new TypeError('thread accepts id, tags, metadata');
     if (thread.id !== undefined && typeof thread.id !== 'string')
-      throw new TypeError('thread.id must be a string');
+      throw new TypeError('thread id must be a string');
     if (
       thread.id !== undefined &&
       values.threadId !== undefined &&
       thread.id !== values.threadId
     )
       throw new TypeError('Conflicting thread IDs');
+  }
+  const customer = values.customer as CustomerFields | undefined;
+  if (customer !== undefined) {
+    if (
+      !customer ||
+      typeof customer !== 'object' ||
+      Array.isArray(customer) ||
+      Object.keys(customer).some((k) => !['id', 'name'].includes(k))
+    )
+      throw new TypeError('customer accepts id, name');
+    if (customer.id !== undefined && typeof customer.id !== 'string')
+      throw new TypeError('customer id must be a string');
+    if (
+      customer.id !== undefined &&
+      values.customerId !== undefined &&
+      customer.id !== values.customerId
+    )
+      throw new TypeError('Conflicting customer IDs');
+  }
+  const user = values.user as UserFields | undefined;
+  if (user !== undefined) {
+    if (
+      !user ||
+      typeof user !== 'object' ||
+      Array.isArray(user) ||
+      Object.keys(user).some((k) => !['id', 'name'].includes(k))
+    )
+      throw new TypeError('user accepts id, name');
+    if (user.id !== undefined && typeof user.id !== 'string')
+      throw new TypeError('user id must be a string');
+    if (
+      user.id !== undefined &&
+      values.userId !== undefined &&
+      user.id !== values.userId
+    )
+      throw new TypeError('Conflicting user IDs');
   }
   for (const [key, value] of Object.entries(values)) {
     if (value === undefined || !llmAttributes[key]) continue;
@@ -85,5 +131,42 @@ export function applyThreadFields(
     const encoded = policy.encode(fields.thread.metadata);
     if (encoded !== undefined)
       span.setAttribute('confident.trace.thread.metadata', encoded);
+  }
+}
+
+// The nested customer and user objects are JSON-encoded whole, which is the
+// shape the Cloud OTLP door reads (unlike the dotted thread.* attributes above).
+export function applyCustomerFields(
+  span: Span,
+  fields: { customer?: CustomerFields; customerId?: string },
+  policy: ContentPolicy,
+): void {
+  if (!span.isRecording()) return;
+  const id = fields.customer?.id ?? fields.customerId;
+  if (typeof id === 'string')
+    span.setAttribute('confident.trace.customer_id', id.slice(0, 4096));
+  if (fields.customer !== undefined) {
+    const encoded = policy.encode({
+      ...fields.customer,
+      ...(id ? { id } : {}),
+    });
+    if (encoded !== undefined)
+      span.setAttribute('confident.trace.customer', encoded);
+  }
+}
+
+export function applyUserFields(
+  span: Span,
+  fields: { user?: UserFields; userId?: string },
+  policy: ContentPolicy,
+): void {
+  if (!span.isRecording()) return;
+  const id = fields.user?.id ?? fields.userId;
+  if (typeof id === 'string')
+    span.setAttribute('confident.trace.user_id', id.slice(0, 4096));
+  if (fields.user !== undefined) {
+    const encoded = policy.encode({ ...fields.user, ...(id ? { id } : {}) });
+    if (encoded !== undefined)
+      span.setAttribute('confident.trace.user', encoded);
   }
 }

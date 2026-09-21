@@ -16,5 +16,23 @@
     "cost_per_input_token": 0,
     "cost_per_output_token": 0.002
   },
-  "test_case_id": "case-42"
+  "test_case_id": "case-42",
+  "customer": {
+    "id": "acme-hotels",
+    "name": "Acme Hotels"
+  },
+  "user": {
+    "id": "user-7",
+    "name": "Tomas Novak"
+  },
+  "shorthand": {
+    "customer": {
+      "name": "Beta Corp"
+    },
+    "customer_id": "beta-corp",
+    "user": {
+      "name": "Ana Ruiz"
+    },
+    "user_id": "user-9"
+  }
 }

@@ -47,7 +47,11 @@ _CONTENT = {
     "tools_called",
     "expected_tools",
 }
-_TRACE = set(confident.TRACE_FIELDS) | _CONTENT | {"test_case_id", "thread"}
+_TRACE = (
+    set(confident.TRACE_FIELDS)
+    | _CONTENT
+    | {"test_case_id", "thread", "customer", "user"}
+)
 _SPAN = _CONTENT | {"name", "metric_collection"}
 _WRITES = WeakKeyDictionary()
 _TYPES = ("agent", "llm", "retriever", "tool", "custom")
@@ -71,13 +75,37 @@ def validate(values, allowed):
         if not isinstance(thread, dict) or set(thread) - {"id", "tags", "metadata"}:
             raise TypeError("thread accepts id, tags, metadata")
         if "id" in thread and not isinstance(thread["id"], str):
-            raise TypeError("thread.id must be a string")
+            raise TypeError("thread id must be a string")
         if (
             "thread_id" in values
             and "id" in thread
             and values["thread_id"] != thread["id"]
         ):
             raise ValueError("Conflicting thread IDs")
+    customer = values.get("customer")
+    if customer is not None:
+        if not isinstance(customer, dict) or set(customer) - {"id", "name"}:
+            raise TypeError("customer accepts id, name")
+        if "id" in customer and not isinstance(customer["id"], str):
+            raise TypeError("customer id must be a string")
+        if (
+            "customer_id" in values
+            and "id" in customer
+            and values["customer_id"] != customer["id"]
+        ):
+            raise ValueError("Conflicting customer IDs")
+    user = values.get("user")
+    if user is not None:
+        if not isinstance(user, dict) or set(user) - {"id", "name"}:
+            raise TypeError("user accepts id, name")
+        if "id" in user and not isinstance(user["id"], str):
+            raise TypeError("user id must be a string")
+        if (
+            "user_id" in values
+            and "id" in user
+            and values["user_id"] != user["id"]
+        ):
+            raise ValueError("Conflicting user IDs")
     for key, value in values.items():
         if key not in _LLM:
             continue
@@ -109,6 +137,32 @@ def fields(span, values, *, scope="trace", only_unset=False):
                     and all(isinstance(v, str) for v in item)
                 ):
                     safe(span.set_attribute, confident.THREAD_TAGS, item[:128])
+            continue
+        if key == "customer" and scope == "trace":
+            if only_unset and any(
+                attr in (getattr(span, "attributes", None) or {})
+                for attr in (confident.CUSTOMER, confident.TRACE_CUSTOMER_ID)
+            ):
+                continue
+            payload = value or {}
+            identifier = payload.get("id", values.get("customer_id"))
+            if identifier:
+                fields(span, {"customer_id": identifier}, only_unset=only_unset)
+                payload = {**payload, "id": identifier}
+            content(span, confident.CUSTOMER, payload)
+            continue
+        if key == "user" and scope == "trace":
+            if only_unset and any(
+                attr in (getattr(span, "attributes", None) or {})
+                for attr in (confident.USER, confident.TRACE_USER_ID)
+            ):
+                continue
+            payload = value or {}
+            identifier = payload.get("id", values.get("user_id"))
+            if identifier:
+                fields(span, {"user_id": identifier}, only_unset=only_unset)
+                payload = {**payload, "id": identifier}
+            content(span, confident.USER, payload)
             continue
         if key not in (_TRACE if scope == "trace" else _SPAN):
             continue

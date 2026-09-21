@@ -12,6 +12,49 @@ import confident_trace as ct
 V = json.loads((Path(__file__).parents[3] / "spec/parity-vectors.json").read_text())
 
 
+def test_shorthand_id_reaches_the_encoded_entity(telemetry):
+    """Cloud rejects a customer or user object without an id, so the shorthand
+    must be merged in rather than left only on the flattened attribute."""
+    _, exporter = telemetry
+    shorthand = V["shorthand"]
+    with ct.span("shorthand"):
+        ct.update_trace(
+            customer=shorthand["customer"],
+            customer_id=shorthand["customer_id"],
+            user=shorthand["user"],
+            user_id=shorthand["user_id"],
+        )
+    ct.flush()
+    row = exporter.get_finished_spans()[0].attributes
+    assert row["confident.trace.customer_id"] == shorthand["customer_id"]
+    assert json.loads(row["confident.trace.customer"]) == {
+        **shorthand["customer"],
+        "id": shorthand["customer_id"],
+    }
+    assert row["confident.trace.user_id"] == shorthand["user_id"]
+    assert json.loads(row["confident.trace.user"]) == {
+        **shorthand["user"],
+        "id": shorthand["user_id"],
+    }
+
+
+def test_trace_context_never_overrides_a_set_identity(telemetry):
+    """trace_context fills unset properties only; a set shorthand id must not end
+    up contradicting the nested object, which makes Cloud drop the entity."""
+    _, exporter = telemetry
+    with ct.span("explicit", customer_id="explicit-acme", user_id="explicit-user"):
+        with ct.trace_context(
+            customer={"id": "from-context"}, user={"id": "from-context"}
+        ):
+            pass
+    ct.flush()
+    row = exporter.get_finished_spans()[0].attributes
+    assert row["confident.trace.customer_id"] == "explicit-acme"
+    assert row["confident.trace.user_id"] == "explicit-user"
+    assert "confident.trace.customer" not in row
+    assert "confident.trace.user" not in row
+
+
 def test_fields_and_aliases(telemetry):
     _, exporter = telemetry
 
@@ -24,7 +67,11 @@ def test_fields_and_aliases(telemetry):
             retrieval_context=["doc"],
         )
         ct.update_trace(
-            thread=V["thread"], test_case_id=V["test_case_id"], metadata={"trace": True}
+            thread=V["thread"],
+            customer=V["customer"],
+            user=V["user"],
+            test_case_id=V["test_case_id"],
+            metadata={"trace": True},
         )
         ct.update_llm_span(output_token_count=5)
         return "automatic"
@@ -44,6 +91,12 @@ def test_fields_and_aliases(telemetry):
     )
     assert row["confident.trace.thread.tags"] == ("conversation",)
     assert json.loads(row["confident.trace.thread.metadata"]) == {"topic": "support"}
+    # The customer object is encoded whole, which is what the Cloud OTLP door
+    # reads; the id is also flattened so the shorthand path still works.
+    assert row["confident.trace.customer_id"] == "acme-hotels"
+    assert json.loads(row["confident.trace.customer"]) == V["customer"]
+    assert row["confident.trace.user_id"] == "user-7"
+    assert json.loads(row["confident.trace.user"]) == V["user"]
     assert json.loads(row["confident.trace.metadata"]) == {"trace": True}
     assert row["confident.trace.test_case_id"] == "case-42"
     with pytest.warns(DeprecationWarning):

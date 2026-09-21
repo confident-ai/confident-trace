@@ -14,11 +14,13 @@ from ._core.spans import (
     update_trace,
     trace_context,
 )
-from ._types import ThreadFields
+from ._types import CustomerFields, ThreadFields, UserFields
 
 __all__ = [
     "Integration",
+    "CustomerFields",
     "ThreadFields",
+    "UserFields",
     "__version__",
     "flush",
     "init",
