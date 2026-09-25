@@ -339,9 +339,12 @@ export function ambientOnStart(span: Span, parent: Context): void {
   );
   // Give the backend an explicit root name before any child finishes exporting.
   const automatic = span as Span & { name?: string; attributes?: Attributes };
-  const name = automatic.attributes?.['confident.span.integration']
-    ? automatic.name
-    : undefined;
+  const integration = automatic.attributes?.['confident.span.integration'];
+  // A LiveKit job root is plumbing; the backend names the call after its agent.
+  const name =
+    integration && integration !== S.INTEGRATIONS.livekit
+      ? automatic.name
+      : undefined;
   if (name)
     safe(() =>
       apply(span, { name }, 'trace', state.policy ?? new ContentPolicy(), true),
