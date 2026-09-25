@@ -101,6 +101,8 @@ it('labels LiveKit spans and keeps one span per model call', async () => {
   ]);
   for (const span of livekit)
     expect(span.attributes['confident.span.integration']).toBe('LiveKit');
+  const root = livekit.find((span) => span.name === 'llm_request')!;
+  expect(root.attributes['confident.trace.name']).toBeUndefined();
   expect(scoped(exporter, 'confident-trace')).toEqual([]);
 });
 
