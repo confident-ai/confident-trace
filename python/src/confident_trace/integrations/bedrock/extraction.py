@@ -5,7 +5,9 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import get, sequence, string
+from .._shared.extraction import get, media, sequence, string
+
+_MEDIA_BLOCKS = ("image", "document", "video")
 
 
 def parts(blocks, depth=0):
@@ -37,9 +39,11 @@ def parts(blocks, depth=0):
             )
         elif type(block) is dict and "json" in block:
             output.append({"type": "json", "content": block["json"]})
+        elif any(get(block, key) is not None for key in _MEDIA_BLOCKS):
+            output.append(media(block))
         else:
-            # Binary data, documents, reasoning signatures, and unknown payloads
-            # stay out of content capture; do not stringify SDK objects.
+            # Reasoning signatures and unknown payloads stay out of content
+            # capture; do not stringify SDK objects.
             output.append({"type": "unsupported", "content_omitted": True})
     return output
 

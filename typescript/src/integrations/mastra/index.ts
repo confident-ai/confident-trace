@@ -19,6 +19,7 @@ import type {
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import type { InitOptions } from '@/config/types';
+import { messageShape, spanBudget } from '@/content/policy';
 import { isDisabled } from '@/config/resolve';
 import { createCompletedSpanProcessor } from '@/runtime/processor';
 import { withinBudget } from '@/runtime/lifecycle';
@@ -165,7 +166,11 @@ export class ConfidentMastraExporter {
       };
       const content = (key: string, value: unknown) => {
         if (value === undefined) return;
-        const encoded = policy.encode(value);
+        const encoded = policy.encode(
+          value,
+          messageShape(key),
+          spanBudget(attributes, policy, messageShape(key)),
+        );
         if (encoded !== undefined) attributes[key] = encoded;
       };
       const model = [

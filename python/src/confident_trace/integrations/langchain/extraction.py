@@ -8,6 +8,9 @@ from langchain_core.prompt_values import ChatPromptValue, StringPromptValue
 
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
+from .._shared.extraction import media
+
+_MEDIA_BLOCKS = {"image", "image_url", "file", "audio", "video"}
 
 
 def mapping(value):
@@ -36,12 +39,12 @@ def messages(values, *, output=False):
                 for block in text[:128]:
                     if type(block) is str:
                         parts.append({"type": "text", "content": block})
-                    elif (
-                        type(block) is dict
-                        and block.get("type") == "text"
-                        and type(block.get("text")) is str
-                    ):
+                    elif type(block) is not dict:
+                        continue
+                    elif block.get("type") == "text" and type(block.get("text")) is str:
                         parts.append({"type": "text", "content": block["text"]})
+                    elif block.get("type") in _MEDIA_BLOCKS:
+                        parts.append(media(block))
             for call in data.get("tool_calls", [])[:128]:
                 if type(call.get("name")) is str:
                     part = {

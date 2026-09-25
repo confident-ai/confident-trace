@@ -18,6 +18,7 @@ from opentelemetry.util.re import parse_env_headers
 from .. import _attributes as confident
 from .._semconv.genai_v1_37_0 import SCHEMA_URL
 from .._semconv.genai_v1_37_0 import SEMCONV_VERSION as SEMCONV_VERSION
+from .batching import BoundedSpanExporter
 from .content import ContentPolicy
 from .otlp import child_environment
 from .safety import safe
@@ -139,6 +140,7 @@ def init(
     export_non_ai_spans=False,
     capture_content=True,
     max_content_bytes=16384,
+    max_media_bytes=5242880,
     redact=None,
     litellm_proxy_urls=(),
     openrouter_proxy_urls=(),
@@ -165,6 +167,8 @@ def init(
         try:
             if max_content_bytes < 64:
                 raise ValueError("max_content_bytes must be at least 64")
+            if max_media_bytes < 0:
+                raise ValueError("max_media_bytes must not be negative")
             provider = (
                 tracer_provider
                 if tracer_provider is not None
@@ -239,7 +243,7 @@ def init(
                         }[compression]
                 # Unspecified TLS, compression, timeout and endpoint settings are
                 # resolved by the standard exporter, including signal precedence.
-                exporter = OTLPSpanExporter(**kwargs)
+                exporter = BoundedSpanExporter(OTLPSpanExporter(**kwargs))
                 otlp_environment = safe(
                     child_environment, selected, kwargs, compression=compression
                 )
@@ -253,7 +257,7 @@ def init(
                                 "x-confident-api-key": project_key,
                             },
                         }
-                        return OTLPSpanExporter(**project_kwargs)
+                        return BoundedSpanExporter(OTLPSpanExporter(**project_kwargs))
 
             processor = OwnedProcessor(
                 RoutingProcessor(
@@ -266,7 +270,9 @@ def init(
             provider.add_span_processor(processor)
             runtime = Runtime(
                 provider,
-                ContentPolicy(capture_content, max_content_bytes, redact),
+                ContentPolicy(
+                    capture_content, max_content_bytes, redact, max_media_bytes
+                ),
                 processor,
                 otlp_environment=otlp_environment,
             )

@@ -7,7 +7,7 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import get, sequence, string
+from .._shared.extraction import get, media, sequence, string
 
 
 def parts(value, depth=0):
@@ -42,7 +42,7 @@ def parts(value, depth=0):
         elif (
             get(block, "inline_data") is not None or get(block, "file_data") is not None
         ):
-            result.append({"type": "media", "content_omitted": True})
+            result.append(media(block))
         else:
             result.append({"type": "unsupported", "content_omitted": True})
     return result

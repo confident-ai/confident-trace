@@ -7,7 +7,17 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import arguments, get, sequence, string
+from .._shared.extraction import arguments, get, media, sequence, string
+
+
+def media_part(block):
+    """A `text` source is the document itself, not an encoded payload."""
+    source = get(block, "source")
+    if get(source, "type") == "text":
+        text = string(get(source, "data"))
+        if text is not None:
+            return {"type": "text", "content": text}
+    return media(block)
 
 
 def parts(value, depth=0):
@@ -44,7 +54,7 @@ def parts(value, depth=0):
                 }
             )
         elif kind in ("image", "document"):
-            result.append({"type": kind, "content_omitted": True})
+            result.append(media_part(block))
         else:
             result.append({"type": "unsupported", "content_omitted": True})
     return result

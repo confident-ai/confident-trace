@@ -1,7 +1,7 @@
 import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
 import { state } from '@/runtime/state';
-import { get, list } from '@/integrations/extract';
+import { get, list, media } from '@/integrations/extract';
 import type { GenAiMessage, GenAiPart } from '@/semconv/messages';
 
 export function frameworkPolicy(options: ContentOptions): ContentPolicy {
@@ -14,7 +14,7 @@ export function safely(action: () => void): void {
     /* Telemetry failures must not affect framework execution. */
   }
 }
-/** Normalize the text/tool subset used by AI SDK and Mastra. Never inspect binary parts. */
+/** Normalize the text/tool subset used by AI SDK and Mastra, plus media. */
 export function frameworkMessages(
   value: unknown,
   role = 'user',
@@ -44,7 +44,7 @@ export function frameworkMessages(
                   : {}),
                 arguments: get(part, 'input') ?? get(part, 'args'),
               };
-            return { type: 'text', content: '[unsupported content]' };
+            return media(part);
           });
     return { role: typeof r === 'string' ? r : role, parts };
   });

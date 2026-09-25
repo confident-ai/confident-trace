@@ -1,7 +1,8 @@
 import { frameworkOutputs } from '@/runtime/state';
 import { types } from 'node:util';
 import type { Span, AttributeValue } from '@opentelemetry/api';
-import { ContentPolicy } from '@/content/policy';
+import { ContentPolicy, messageShape, spanBudget } from '@/content/policy';
+import { isBytes, Media } from '@/content/media';
 import type { GenAiMessage, GenAiPart } from '@/semconv/messages';
 import * as S from '@/semconv/generated';
 
@@ -38,6 +39,84 @@ function tool(value: unknown, google = false): GenAiPart {
     arguments: get(value, google ? 'args' : 'arguments') ?? get(value, 'input'),
   };
 }
+// `get` already falls back to camelCase, so each spelling is listed once.
+const MIME_KEYS = ['mime_type', 'media_type'];
+const DATA_KEYS = ['data', 'base64', 'bytes'];
+const REFERENCE_KEYS = [
+  'url',
+  'image_url',
+  'file_data',
+  'file_url',
+  'uri',
+  'file_uri',
+];
+const NESTED_KEYS = [
+  'source',
+  'inline_data',
+  'file_data',
+  'image',
+  'document',
+  'video',
+  's3Location',
+];
+const MIME_BY_FORMAT: Record<string, string> = {
+  gif: 'image/gif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  mp3: 'audio/mpeg',
+  pdf: 'application/pdf',
+  png: 'image/png',
+  wav: 'audio/wav',
+  webp: 'image/webp',
+};
+// Bedrock is the deepest: a typed wrapper, a source, then an S3 location.
+const MAX_NESTING = 3;
+
+function field(source: unknown, keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    const value = text(get(source, key));
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+function nested(source: unknown): unknown {
+  for (const key of [text(get(source, 'type')), ...NESTED_KEYS]) {
+    if (key === undefined) continue;
+    const value = get(source, key);
+    if (value !== undefined && value !== null) return value;
+  }
+  return undefined;
+}
+// Read one provider media block into Media.
+export function media(block: unknown): Media {
+  let source = block;
+  let mime: string | undefined;
+  for (let depth = 0; depth < MAX_NESTING; depth++) {
+    mime ??=
+      field(source, MIME_KEYS) ??
+      MIME_BY_FORMAT[field(source, ['format']) ?? ''];
+    const inner = nested(source);
+    if (typeof inner === 'string')
+      return Media.parse(inner, mime) ?? new Media({ mimeType: mime });
+    if (inner === undefined) break;
+    source = inner;
+  }
+  for (const key of DATA_KEYS) {
+    const raw = get(source, key);
+    const found = isBytes(raw)
+      ? Media.fromBytes(raw, mime)
+      : typeof raw === 'string'
+        ? Media.fromBase64(raw, mime)
+        : undefined;
+    if (raw !== undefined && raw !== null)
+      return found ?? new Media({ mimeType: mime });
+  }
+  const reference = field(source, REFERENCE_KEYS);
+  if (reference !== undefined)
+    return Media.parse(reference, mime) ?? new Media({ mimeType: mime });
+  return new Media({ mimeType: mime });
+}
+
 export function parts(value: unknown): GenAiPart[] {
   if (typeof value === 'string') return [{ type: 'text', content: value }];
   return list(value).map((block) => {
@@ -50,7 +129,7 @@ export function parts(value: unknown): GenAiPart[] {
       return tool(block);
     if (get(block, 'functionCall'))
       return tool(get(block, 'functionCall'), true);
-    return { type: 'text', content: '[unsupported content]' };
+    return media(block);
   });
 }
 export function messages(value: unknown): GenAiMessage[] {
@@ -99,7 +178,11 @@ export class Capture {
       this.span.setAttribute(key, value as AttributeValue);
   }
   content(key: string, value: unknown) {
-    const encoded = this.policy.encode(value);
+    const encoded = this.policy.encode(
+      value,
+      messageShape(key),
+      spanBudget(this.span, this.policy, messageShape(key)),
+    );
     if (encoded !== undefined) this.span.setAttribute(key, encoded);
   }
   output(value: GenAiMessage[]) {
@@ -312,7 +395,7 @@ export class Capture {
       const s = this.append(t);
       if (!s) continue;
       const last = this.retained.at(-1)?.parts[0];
-      if (last?.type === 'text') last.content += s;
+      if (last && 'type' in last && last.type === 'text') last.content += s;
       else
         this.retained.push({
           role: 'assistant',

@@ -18,6 +18,7 @@ from opentelemetry.trace import Link, Status, StatusCode
 from .. import _attributes as confident
 from .._semconv import genai_v1_37_0 as ai
 from . import runtime as _runtime
+from .content import span_budget
 from .safety import safe
 from .scopes import _DEFER_TRACE_CONTEXT, _TRACE_CONTEXT, _Scope, suppressed
 
@@ -32,7 +33,9 @@ def content(span, key, value):
             ai.GEN_AI_OUTPUT_MESSAGES: "output-messages",
             ai.GEN_AI_SYSTEM_INSTRUCTIONS: "system-instructions",
         }.get(key)
-        encoded = rt.policy.encode(value, shape=shape)
+        encoded = rt.policy.encode(
+            value, shape=shape, budget=span_budget(span, rt.policy, shape)
+        )
         if encoded is not None:
             safe(span.set_attribute, key, encoded)
 

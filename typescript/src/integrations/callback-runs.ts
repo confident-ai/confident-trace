@@ -8,6 +8,7 @@ import type { ContentPolicy } from '@/content/policy';
 import { state } from '@/runtime/state';
 import { VERSION } from '@/runtime/version';
 import * as S from '@/semconv/generated';
+import { messageShape, spanBudget } from '@/content/policy';
 
 export interface CallbackOptions extends InstrumentationOptions {
   /** Maximum simultaneous spans retained by this adapter. Default: 4096. */
@@ -100,18 +101,20 @@ export class CallbackRuns {
   ): void {
     const run = this.active.get(id);
     if (!run || value === undefined) return;
-    const encoded = run.policy.encode(value);
-    if (encoded === undefined) return;
-    run.span.setAttribute(
-      messages
-        ? direction === 'input'
-          ? S.ATTR_GEN_AI_INPUT_MESSAGES
-          : S.ATTR_GEN_AI_OUTPUT_MESSAGES
-        : direction === 'input'
-          ? S.ATTR_CONFIDENT_SPAN_INPUT
-          : S.ATTR_CONFIDENT_SPAN_OUTPUT,
-      encoded,
+    const key = messages
+      ? direction === 'input'
+        ? S.ATTR_GEN_AI_INPUT_MESSAGES
+        : S.ATTR_GEN_AI_OUTPUT_MESSAGES
+      : direction === 'input'
+        ? S.ATTR_CONFIDENT_SPAN_INPUT
+        : S.ATTR_CONFIDENT_SPAN_OUTPUT;
+    const encoded = run.policy.encode(
+      value,
+      messageShape(key),
+      spanBudget(run.span, run.policy, messageShape(key)),
     );
+    if (encoded === undefined) return;
+    run.span.setAttribute(key, encoded);
     if (run.root)
       run.span.setAttribute(
         direction === 'input'

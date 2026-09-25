@@ -8,6 +8,44 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import islice
 from typing import Any
+from weakref import WeakKeyDictionary
+
+from .media import Media
+
+MEDIA_TYPES = ("blob", "uri")
+MEDIA_OVERHEAD = 256
+
+
+class MediaBudget:
+    __slots__ = ("per_item", "remaining")
+
+    def __init__(self, per_item, per_attribute):
+        self.per_item = per_item
+        self.remaining = per_attribute
+
+    @classmethod
+    def spent(cls):
+        return cls(0, 0)
+
+    def part(self, media):
+        part = media.to_part(min(self.per_item, self.remaining))
+        if "content" in part:
+            self.remaining -= media.byte_size() or 0
+        return part
+
+
+_SPAN_BUDGETS: WeakKeyDictionary = WeakKeyDictionary()
+
+
+def span_budget(span, policy, shape):
+    """The budget this span shares with every other attribute it writes."""
+    if not shape:
+        return MediaBudget.spent()
+    budget = _SPAN_BUDGETS.get(span)
+    if budget is None:
+        budget = policy.budget(shape)
+        _SPAN_BUDGETS[span] = budget
+    return budget
 
 
 @dataclass(frozen=True)
@@ -15,13 +53,27 @@ class ContentPolicy:
     enabled: bool = True
     max_bytes: int = 16384
     redact: Callable[[Any], Any] | None = None
+    max_media_bytes: int = 5242880
+    max_media_total_bytes: int = 16777216
 
-    def encode(self, value: Any, *, shape: str | None = None) -> str | None:
+    def budget(self, shape) -> MediaBudget:
+        if not shape:
+            return MediaBudget.spent()
+        return MediaBudget(self.max_media_bytes, self.max_media_total_bytes)
+
+    def encode(
+        self,
+        value: Any,
+        *,
+        shape: str | None = None,
+        budget: MediaBudget | None = None,
+    ) -> str | None:
         if not self.enabled:
             return None
         try:
             value = self.redact(value) if self.redact else value
             remaining = [min(self.max_bytes, 1024)]
+            budget = self.budget(shape) if budget is None else budget
 
             def clean(item, depth=0):
                 remaining[0] -= 1
@@ -33,6 +85,8 @@ class ContentPolicy:
                     return item if math.isfinite(item) else None
                 if type(item) is str:
                     return item[: self.max_bytes]
+                if type(item) is Media:
+                    return budget.part(item)
                 if type(item) in (list, tuple):
                     return [
                         clean(v, depth + 1) for v in islice(item, max(0, remaining[0]))
@@ -46,12 +100,13 @@ class ContentPolicy:
                 return "[unsupported]"
 
             value = clean(value)
+            limit = self.max_bytes + media_length(value)
             if shape:
                 if not valid_content(value, shape):
                     return None
-                return bounded_messages(value, shape, self.max_bytes)
+                return bounded_messages(value, shape, limit)
             result = json.dumps(value, ensure_ascii=True, separators=(",", ":"))
-            if len(result.encode()) > self.max_bytes:
+            if len(result.encode()) > limit:
                 return '"[truncated]"'
             return result
         except Exception:
@@ -103,6 +158,27 @@ def valid_content(value, shape):
     return True
 
 
+def media_length(value, depth=0):
+    if depth > 8:
+        return 0
+    if type(value) is dict:
+        if value.get("type") in MEDIA_TYPES:
+            payload = value.get("content") or value.get("uri")
+            return (len(payload) if type(payload) is str else 0) + MEDIA_OVERHEAD
+        return sum(media_length(v, depth + 1) for v in value.values())
+    if type(value) in (list, tuple):
+        return sum(media_length(v, depth + 1) for v in value)
+    return 0
+
+
+def trimmable(blocks):
+    for index in range(len(blocks) - 1, -1, -1):
+        part = blocks[index]
+        if type(part) is not dict or part.get("type") not in MEDIA_TYPES:
+            return index
+    return None
+
+
 def bounded_messages(value, shape, limit):
     """Keep a valid prefix; shorten text or remove whole parts/messages."""
     while True:
@@ -112,12 +188,14 @@ def bounded_messages(value, shape, limit):
         if not value:
             return None
         blocks = value if shape == "system-instructions" else value[-1]["parts"]
-        if blocks:
-            part = blocks[-1]
-            text = part.get("content") if part.get("type") == "text" else None
-            if type(text) is str and len(text) > 16:
-                part["content"] = text[: len(text) // 2] + "…"
-            else:
-                blocks.pop()
-        else:
+        # Media is already within budget, so text yields first.
+        index = trimmable(blocks)
+        if index is None:
             value.pop()
+            continue
+        part = blocks[index]
+        text = part.get("content") if part.get("type") == "text" else None
+        if type(text) is str and len(text) > 16:
+            part["content"] = text[: len(text) // 2] + "…"
+        else:
+            blocks.pop(index)

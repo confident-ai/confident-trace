@@ -7,7 +7,16 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import arguments, get, sequence, string
+from .._shared.extraction import arguments, get, media, sequence, string
+
+_MEDIA_KINDS = (
+    "image_url",
+    "input_image",
+    "input_audio",
+    "audio",
+    "file",
+    "input_file",
+)
 
 
 def parts(value, depth=0):
@@ -43,15 +52,8 @@ def parts(value, depth=0):
                     else get(block, "content", get(block, "output")),
                 }
             )
-        elif kind in (
-            "image_url",
-            "input_image",
-            "input_audio",
-            "audio",
-            "file",
-            "input_file",
-        ):
-            result.append({"type": kind, "content_omitted": True})
+        elif kind in _MEDIA_KINDS:
+            result.append(media(block))
         else:
             result.append({"type": "unsupported", "content_omitted": True})
     return result
