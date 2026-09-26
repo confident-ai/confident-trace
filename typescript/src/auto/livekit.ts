@@ -2,11 +2,43 @@ import { diag, ProxyTracerProvider } from '@opentelemetry/api';
 import { enabled, failed, onActivate } from '@/auto/control';
 import { observed, replace } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
-import { SCOPE } from '@/integrations/livekit';
+import { SCOPE, uploadCallRecording } from '@/integrations/livekit';
+import type { LiveKitJobContext } from '@/integrations/livekit';
 import { state } from '@/runtime/state';
 import { INTEGRATIONS } from '@/semconv/generated';
 
+let jobContextOf:
+  ((required: false) => LiveKitJobContext | undefined) | undefined;
+const recordedJobs = new WeakSet<LiveKitJobContext>();
+
+function registerRecordingUpload(): void {
+  const ctx = jobContextOf?.(false);
+  if (!ctx || recordedJobs.has(ctx)) return;
+  recordedJobs.add(ctx);
+  // Shutdown callbacks run after the session closes its recorder.
+  ctx.addShutdownCallback(() => uploadCallRecording(ctx));
+}
+
 export function attachLiveKit(exports: Foreign, modulePath = ''): void {
+  if (typeof exports.getJobContext === 'function')
+    jobContextOf = exports.getJobContext;
+  if (typeof exports.AgentSession?.prototype?.start === 'function')
+    replace(
+      exports.AgentSession.prototype,
+      'start',
+      (original) =>
+        async function (this: Foreign, ...args: Foreign[]) {
+          const result = await original.apply(this, args);
+          if (enabled('livekit')) {
+            try {
+              registerRecordingUpload();
+            } catch {
+              diag.debug('LiveKit call recording upload unavailable');
+            }
+          }
+          return result;
+        },
+    );
   if (
     /[/\\]job_lifecycle\.[cm]?js$/.test(modulePath) &&
     typeof exports.flushJobLogs !== 'function'

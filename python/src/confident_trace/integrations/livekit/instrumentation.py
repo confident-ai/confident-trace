@@ -11,6 +11,7 @@ from ..._core.runtime import log
 from .._shared.lifecycle import register_native_inference
 from .._shared.patching import install_targets
 from ._constants import INFERENCE_SPANS, SCOPE_NAME
+from .recording import register_recording_upload
 
 
 def instrument(runtime):
@@ -57,10 +58,25 @@ def instrument(runtime):
 
         return cleanup
 
+    def start_wrapper(original, method):
+        async def start(wrapped, instance, args, kwargs):
+            result = await wrapped(*args, **kwargs)
+            if runtime.active:
+                try:
+                    register_recording_upload(runtime)
+                except Exception:
+                    log.debug("LiveKit call recording upload unavailable")
+            return result
+
+        return start
+
     undo = install_targets(
         [("livekit.agents", "JobContext", "_on_cleanup")], cleanup_wrapper
     )
     if not undo:
         raise RuntimeError("LiveKit job cleanup hook could not be installed")
+    undo += install_targets(
+        [("livekit.agents", "AgentSession", "start")], start_wrapper
+    )
     runtime.processor.integration_scopes[SCOPE_NAME] = Integration.LIVEKIT
     return undo + register_native_inference(SCOPE_NAME, span_names=INFERENCE_SPANS)

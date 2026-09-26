@@ -388,6 +388,13 @@ set with `livekit.agents.telemetry.set_tracer_provider()` is left alone.
 The transcript and spoken text stay in LiveKit's `lk.*` attributes, which the
 backend does not display yet. Tests use livekit-agents 1.8.3.
 
+If the call is recorded (`session.start(..., record=True)`, or recording enabled
+in LiveKit Cloud), the SDK uploads LiveKit's audio file when the call ends, and
+the thread shows a call player plus a player on each turn. Calls that are not
+recorded are traced as before. `capture_content=False` also skips the upload.
+The recording is attached to the room's thread, so a call placed under a custom
+thread ID gets its audio on a separate thread named after the room.
+
 ## OpenAI Agents SDK
 
 In an application already using `openai-agents`, install

@@ -214,3 +214,144 @@ it('reports an unsupported worker lifecycle instead of silently skipping the flu
     'failed',
   );
 });
+
+type Upload = { url: string; headers: Record<string, unknown>; body: Buffer };
+
+async function receiver(delayMs = 0) {
+  const { createServer } = await import('node:http');
+  const uploads: Upload[] = [];
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on('data', (chunk: Buffer) => chunks.push(chunk));
+    request.on('end', () => {
+      if (request.url?.startsWith('/v1/recordings'))
+        uploads.push({
+          url: request.url,
+          headers: request.headers,
+          body: Buffer.concat(chunks),
+        });
+      setTimeout(() => response.writeHead(200).end(), delayMs);
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address() as { port: number };
+  return {
+    uploads,
+    endpoint: `http://127.0.0.1:${port}/v1/traces`,
+    close: () => {
+      server.closeAllConnections();
+      server.close();
+    },
+  };
+}
+
+async function recordedCall(
+  options: InitOptions,
+  report: { audioRecordingPath?: string; audioRecordingStartedAt?: number },
+) {
+  const { init } = await import('@/runtime/init');
+  const { attachLiveKit } = await import('@/auto/livekit');
+  init(options);
+  attachLiveKit({ telemetry });
+  const callbacks: (() => Promise<void>)[] = [];
+  const ctx = {
+    job: { room: { sid: 'RM_room' } },
+    makeSessionReport: () => report,
+    addShutdownCallback: (callback: () => Promise<void>) =>
+      callbacks.push(callback),
+  };
+  class AgentSession {
+    async start() {
+      return 'started';
+    }
+  }
+  attachLiveKit({ getJobContext: () => ctx });
+  attachLiveKit({ AgentSession });
+  const session = new AgentSession();
+  expect(await session.start()).toBe('started');
+  await session.start();
+  return callbacks;
+}
+
+async function recordingFile() {
+  const { mkdtemp, writeFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const path = join(await mkdtemp(join(tmpdir(), 'lk-')), 'audio.ogg');
+  await writeFile(path, 'OggS-call-audio');
+  return path;
+}
+
+it('uploads the call recording once per job at shutdown', async () => {
+  const edge = await receiver();
+  try {
+    const callbacks = await recordedCall(
+      { endpoint: edge.endpoint, apiKey: 'key' },
+      {
+        audioRecordingPath: await recordingFile(),
+        audioRecordingStartedAt: 1788652800500,
+      },
+    );
+    expect(callbacks).toHaveLength(1);
+    await callbacks[0]!();
+    expect(edge.uploads).toHaveLength(1);
+    const [upload] = edge.uploads;
+    expect(upload!.url).toBe(
+      '/v1/recordings?threadId=RM_room&startedAt=1788652800500',
+    );
+    expect(upload!.headers['x-confident-api-key']).toBe('key');
+    expect(upload!.headers['content-type']).toBe('audio/ogg');
+    expect(upload!.body.toString()).toBe('OggS-call-audio');
+  } finally {
+    edge.close();
+  }
+});
+
+it('skips the upload when the call was not recorded', async () => {
+  const edge = await receiver();
+  try {
+    const callbacks = await recordedCall(
+      { endpoint: edge.endpoint, apiKey: 'key' },
+      {},
+    );
+    await callbacks[0]!();
+    expect(edge.uploads).toEqual([]);
+  } finally {
+    edge.close();
+  }
+});
+
+it('skips the upload when content capture is off', async () => {
+  const edge = await receiver();
+  try {
+    const callbacks = await recordedCall(
+      { endpoint: edge.endpoint, apiKey: 'key', captureContent: false },
+      {
+        audioRecordingPath: await recordingFile(),
+        audioRecordingStartedAt: 1788652800500,
+      },
+    );
+    await callbacks[0]!();
+    expect(edge.uploads).toEqual([]);
+  } finally {
+    edge.close();
+  }
+});
+
+it('bounds a hung call recording upload', async () => {
+  const edge = await receiver(10_000);
+  try {
+    const callbacks = await recordedCall(
+      { endpoint: edge.endpoint, apiKey: 'key' },
+      {
+        audioRecordingPath: await recordingFile(),
+        audioRecordingStartedAt: 1788652800500,
+      },
+    );
+    const started = Date.now();
+    await callbacks[0]!();
+    expect(Date.now() - started).toBeLessThan(7000);
+  } finally {
+    edge.close();
+  }
+}, 15_000);

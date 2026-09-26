@@ -48,6 +48,11 @@ def livekit_environment():
         "test_cleanup_flush_preserves_exception",
         "test_cleanup_flush_is_bounded",
         "test_flush_failure_does_not_replace_cleanup_error",
+        "test_call_recording_is_uploaded",
+        "test_call_recording_is_skipped[not_recorded]",
+        "test_call_recording_is_skipped[content_off]",
+        "test_call_recording_upload_is_bounded",
+        "test_session_start_outside_a_job_registers_nothing",
     ],
 )
 def test_livekit_scenario(scenario, livekit_environment, tmp_path):

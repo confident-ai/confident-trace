@@ -34,6 +34,8 @@ export const state: {
     registerSpanProcessor(processor: SpanProcessor): void;
   };
   router?: ProjectRouter;
+  /** Where LiveKit call recordings go: the OTLP/HTTP endpoint's sibling path. */
+  recordingUpload?: { url: string; headers: Record<string, string> };
   /** Native framework scopes whose spans receive an integration label. */
   integrationScopes: Map<string, string>;
   auto: AutomaticState;

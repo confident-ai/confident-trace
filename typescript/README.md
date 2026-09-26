@@ -688,6 +688,13 @@ conversation content.
 The transcript and spoken text stay in LiveKit's `lk.*` attributes, which the
 backend does not display yet.
 
+If the call is recorded (`session.start({ ..., record: true })`, or recording
+enabled in LiveKit Cloud), the SDK uploads LiveKit's audio file when the call
+ends, and the thread shows a call player plus a player on each turn. Calls that
+are not recorded are traced as before. `captureContent: false` also skips the
+upload. The recording is attached to the room's thread, so a call placed under a
+custom thread ID gets its audio on a separate thread named after the room.
+
 ## Span types
 
 All package-owned TypeScript integration spans include `confident.span.type`
