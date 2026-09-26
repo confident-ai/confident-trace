@@ -24,8 +24,6 @@ from .safety import safe
 from .scopes import RoutingProcessor, suppressed
 
 VERSION = "0.1.5"
-SPAN_BATCH_PATH = "/v1/traces"
-CALL_RECORDING_PATH = "/v1/recordings"
 log = logging.getLogger(confident.SCOPE_NAME)
 log.addHandler(logging.NullHandler())
 
@@ -105,7 +103,7 @@ class Runtime:
     truefoundry_proxy_urls: tuple[str, ...] = ()
 
     otlp_environment: dict[str, str] | None = field(default=None, repr=False)
-    recording_upload: tuple[str, dict[str, str]] | None = field(
+    otlp_http_export: tuple[str, dict[str, str]] | None = field(
         default=None, repr=False
     )
 
@@ -167,7 +165,7 @@ def init(
             return _runtime
         processor = None
         otlp_environment = None
-        recording_upload = None
+        otlp_http_export = None
         try:
             if max_content_bytes < 64:
                 raise ValueError("max_content_bytes must be at least 64")
@@ -249,14 +247,8 @@ def init(
                 otlp_environment = safe(
                     child_environment, selected, kwargs, compression=compression
                 )
-                if selected == "http/protobuf" and kwargs["endpoint"].endswith(
-                    SPAN_BATCH_PATH
-                ):
-                    recording_upload = (
-                        kwargs["endpoint"][: -len(SPAN_BATCH_PATH)]
-                        + CALL_RECORDING_PATH,
-                        dict(resolved),
-                    )
+                if selected == "http/protobuf":
+                    otlp_http_export = (kwargs["endpoint"], dict(resolved))
                 if factory is None:
 
                     def factory(project_key):
@@ -283,7 +275,7 @@ def init(
                 ContentPolicy(capture_content, max_content_bytes, redact),
                 processor,
                 otlp_environment=otlp_environment,
-                recording_upload=recording_upload,
+                otlp_http_export=otlp_http_export,
             )
             _runtime = runtime
             runtime.litellm_proxy_urls = tuple(litellm_proxy_urls)

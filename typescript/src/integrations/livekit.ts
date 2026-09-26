@@ -23,8 +23,31 @@ export function liveKitOwnsCall(): boolean {
   );
 }
 
-const MAX_RECORDING_BYTES = 50 * 1024 * 1024;
-const UPLOAD_TIMEOUT_MS = 5000;
+// About what the upload bound carries at 50 Mbps, roughly 25 minutes of call.
+const MAX_RECORDING_BYTES = 18 * 1024 * 1024;
+// Leaves the final span flush its own share of LiveKit's 10s shutdown budget.
+const UPLOAD_TIMEOUT_MS = 3000;
+const SPAN_BATCH_PATH = '/v1/traces';
+const CALL_RECORDING_PATH = '/v1/call-recordings';
+// LiveKit's own PII opt-out (allowPiiFromEnv in @livekit/agents telemetry).
+const ALLOW_PII_ENV_VAR = 'LIVEKIT_TELEMETRY_ALLOW_PII';
+const FALSY = new Set(['0', 'false', 'no', 'off']);
+
+function recordingEndpoint():
+  { url: string; headers: Record<string, string> } | undefined {
+  const target = state.otlpHttpExport;
+  if (!target?.endpoint.endsWith(SPAN_BATCH_PATH)) return undefined;
+  return {
+    url:
+      target.endpoint.slice(0, -SPAN_BATCH_PATH.length) + CALL_RECORDING_PATH,
+    headers: target.headers,
+  };
+}
+
+function piiWithheld(): boolean {
+  const raw = process.env[ALLOW_PII_ENV_VAR];
+  return raw !== undefined && FALSY.has(raw.trim().toLowerCase());
+}
 
 type SessionReport = {
   audioRecordingPath?: string;
@@ -40,8 +63,9 @@ export type LiveKitJobContext = {
 export async function uploadCallRecording(
   ctx: LiveKitJobContext,
 ): Promise<void> {
-  const target = state.recordingUpload;
+  const target = recordingEndpoint();
   if (!target || !state.runtime?.active || !state.policy?.enabled) return;
+  if (piiWithheld()) return;
   try {
     const report = ctx.makeSessionReport();
     const path = report.audioRecordingPath;
@@ -49,7 +73,7 @@ export async function uploadCallRecording(
     const roomSid = ctx.job.room?.sid;
     if (!path || startedAt === undefined || !roomSid) return;
     if ((await stat(path)).size > MAX_RECORDING_BYTES) {
-      diag.debug('LiveKit call recording is too large to upload');
+      diag.warn('LiveKit call recording is too large to upload');
       return;
     }
     const query = new URLSearchParams({
@@ -62,8 +86,8 @@ export async function uploadCallRecording(
       body: await readFile(path),
       signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
     });
-    if (!response.ok) diag.debug('LiveKit call recording upload failed');
+    if (!response.ok) diag.warn('LiveKit call recording upload failed');
   } catch {
-    diag.debug('LiveKit call recording upload failed or timed out');
+    diag.warn('LiveKit call recording upload failed or timed out');
   }
 }

@@ -244,7 +244,7 @@ class Receiver:
         class Handler(http.server.BaseHTTPRequestHandler):
             def do_POST(self):
                 body = self.rfile.read(int(self.headers["content-length"]))
-                if self.path.startswith("/v1/recordings"):
+                if self.path.startswith("/v1/call-recordings"):
                     import time
 
                     time.sleep(delay)
@@ -312,7 +312,7 @@ async def test_call_recording_is_uploaded(monkeypatch, tmp_path):
     assert len(callbacks) == 1
     await callbacks[0]()
     [(path, headers, body)] = receiver.received
-    assert path == "/v1/recordings?threadId=RM_room&startedAt=1788652800500"
+    assert path == "/v1/call-recordings?threadId=RM_room&startedAt=1788652800500"
     assert headers["x-confident-api-key"] == "key"
     assert headers["content-type"] == "audio/ogg"
     assert body == b"OggS-call-audio"
@@ -320,12 +320,14 @@ async def test_call_recording_is_uploaded(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("case", ["not_recorded", "content_off"])
+@pytest.mark.parametrize("case", ["not_recorded", "content_off", "pii_off"])
 async def test_call_recording_is_skipped(case, monkeypatch, tmp_path):
     from confident_trace.integrations.livekit.recording import (
         register_recording_upload,
     )
 
+    if case == "pii_off":
+        monkeypatch.setenv("LIVEKIT_TELEMETRY_ALLOW_PII", "0")
     receiver = Receiver()
     runtime = ct.init(
         endpoint=receiver.endpoint,
@@ -357,7 +359,7 @@ async def test_call_recording_upload_is_bounded(monkeypatch, tmp_path):
     register_recording_upload(runtime)
     start = time.monotonic()
     await callbacks[0]()
-    assert 4.5 < time.monotonic() - start < 7
+    assert 2.5 < time.monotonic() - start < 5
     ct.shutdown()
 
 

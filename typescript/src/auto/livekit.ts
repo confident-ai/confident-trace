@@ -7,21 +7,27 @@ import type { LiveKitJobContext } from '@/integrations/livekit';
 import { state } from '@/runtime/state';
 import { INTEGRATIONS } from '@/semconv/generated';
 
-let jobContextOf:
-  ((required: false) => LiveKitJobContext | undefined) | undefined;
-const recordedJobs = new WeakSet<LiveKitJobContext>();
+type GetJobContext = (required: false) => LiveKitJobContext | undefined;
+// The ESM and CJS builds each keep their own job context store.
+const getJobContextCopies = new Set<GetJobContext>();
+const jobsWithRecordingUpload = new WeakSet<LiveKitJobContext>();
 
 function registerRecordingUpload(): void {
-  const ctx = jobContextOf?.(false);
-  if (!ctx || recordedJobs.has(ctx)) return;
-  recordedJobs.add(ctx);
+  let ctx: LiveKitJobContext | undefined;
+  for (const getJobContext of getJobContextCopies) {
+    ctx = getJobContext(false);
+    if (ctx) break;
+  }
+  if (!ctx || jobsWithRecordingUpload.has(ctx)) return;
+  jobsWithRecordingUpload.add(ctx);
   // Shutdown callbacks run after the session closes its recorder.
-  ctx.addShutdownCallback(() => uploadCallRecording(ctx));
+  const job = ctx;
+  job.addShutdownCallback(() => uploadCallRecording(job));
 }
 
 export function attachLiveKit(exports: Foreign, modulePath = ''): void {
   if (typeof exports.getJobContext === 'function')
-    jobContextOf = exports.getJobContext;
+    getJobContextCopies.add(exports.getJobContext);
   if (typeof exports.AgentSession?.prototype?.start === 'function')
     replace(
       exports.AgentSession.prototype,

@@ -224,7 +224,7 @@ async function receiver(delayMs = 0) {
     const chunks: Buffer[] = [];
     request.on('data', (chunk: Buffer) => chunks.push(chunk));
     request.on('end', () => {
-      if (request.url?.startsWith('/v1/recordings'))
+      if (request.url?.startsWith('/v1/call-recordings'))
         uploads.push({
           url: request.url,
           headers: request.headers,
@@ -297,7 +297,7 @@ it('uploads the call recording once per job at shutdown', async () => {
     expect(edge.uploads).toHaveLength(1);
     const [upload] = edge.uploads;
     expect(upload!.url).toBe(
-      '/v1/recordings?threadId=RM_room&startedAt=1788652800500',
+      '/v1/call-recordings?threadId=RM_room&startedAt=1788652800500',
     );
     expect(upload!.headers['x-confident-api-key']).toBe('key');
     expect(upload!.headers['content-type']).toBe('audio/ogg');
@@ -338,6 +338,25 @@ it('skips the upload when content capture is off', async () => {
   }
 });
 
+it('skips the upload when LiveKit PII telemetry is withheld', async () => {
+  vi.stubEnv('LIVEKIT_TELEMETRY_ALLOW_PII', '0');
+  const edge = await receiver();
+  try {
+    const callbacks = await recordedCall(
+      { endpoint: edge.endpoint, apiKey: 'key' },
+      {
+        audioRecordingPath: await recordingFile(),
+        audioRecordingStartedAt: 1788652800500,
+      },
+    );
+    await callbacks[0]!();
+    expect(edge.uploads).toEqual([]);
+  } finally {
+    vi.unstubAllEnvs();
+    edge.close();
+  }
+});
+
 it('bounds a hung call recording upload', async () => {
   const edge = await receiver(10_000);
   try {
@@ -350,7 +369,7 @@ it('bounds a hung call recording upload', async () => {
     );
     const started = Date.now();
     await callbacks[0]!();
-    expect(Date.now() - started).toBeLessThan(7000);
+    expect(Date.now() - started).toBeLessThan(5000);
   } finally {
     edge.close();
   }

@@ -691,8 +691,9 @@ backend does not display yet.
 If the call is recorded (`session.start({ ..., record: true })`, or recording
 enabled in LiveKit Cloud), the SDK uploads LiveKit's audio file when the call
 ends, and the thread shows a call player plus a player on each turn. Calls that
-are not recorded are traced as before. `captureContent: false` also skips the
-upload. The recording is attached to the room's thread, so a call placed under a
+are not recorded are traced as before. `captureContent: false` or
+`LIVEKIT_TELEMETRY_ALLOW_PII=0` also skips the upload. Recordings over 18 MB
+(roughly 25 minutes of call) are skipped with a warning. The recording is attached to the room's thread, so a call placed under a
 custom thread ID gets its audio on a separate thread named after the room.
 
 ## Span types
