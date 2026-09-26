@@ -230,6 +230,12 @@ export function createSpanProcessor(
   const baseOptions = options.exporter
     ? undefined
     : resolveExportOptions(options);
+  if (baseOptions?.protocol === 'http/protobuf' && baseOptions.endpoint)
+    state.otlpHttpExport = {
+      endpoint: baseOptions.endpoint,
+      headers: { ...baseOptions.headers },
+    };
+  else delete state.otlpHttpExport;
   const create = (apiKey?: string): SpanExporter => {
     const resolved = { ...baseOptions!, headers: { ...baseOptions!.headers } };
     if (apiKey !== undefined) resolved.headers['x-confident-api-key'] = apiKey;

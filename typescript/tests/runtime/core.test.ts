@@ -4,6 +4,7 @@ import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createSpanProcessor } from '@/runtime/processor';
 import { withinBudget } from '@/runtime/lifecycle';
+import { state } from '@/runtime/state';
 
 beforeEach(() => {
   trace.disable();
@@ -122,6 +123,19 @@ it('disabled and failed initialization do not consume injected exporters', async
   vi.stubEnv('OTEL_SDK_DISABLED', undefined);
   expect(init({ exporter, maxContentBytes: 1 }).active).toBe(false);
   expect(close).not.toHaveBeenCalled();
+});
+it('a processor with an injected exporter forgets the previous OTLP/HTTP endpoint', async () => {
+  await createSpanProcessor({
+    endpoint: 'http://127.0.0.1:4318/v1/traces',
+    apiKey: 'key',
+  }).shutdown();
+  expect(state.otlpHttpExport?.endpoint).toBe(
+    'http://127.0.0.1:4318/v1/traces',
+  );
+  await createSpanProcessor({
+    exporter: new InMemorySpanExporter(),
+  }).shutdown();
+  expect(state.otlpHttpExport).toBeUndefined();
 });
 it('bounds waiting and consumes synchronous/asynchronous failures', async () => {
   expect(await withinBudget(() => new Promise(() => {}), 5)).toBe(false);

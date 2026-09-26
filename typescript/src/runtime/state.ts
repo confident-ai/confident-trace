@@ -34,6 +34,8 @@ export const state: {
     registerSpanProcessor(processor: SpanProcessor): void;
   };
   router?: ProjectRouter;
+  /** The OTLP/HTTP endpoint and headers init() exports spans with. */
+  otlpHttpExport?: { endpoint: string; headers: Record<string, string> };
   /** Native framework scopes whose spans receive an integration label. */
   integrationScopes: Map<string, string>;
   auto: AutomaticState;

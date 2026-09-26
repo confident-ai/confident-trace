@@ -230,3 +230,144 @@ async def test_flush_failure_does_not_replace_cleanup_error(monkeypatch):
         await JobContext._on_cleanup(object())
     assert caught.value is failure
     ct.shutdown()
+
+
+class Receiver:
+    """A local Confident edge that records call-recording uploads."""
+
+    def __init__(self, delay=0.0):
+        import http.server
+        import threading
+
+        received = self.received = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers["content-length"]))
+                if self.path.startswith("/v1/call-recordings"):
+                    import time
+
+                    time.sleep(delay)
+                    received.append(
+                        (
+                            self.path,
+                            {k.lower(): v for k, v in self.headers.items()},
+                            body,
+                        )
+                    )
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.endpoint = f"http://127.0.0.1:{self.server.server_port}/v1/traces"
+
+
+def fake_job_context(monkeypatch, recording_path, started_at=1788652800.5):
+    from types import SimpleNamespace
+
+    import livekit.agents
+
+    callbacks = []
+    report = SimpleNamespace(
+        audio_recording_path=recording_path,
+        audio_recording_started_at=started_at if recording_path else None,
+    )
+
+    class FakeJobContext:
+        job = SimpleNamespace(room=SimpleNamespace(sid="RM_room"))
+        add_shutdown_callback = staticmethod(callbacks.append)
+
+        def make_session_report(self):
+            return report
+
+    ctx = FakeJobContext()
+    monkeypatch.setattr(livekit.agents, "get_job_context", lambda required=True: ctx)
+    return callbacks
+
+
+def recording(tmp_path):
+    path = tmp_path / "audio.ogg"
+    path.write_bytes(b"OggS-call-audio")
+    return path
+
+
+@pytest.mark.asyncio
+async def test_call_recording_is_uploaded(monkeypatch, tmp_path):
+    from confident_trace.integrations.livekit.recording import (
+        register_recording_upload,
+    )
+
+    receiver = Receiver()
+    runtime = ct.init(
+        endpoint=receiver.endpoint, api_key="key", instrumentations=("livekit",)
+    )
+    callbacks = fake_job_context(monkeypatch, recording(tmp_path))
+    register_recording_upload(runtime)
+    register_recording_upload(runtime)
+    assert len(callbacks) == 1
+    await callbacks[0]()
+    [(path, headers, body)] = receiver.received
+    assert path == "/v1/call-recordings?threadId=RM_room&startedAt=1788652800500"
+    assert headers["x-confident-api-key"] == "key"
+    assert headers["content-type"] == "audio/ogg"
+    assert body == b"OggS-call-audio"
+    ct.shutdown()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["not_recorded", "content_off", "pii_off"])
+async def test_call_recording_is_skipped(case, monkeypatch, tmp_path):
+    from confident_trace.integrations.livekit.recording import (
+        register_recording_upload,
+    )
+
+    if case == "pii_off":
+        monkeypatch.setenv("LIVEKIT_TELEMETRY_ALLOW_PII", "0")
+    receiver = Receiver()
+    runtime = ct.init(
+        endpoint=receiver.endpoint,
+        api_key="key",
+        instrumentations=("livekit",),
+        capture_content=case != "content_off",
+    )
+    path = None if case == "not_recorded" else recording(tmp_path)
+    callbacks = fake_job_context(monkeypatch, path)
+    register_recording_upload(runtime)
+    await callbacks[0]()
+    assert receiver.received == []
+    ct.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_call_recording_upload_is_bounded(monkeypatch, tmp_path):
+    import time
+
+    from confident_trace.integrations.livekit.recording import (
+        register_recording_upload,
+    )
+
+    receiver = Receiver(delay=10)
+    runtime = ct.init(
+        endpoint=receiver.endpoint, api_key="key", instrumentations=("livekit",)
+    )
+    callbacks = fake_job_context(monkeypatch, recording(tmp_path))
+    register_recording_upload(runtime)
+    start = time.monotonic()
+    await callbacks[0]()
+    assert 2.5 < time.monotonic() - start < 5
+    ct.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_session_start_outside_a_job_registers_nothing():
+    exporter = InMemorySpanExporter()
+    ct.init(exporter=exporter, instrumentations=("livekit", "openai"))
+    await converse()
+    ct.flush()
+    assert by_scope(exporter.get_finished_spans(), "livekit-agents")
+    ct.shutdown()

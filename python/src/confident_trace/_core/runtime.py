@@ -103,6 +103,9 @@ class Runtime:
     truefoundry_proxy_urls: tuple[str, ...] = ()
 
     otlp_environment: dict[str, str] | None = field(default=None, repr=False)
+    otlp_http_export: tuple[str, dict[str, str]] | None = field(
+        default=None, repr=False
+    )
 
     def tracer(self):
         if not self.active or disabled():
@@ -162,6 +165,7 @@ def init(
             return _runtime
         processor = None
         otlp_environment = None
+        otlp_http_export = None
         try:
             if max_content_bytes < 64:
                 raise ValueError("max_content_bytes must be at least 64")
@@ -243,6 +247,8 @@ def init(
                 otlp_environment = safe(
                     child_environment, selected, kwargs, compression=compression
                 )
+                if selected == "http/protobuf":
+                    otlp_http_export = (kwargs["endpoint"], dict(resolved))
                 if factory is None:
 
                     def factory(project_key):
@@ -269,6 +275,7 @@ def init(
                 ContentPolicy(capture_content, max_content_bytes, redact),
                 processor,
                 otlp_environment=otlp_environment,
+                otlp_http_export=otlp_http_export,
             )
             _runtime = runtime
             runtime.litellm_proxy_urls = tuple(litellm_proxy_urls)

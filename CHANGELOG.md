@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — LiveKit call recordings
+
+- Upload LiveKit's own call recording when a recorded call ends (Python and
+  TypeScript), so the thread can play the call and each turn. Unrecorded calls
+  and `capture_content=False` / `captureContent: false` or
+  `LIVEKIT_TELEMETRY_ALLOW_PII=0` skip the upload, and recordings over 18 MB
+  are skipped with a warning.
+
 ## Unreleased — TypeScript automatic instrumentation
 
 - Add `confident-trace/register` for Node preload instrumentation of all eight
