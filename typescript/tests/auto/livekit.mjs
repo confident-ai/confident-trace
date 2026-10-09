@@ -77,5 +77,33 @@ await lifecycle.runShutdownCallbacks(
 assert.ok(!sink.getFinishedSpans().some((s) => s.name === 'late_cleanup'));
 await lifecycle.flushJobLogs(logger);
 assert.ok(sink.getFinishedSpans().some((s) => s.name === 'late_cleanup'));
+
+// A provider handed to LiveKit after init (e.g. per call) still exports to us,
+// and its shutdown does not stop our exporter.
+const { NodeTracerProvider } = await import('@opentelemetry/sdk-trace-node');
+const { SimpleSpanProcessor } = await import('@opentelemetry/sdk-trace-base');
+const elsewhere = new InMemorySpanExporter();
+const added = [new SimpleSpanProcessor(elsewhere)];
+const perCall = new NodeTracerProvider({
+  spanProcessors: [
+    {
+      onStart: (span, parent) => added.forEach((p) => p.onStart(span, parent)),
+      onEnd: (span) => added.forEach((p) => p.onEnd(span)),
+      forceFlush: () => Promise.all(added.map((p) => p.forceFlush())),
+      shutdown: () => Promise.all(added.map((p) => p.shutdown())),
+    },
+  ],
+});
+const options = { registerSpanProcessor: (p) => added.push(p) };
+telemetry.setTracerProvider(perCall, options);
+telemetry.setTracerProvider(perCall, options);
+telemetry.tracer.startSpan({ name: 'per_call_span' }).end();
+assert.ok(elsewhere.getFinishedSpans().some((s) => s.name === 'per_call_span'));
+await perCall.shutdown();
+telemetry.tracer.startSpan({ name: 'after_per_call_shutdown' }).end();
+await rt.flush();
+const names = sink.getFinishedSpans().map((s) => s.name);
+assert.equal(names.filter((n) => n === 'per_call_span').length, 1);
+assert.ok(names.includes('after_per_call_shutdown'));
 await rt.shutdown();
 console.log('LiveKit automatic integration passed');

@@ -42,6 +42,7 @@ def livekit_environment():
         "test_session_spans_are_labelled_and_llm_calls_appear_once",
         "test_unconfigured_livekit_tracer_uses_our_provider",
         "test_configured_livekit_tracer_is_preserved",
+        "test_provider_set_after_init_also_exports_to_us",
         "test_unselected_livekit_keeps_provider_spans",
         "test_privacy_import_order[False]",
         "test_privacy_import_order[True]",
