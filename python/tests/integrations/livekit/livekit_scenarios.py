@@ -371,6 +371,36 @@ async def test_call_recording_upload_is_bounded(monkeypatch, tmp_path):
     ct.shutdown()
 
 
+def test_call_recording_upload_skips_tls_verification_when_asked(monkeypatch):
+    import ssl
+    import urllib.request
+
+    from confident_trace.integrations.livekit.recording import _post
+
+    contexts = []
+
+    def urlopen(request, timeout, context):
+        contexts.append(context)
+        raise OSError("not sent")
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    for value in ("TRUE", "true"):
+        monkeypatch.setenv("CONFIDENT_OTEL_TLS_SKIP_VERIFY", value)
+        runtime = ct.init(instrumentations=())
+        _post(
+            "https://collector.invalid/v1/call-recordings",
+            {},
+            b"audio",
+            [],
+            runtime.tls_skip_verify,
+        )
+        ct.shutdown()
+    verified, unverified = contexts
+    assert verified is None
+    assert unverified.verify_mode == ssl.CERT_NONE
+    assert not unverified.check_hostname
+
+
 def test_call_recording_is_skipped_without_an_active_trace(monkeypatch, tmp_path):
     from confident_trace.integrations.livekit.recording import (
         register_recording_upload,

@@ -11,6 +11,8 @@ export interface ExportOptions {
   /** All explicit TypeScript timeouts are milliseconds. */
   timeoutMillis?: number;
   compression?: 'gzip' | 'none';
+  /** Skip certificate verification for Confident HTTP exports and recording uploads. */
+  tlsSkipVerify?: boolean;
   /** Ownership transfers to the returned processor/runtime. */
   exporter?: SpanExporter;
   /** Synchronous factory; each returned exporter is owned by this runtime. */
@@ -37,4 +39,6 @@ export interface ResolvedExportOptions {
   headers: Record<string, string>;
   timeoutMillis?: number;
   compression?: 'gzip' | 'none';
+  /** Skip certificate verification for Confident HTTP exports and recording uploads. */
+  tlsSkipVerify?: boolean;
 }

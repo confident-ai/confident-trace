@@ -1,7 +1,12 @@
 import { types } from 'node:util';
 import { normalizeFrameworkOutput } from '@/content/normalize';
-import { Media } from '@/content/media';
-import type { MediaPart } from '@/content/media';
+import {
+  AUDIO_MIME_PREFIX,
+  MEDIA_MARKER,
+  Media,
+  registered,
+} from '@/content/media';
+import type { MediaAttachment, MediaPart } from '@/content/media';
 import type { ContentOptions } from '@/content/types';
 import * as S from '@/semconv/generated';
 
@@ -36,6 +41,15 @@ export class MediaBudget {
     if ('content' in part) this.remaining -= media.byteSize() ?? 0;
     return part;
   }
+
+  attachment(media: Media): MediaAttachment | undefined {
+    const attachment = media.toAttachment(
+      Math.min(this.perItem, this.remaining),
+    );
+    if (attachment && 'dataBase64' in attachment)
+      this.remaining -= media.byteSize() ?? 0;
+    return attachment;
+  }
 }
 
 function mediaLength(value: unknown, depth = 0): number {
@@ -50,6 +64,13 @@ function mediaLength(value: unknown, depth = 0): number {
     const payload = record.content ?? record.uri;
     return (typeof payload === 'string' ? payload.length : 0) + MEDIA_OVERHEAD;
   }
+  if (
+    typeof record.mimeType === 'string' &&
+    record.mimeType.startsWith(AUDIO_MIME_PREFIX)
+  ) {
+    const payload = record.dataBase64 ?? record.url;
+    return (typeof payload === 'string' ? payload.length : 0) + MEDIA_OVERHEAD;
+  }
   return Object.values(record).reduce<number>(
     (total, item) => total + mediaLength(item, depth + 1),
     0,
@@ -59,20 +80,54 @@ function mediaLength(value: unknown, depth = 0): number {
 type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
+function audioValue(media: Media, budget: MediaBudget): JsonValue {
+  const attachment = budget.attachment(media);
+  return attachment === undefined
+    ? media.note()
+    : { mimeType: media.mimeType!, ...attachment };
+}
+
 const spanBudgets = new WeakMap<object, MediaBudget>();
+
+/** The budget this span shares with every attribute and attachment it writes. */
+export function spanMediaBudget(
+  owner: object,
+  policy: ContentPolicy,
+): MediaBudget {
+  let budget = spanBudgets.get(owner);
+  if (budget === undefined) {
+    budget = new MediaBudget(policy.maxMediaBytes, policy.maxMediaTotalBytes);
+    spanBudgets.set(owner, budget);
+  }
+  return budget;
+}
 
 export function spanBudget(
   owner: object,
   policy: ContentPolicy,
   shape?: string,
 ): MediaBudget {
-  if (!shape) return MediaBudget.spent();
-  let budget = spanBudgets.get(owner);
-  if (budget === undefined) {
-    budget = policy.budget(shape);
-    spanBudgets.set(owner, budget);
-  }
-  return budget;
+  return shape ? spanMediaBudget(owner, policy) : MediaBudget.spent();
+}
+
+export function resolveMarkers(
+  encoded: string,
+  budget: MediaBudget,
+  carried: Readonly<Record<string, MediaAttachment>>,
+): { encoded: string; found: Record<string, MediaAttachment> } {
+  const found: Record<string, MediaAttachment> = {};
+  const resolved = encoded.replace(MEDIA_MARKER, (marker, id: string) => {
+    let attachment = found[id] ?? carried[id];
+    if (attachment === undefined) {
+      const media = registered(id);
+      if (media === undefined) return marker;
+      attachment = budget.attachment(media);
+      if (attachment === undefined) return media.note();
+    }
+    found[id] = attachment;
+    return marker;
+  });
+  return { encoded: resolved, found };
 }
 
 export class ContentPolicy {
@@ -122,6 +177,7 @@ export class ContentPolicy {
     value: unknown,
     shape?: string,
     budget: MediaBudget = this.budget(shape),
+    { markers = false }: { markers?: boolean } = {},
   ): string | undefined {
     if (!this.enabled) return undefined;
     try {
@@ -137,7 +193,10 @@ export class ContentPolicy {
         if (typeof item === 'string') return item.slice(0, this.maxBytes);
         if (typeof item !== 'object' || types.isProxy(item))
           return '[unsupported]';
-        if (item instanceof Media) return budget.part(item) as JsonValue;
+        if (item instanceof Media) {
+          if (!markers) return budget.part(item) as JsonValue;
+          return item.isAudio ? audioValue(item, budget) : String(item);
+        }
         if (ancestors.has(item)) return '[truncated]';
         const array = Array.isArray(item);
         const prototype = Object.getPrototypeOf(item);

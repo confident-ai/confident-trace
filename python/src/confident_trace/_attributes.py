@@ -66,6 +66,9 @@ SPAN_INPUT: Final = "confident.span.input"
 SPAN_OUTPUT: Final = "confident.span.output"
 SPAN_CONTENT_TRUNCATED: Final = "confident.span.content_truncated"
 
+# Media named by markers in this span's content fields, keyed by marker id.
+SPAN_ATTACHMENTS: Final = "confident.span.attachments"
+
 # Public update_trace keyword names map explicitly to owned attributes.
 TRACE_FIELDS = MappingProxyType(
     {

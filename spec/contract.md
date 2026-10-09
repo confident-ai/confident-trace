@@ -70,6 +70,33 @@ of the application. `confident.span.content_truncated` marks accumulator overflo
 | confident.trace.environment | string |
 | confident.span.input / output | JSON string for custom steps/tools |
 | confident.span.content_truncated | boolean |
+| confident.span.attachments | JSON object string: marker id to attachment |
+
+Custom content fields (`confident.trace.*` and `confident.span.*` input, output,
+metadata, and the other content fields) may carry image and PDF markers,
+`[CONFIDENT:IMAGE|PDF:<32 hex id>]`, anywhere in their JSON. A marker is written
+wherever an image or PDF `Media` value appears, or is formatted into a string.
+The span's `confident.span.attachments` maps each marker id it carries to
+`{"dataBase64", "mimeType"}` for inline bytes, or to `{"url", "mimeType"?}` for a
+remote reference. One attribute covers every content field the span writes,
+including trace fields on an entry span. Rewriting a field drops attachments only
+that field named. Marker-shaped text naming no media the process formatted is
+left unchanged. The receiver resolves markers across the whole trace, replacing
+each with the stored file.
+
+An audio `Media` value in a custom content field is written in place as
+`{"mimeType": "audio/...", "dataBase64": "..."}`, or `{"mimeType", "url"}` for a
+remote file, typically beside a message's text:
+`{"role": "user", "content": "...", "audio": {...}}`. The receiver recognises
+audio by its `audio/*` `mimeType` under any key, stores inline bytes, and keeps
+`{"mimeType", "url"}`. Audio is never formatted into text.
+
+Inline bytes, as attachments or audio values, share the span's media budget with
+GenAI message parts and do not count toward the text limit. Media whose bytes
+cannot travel (over budget, unreadable, or not an image, PDF, or audio type, or
+audio formatted into a string) is written as an `<inline_data: <mime>, not
+captured>` note, so every marker the SDK writes has an attachment on the same
+span.
 
 Structured thread, user, and customer fields emit individual dotted attributes.
 Their `id` must match the shorthand `*_id`, which the SDK always writes

@@ -254,6 +254,37 @@ def test_payloads_are_compressed_unless_opted_out(monkeypatch):
     assert compression_of() == Compression.Gzip
 
 
+@pytest.mark.parametrize("value", [None, "TRUE", "1", "true"])
+@pytest.mark.parametrize("explicit", [None, False, True])
+def test_tls_verification_is_skipped_only_for_true(monkeypatch, value, explicit):
+    import requests
+
+    ct.shutdown()
+    if value is None:
+        monkeypatch.delenv("CONFIDENT_OTEL_TLS_SKIP_VERIFY", raising=False)
+    else:
+        monkeypatch.setenv("CONFIDENT_OTEL_TLS_SKIP_VERIFY", value)
+    rt = ct.init(instrumentations=(), tls_skip_verify=explicit)
+    expected = explicit if explicit is not None else value == "true"
+    assert rt.tls_skip_verify is expected
+    monkeypatch.setenv("CONFIDENT_OTEL_TLS_SKIP_VERIFY", str(not expected).lower())
+    sessions = [
+        rt.processor.delegate.span_exporter._session,
+        rt.processor.delegate.factory("project-key")._session,
+    ]
+    ct.shutdown()
+    sent = []
+    monkeypatch.setattr(
+        requests.Session,
+        "request",
+        lambda self, *args, **kwargs: sent.append(kwargs["verify"]),
+    )
+    for session in sessions:
+        session.post("https://otel.confident-ai.com/v1/traces", verify=True)
+    assert sent == [not expected] * 2
+    assert sessions[0] is not sessions[1]
+
+
 def test_redaction_and_capture_opt_out(telemetry):
     provider, _ = telemetry
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import (

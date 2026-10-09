@@ -9,6 +9,7 @@ from opentelemetry.util.types import Attributes
 
 from ._attributes import Integration as Integration
 from ._bootstrap import init as init
+from ._core.media import Media as Media
 from ._core.runtime import SEMCONV_VERSION as SEMCONV_VERSION
 from ._types import CustomerFields as CustomerFields
 from ._types import ThreadFields as ThreadFields

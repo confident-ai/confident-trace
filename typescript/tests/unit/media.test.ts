@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { inspect } from 'node:util';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -186,7 +187,8 @@ describe('parse', () => {
 });
 
 test('string conversion never carries the payload', () => {
-  const text = String(Media.fromBase64(PNG_BASE64, 'image/png'));
-  expect(text).not.toContain(PNG_BASE64);
-  expect(text).toContain('image/png');
+  const media = Media.fromBase64(PNG_BASE64, 'image/png')!;
+  expect(String(media)).toBe(`[CONFIDENT:IMAGE:${media.id}]`);
+  expect(inspect(media)).not.toContain(PNG_BASE64);
+  expect(inspect(media)).toContain('image/png');
 });

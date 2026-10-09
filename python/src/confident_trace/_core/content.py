@@ -10,7 +10,7 @@ from itertools import islice
 from typing import Any
 from weakref import WeakKeyDictionary
 
-from .media import Media
+from .media import AUDIO_MIME_PREFIX, MARKER, Media, registered
 
 MEDIA_TYPES = ("blob", "uri")
 MEDIA_OVERHEAD = 256
@@ -33,19 +33,42 @@ class MediaBudget:
             self.remaining -= media.byte_size() or 0
         return part
 
+    def attachment(self, media):
+        attachment = media.to_attachment(min(self.per_item, self.remaining))
+        if attachment is not None and "dataBase64" in attachment:
+            self.remaining -= media.byte_size() or 0
+        return attachment
+
 
 _SPAN_BUDGETS: WeakKeyDictionary = WeakKeyDictionary()
 
 
-def span_budget(span, policy, shape):
+def span_budget(span, policy):
     """The budget this span shares with every other attribute it writes."""
-    if not shape:
-        return MediaBudget.spent()
     budget = _SPAN_BUDGETS.get(span)
     if budget is None:
-        budget = policy.budget(shape)
+        budget = MediaBudget(policy.max_media_bytes, policy.max_media_total_bytes)
         _SPAN_BUDGETS[span] = budget
     return budget
+
+
+def resolve_markers(encoded, budget, carried):
+    found = {}
+
+    def resolve(match):
+        media_id = match.group(1)
+        attachment = found.get(media_id) or carried.get(media_id)
+        if attachment is None:
+            media = registered(media_id)
+            if media is None:
+                return match.group(0)
+            attachment = budget.attachment(media)
+            if attachment is None:
+                return media.note()
+        found[media_id] = attachment
+        return match.group(0)
+
+    return MARKER.sub(resolve, encoded), found
 
 
 @dataclass(frozen=True)
@@ -67,7 +90,10 @@ class ContentPolicy:
         *,
         shape: str | None = None,
         budget: MediaBudget | None = None,
+        markers: bool = False,
     ) -> str | None:
+        """`markers` writes images and PDFs as markers for `resolve_markers` to
+        attach, and audio as an inline `audio_value`."""
         if not self.enabled:
             return None
         try:
@@ -86,7 +112,9 @@ class ContentPolicy:
                 if type(item) is str:
                     return item[: self.max_bytes]
                 if type(item) is Media:
-                    return budget.part(item)
+                    if not markers:
+                        return budget.part(item)
+                    return audio_value(item, budget) if item.is_audio else str(item)
                 if type(item) in (list, tuple):
                     return [
                         clean(v, depth + 1) for v in islice(item, max(0, remaining[0]))
@@ -158,12 +186,27 @@ def valid_content(value, shape):
     return True
 
 
+def audio_value(media, budget):
+    attachment = budget.attachment(media)
+    if attachment is None:
+        return media.note()
+    return {"mimeType": media.mime_type, **attachment}
+
+
+def _is_audio_value(value):
+    mime_type = value.get("mimeType")
+    return type(mime_type) is str and mime_type.startswith(AUDIO_MIME_PREFIX)
+
+
 def media_length(value, depth=0):
     if depth > 8:
         return 0
     if type(value) is dict:
         if value.get("type") in MEDIA_TYPES:
             payload = value.get("content") or value.get("uri")
+            return (len(payload) if type(payload) is str else 0) + MEDIA_OVERHEAD
+        if _is_audio_value(value):
+            payload = value.get("dataBase64") or value.get("url")
             return (len(payload) if type(payload) is str else 0) + MEDIA_OVERHEAD
         return sum(media_length(v, depth + 1) for v in value.values())
     if type(value) in (list, tuple):

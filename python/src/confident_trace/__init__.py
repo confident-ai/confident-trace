@@ -2,6 +2,7 @@
 
 from ._attributes import Integration
 from ._bootstrap import init
+from ._core.media import Media
 from ._core.runtime import VERSION as __version__
 from ._core.runtime import flush, shutdown
 from ._core.scopes import project_context, suppress_tracing
@@ -18,6 +19,7 @@ from ._types import CustomerFields, ThreadFields, UserFields
 
 __all__ = [
     "Integration",
+    "Media",
     "ThreadFields",
     "CustomerFields",
     "UserFields",

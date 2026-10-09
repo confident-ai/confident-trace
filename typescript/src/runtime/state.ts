@@ -35,7 +35,11 @@ export const state: {
   };
   router?: ProjectRouter;
   /** The OTLP/HTTP endpoint and headers init() exports spans with. */
-  otlpHttpExport?: { endpoint: string; headers: Record<string, string> };
+  otlpHttpExport?: {
+    endpoint: string;
+    headers: Record<string, string>;
+    tlsSkipVerify: boolean;
+  };
   /** Native framework scopes whose spans receive an integration label. */
   integrationScopes: Map<string, string>;
   auto: AutomaticState;

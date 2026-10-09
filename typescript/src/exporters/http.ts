@@ -10,6 +10,9 @@ export function createHttpExporter(
     ...(options.timeoutMillis !== undefined
       ? { timeoutMillis: options.timeoutMillis }
       : {}),
+    ...(options.tlsSkipVerify
+      ? { httpAgentOptions: { keepAlive: true, rejectUnauthorized: false } }
+      : {}),
     ...(options.compression !== undefined
       ? {
           compression: options.compression as NonNullable<

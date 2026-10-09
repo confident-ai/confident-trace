@@ -53,6 +53,7 @@ def livekit_environment():
         "test_call_recording_is_skipped[content_off]",
         "test_call_recording_is_skipped[pii_off]",
         "test_call_recording_upload_is_bounded",
+        "test_call_recording_upload_skips_tls_verification_when_asked",
         "test_call_recording_is_skipped_without_an_active_trace",
         "test_session_start_outside_a_job_registers_nothing",
     ],

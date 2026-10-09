@@ -14,7 +14,12 @@ import type {
   SpanContext,
   Tracer,
 } from '@opentelemetry/api';
-import { ContentPolicy } from '@/content/policy';
+import {
+  ContentPolicy,
+  resolveMarkers,
+  spanMediaBudget,
+} from '@/content/policy';
+import type { MediaAttachment } from '@/content/media';
 import type { ContentOptions } from '@/content/types';
 import { isDisabled } from '@/config/resolve';
 import { state, traceContextKey, deferTraceContextKey } from '@/runtime/state';
@@ -133,6 +138,10 @@ const entryKey = createContextKey('confident-trace.entry-operation');
 const operationKey = createContextKey('confident-trace.operation');
 // Weak keys track explicit writes without retaining ended spans.
 const writes = new WeakMap<Span, Set<string>>();
+const attachments = new WeakMap<
+  Span,
+  Map<string, Record<string, MediaAttachment>>
+>();
 function safe(action: () => void): void {
   try {
     action();
@@ -207,15 +216,52 @@ function remember(span: Span, key: string): void {
   }
   set.add(key);
 }
+function carriedAttachments(span: Span): Record<string, MediaAttachment> {
+  return Object.assign({}, ...(attachments.get(span)?.values() ?? []));
+}
+function recordAttachments(
+  span: Span,
+  key: string,
+  found: Record<string, MediaAttachment>,
+): void {
+  let byKey = attachments.get(span);
+  const anyFound = Object.keys(found).length > 0;
+  if (!anyFound && !byKey?.delete(key)) return;
+  if (!byKey) {
+    byKey = new Map();
+    attachments.set(span, byKey);
+  }
+  if (anyFound) byKey.set(key, found);
+  // setAttribute replaces, so one attribute always carries every field's.
+  span.setAttribute(
+    S.ATTR_CONFIDENT_SPAN_ATTACHMENTS,
+    JSON.stringify(carriedAttachments(span)),
+  );
+}
+/**
+ * Write one content attribute. `attach` is for values the application supplied:
+ * images and PDFs in them travel as markers plus attachments, and audio inline.
+ * Captured values keep media as omitted parts, so an integration's copy never
+ * sends its bytes twice.
+ */
 function putContent(
   span: Span,
   key: string,
   value: unknown,
   contentPolicy: ContentPolicy,
+  attach = false,
 ): void {
   if (!span.isRecording()) return;
-  const encoded = contentPolicy.encode(value);
-  if (encoded !== undefined) span.setAttribute(key, encoded);
+  const budget = spanMediaBudget(span, contentPolicy);
+  const encoded = attach
+    ? contentPolicy.encode(value, undefined, budget, { markers: true })
+    : contentPolicy.encode(value);
+  if (encoded === undefined) return;
+  const resolved = attach
+    ? resolveMarkers(encoded, budget, carriedAttachments(span))
+    : { encoded, found: {} };
+  recordAttachments(span, key, resolved.found);
+  span.setAttribute(key, resolved.encoded);
 }
 function apply(
   span: Span,
@@ -256,7 +302,8 @@ function apply(
     const attribute = `confident.${scope}.${suffix}`;
     remember(span, attribute);
     safe(() => {
-      if (contentKeys[key]) putContent(span, attribute, value, contentPolicy);
+      if (contentKeys[key])
+        putContent(span, attribute, value, contentPolicy, true);
       else if (
         key === 'tags' &&
         Array.isArray(value) &&

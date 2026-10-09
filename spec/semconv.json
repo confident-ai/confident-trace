@@ -3,6 +3,7 @@
   "semconvVersion": "1.37.0",
   "schemaUrl": "https://opentelemetry.io/schemas/1.37.0",
   "attributes": {
+    "ATTR_CONFIDENT_SPAN_ATTACHMENTS": "confident.span.attachments",
     "ATTR_CONFIDENT_SPAN_CONTENT_TRUNCATED": "confident.span.content_truncated",
     "ATTR_CONFIDENT_SPAN_CONTEXT": "confident.span.context",
     "ATTR_CONFIDENT_SPAN_EXPECTED_OUTPUT": "confident.span.expected_output",

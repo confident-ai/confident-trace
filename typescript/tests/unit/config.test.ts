@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { isDisabled, resolveExportOptions } from '@/config/resolve';
+import { createHttpExporter } from '@/exporters/http';
+
+vi.mock('@opentelemetry/exporter-trace-otlp-proto', () => ({
+  OTLPTraceExporter: vi.fn(),
+}));
 
 beforeEach(() => {
   for (const key of Object.keys(process.env)) {
@@ -16,6 +22,7 @@ describe('export configuration', () => {
       endpoint: 'https://otel.confident-ai.com/v1/traces',
       headers: {},
       compression: 'gzip',
+      tlsSkipVerify: false,
     });
   });
   it('uses explicit then trace-specific then generic options', () => {
@@ -27,6 +34,7 @@ describe('export configuration', () => {
       endpoint: 'https://otel.confident-ai.com/v1/traces',
       headers: {},
       compression: 'gzip',
+      tlsSkipVerify: false,
     });
     expect(
       resolveExportOptions({
@@ -40,6 +48,7 @@ describe('export configuration', () => {
       endpoint: 'http://localhost:4317',
       timeoutMillis: 50,
       compression: 'gzip',
+      tlsSkipVerify: false,
     });
   });
   it('compresses payloads unless opted out', () => {
@@ -51,6 +60,7 @@ describe('export configuration', () => {
     expect(resolveExportOptions({})).toMatchObject({ compression: 'none' });
     expect(resolveExportOptions({ compression: 'gzip' })).toMatchObject({
       compression: 'gzip',
+      tlsSkipVerify: false,
     });
     vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_COMPRESSION', 'gzip');
     expect(resolveExportOptions({})).toMatchObject({ compression: 'gzip' });
@@ -107,5 +117,40 @@ describe('export configuration', () => {
   it('honors disabled irrespective of explicit options', () => {
     vi.stubEnv('OTEL_SDK_DISABLED', 'TRUE');
     expect(isDisabled()).toBe(true);
+  });
+  it('skips TLS verification only when CONFIDENT_OTEL_TLS_SKIP_VERIFY is "true"', () => {
+    const agentOptions = (value: string | undefined) => {
+      vi.stubEnv('CONFIDENT_OTEL_TLS_SKIP_VERIFY', value);
+      createHttpExporter(resolveExportOptions({}));
+      return vi.mocked(OTLPTraceExporter).mock.lastCall?.[0]?.httpAgentOptions;
+    };
+    expect(agentOptions(undefined)).toBeUndefined();
+    expect(agentOptions('TRUE')).toBeUndefined();
+    expect(agentOptions('1')).toBeUndefined();
+    expect(agentOptions('true')).toEqual({
+      keepAlive: true,
+      rejectUnauthorized: false,
+    });
+  });
+  it.each([undefined, 'true', 'false', 'TRUE', '1'])(
+    'explicit TLS options override environment %s and remain stable',
+    (value) => {
+      for (const explicit of [true, false]) {
+        vi.stubEnv('CONFIDENT_OTEL_TLS_SKIP_VERIFY', value);
+        const resolved = resolveExportOptions({ tlsSkipVerify: explicit });
+        vi.stubEnv('CONFIDENT_OTEL_TLS_SKIP_VERIFY', String(!explicit));
+        createHttpExporter(resolved);
+        expect(
+          vi.mocked(OTLPTraceExporter).mock.lastCall?.[0]?.httpAgentOptions,
+        ).toEqual(
+          explicit ? { keepAlive: true, rejectUnauthorized: false } : undefined,
+        );
+      }
+    },
+  );
+  it('rejects non-boolean TLS options', () => {
+    expect(() =>
+      resolveExportOptions({ tlsSkipVerify: 'false' as unknown as boolean }),
+    ).toThrow('tlsSkipVerify must be a boolean');
   });
 });

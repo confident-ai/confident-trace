@@ -235,6 +235,7 @@ export function createSpanProcessor(
     state.otlpHttpExport = {
       endpoint: baseOptions.endpoint,
       headers: { ...baseOptions.headers },
+      tlsSkipVerify: baseOptions.tlsSkipVerify ?? false,
     };
   else delete state.otlpHttpExport;
   const create = (apiKey?: string): SpanExporter => {

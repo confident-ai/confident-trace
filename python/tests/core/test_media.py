@@ -262,6 +262,13 @@ def test_media_outside_a_message_shape_carries_no_bytes():
     }
 
 
+def test_markers_write_media_as_text_without_its_bytes():
+    media = Media.from_bytes(PNG * 4000, "image/png")
+    encoded = ContentPolicy().encode({"page": media}, markers=True)
+    assert json.loads(encoded)["page"] == str(media)
+    assert PNG_BASE64 not in encoded
+
+
 @pytest.mark.parametrize(
     "mime_type", ["audio/wav", "video/mp4", "text/csv", "application/octet-stream"]
 )
@@ -335,27 +342,23 @@ def test_one_budget_is_shared_across_a_span_attributes(telemetry):
     _, exporter = telemetry
     policy = ContentPolicy(max_media_total_bytes=len(PNG))
     with ct.span("request") as span:
-        first = content.span_budget(span, policy, "input-messages")
-        second = content.span_budget(span, policy, "output-messages")
-        assert first is second
-        unshaped = content.span_budget(span, policy, None)
-        assert unshaped is not first and unshaped.remaining == 0
+        assert content.span_budget(span, policy) is content.span_budget(span, policy)
 
 
 def test_separate_spans_do_not_share_a_budget(telemetry):
     _, exporter = telemetry
     policy = ContentPolicy(max_media_total_bytes=len(PNG))
     with ct.span("a") as first_span, ct.span("b") as second_span:
-        assert content.span_budget(
-            first_span, policy, "input-messages"
-        ) is not content.span_budget(second_span, policy, "input-messages")
+        assert content.span_budget(first_span, policy) is not content.span_budget(
+            second_span, policy
+        )
 
 
 def test_a_span_media_total_spans_its_attributes(telemetry):
     _, exporter = telemetry
     policy = ContentPolicy(max_media_total_bytes=len(PNG))
     with ct.span("request") as span:
-        budget = content.span_budget(span, policy, "input-messages")
+        budget = content.span_budget(span, policy)
         first = policy.encode(
             user_message(Media.from_bytes(PNG, "image/png")),
             shape="input-messages",
@@ -370,7 +373,7 @@ def test_a_span_media_total_spans_its_attributes(telemetry):
                 }
             ],
             shape="output-messages",
-            budget=content.span_budget(span, policy, "output-messages"),
+            budget=content.span_budget(span, policy),
         )
     assert "content" in json.loads(first)[0]["parts"][0]
     assert json.loads(second)[0]["parts"][0]["content_omitted"] is True

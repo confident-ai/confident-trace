@@ -1,11 +1,15 @@
-"""Media normalized out of provider payloads into GenAI content parts."""
+"""Media normalized out of provider payloads into GenAI content parts or attachments."""
 
 from __future__ import annotations
 
+import re
 from base64 import b64encode
-from os import stat
+from collections import deque
+from os import fspath, stat
 from os.path import basename, splitext
 from urllib.parse import unquote, urlparse
+from uuid import uuid4
+from weakref import WeakValueDictionary
 
 from .safety import safe
 
@@ -14,21 +18,36 @@ _FILE_URI = "file:"
 _REMOTE_SCHEMES = ("http://", "https://")
 
 _MIME_BY_EXTENSION = {
+    ".aac": "audio/aac",
     ".avif": "image/avif",
     ".bmp": "image/bmp",
+    ".flac": "audio/flac",
     ".gif": "image/gif",
     ".heic": "image/heic",
     ".jpeg": "image/jpeg",
     ".jpg": "image/jpeg",
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".oga": "audio/ogg",
+    ".ogg": "audio/ogg",
+    ".opus": "audio/opus",
     ".pdf": "application/pdf",
     ".png": "image/png",
     ".svg": "image/svg+xml",
     ".tif": "image/tiff",
     ".tiff": "image/tiff",
+    ".wav": "audio/wav",
     ".webp": "image/webp",
 }
 
 _PDF_MIME_TYPES = ("application/pdf", "application/x-pdf")
+AUDIO_MIME_PREFIX = "audio/"
+
+MARKER = re.compile(r"\[CONFIDENT:(?:IMAGE|PDF):([0-9a-f]{32})\]")
+_NOTE_MIME = re.compile(r"^[a-z0-9.+-]+/[a-z0-9.+-]+$")
+
+_REGISTRY: WeakValueDictionary = WeakValueDictionary()
+_RECENT: deque = deque(maxlen=16)
 
 _MAX_PATH_LENGTH = 1024
 _MIN_BASE64_LENGTH = 32
@@ -68,6 +87,26 @@ def supported_media(mime_type):
     )
 
 
+def attachable_media(mime_type):
+    return supported_media(mime_type) or (
+        type(mime_type) is str and mime_type.startswith(AUDIO_MIME_PREFIX)
+    )
+
+
+def _marker_type(mime_type):
+    if type(mime_type) is not str:
+        return None
+    if mime_type.startswith("image/"):
+        return "IMAGE"
+    if mime_type in _PDF_MIME_TYPES:
+        return "PDF"
+    return None
+
+
+def registered(media_id):
+    return _REGISTRY.get(media_id)
+
+
 def _is_base64(value):
     return (
         len(value) >= _MIN_BASE64_LENGTH
@@ -77,9 +116,23 @@ def _is_base64(value):
 
 
 class Media:
-    """One non-text payload of a model call, read only when a part is built."""
+    """One non-text payload, read only when a part or attachment is built.
 
-    __slots__ = ("mime_type", "uri", "_data", "_encoded", "_size", "_unreadable")
+    Formatting an image or PDF as text (`str(media)`, an f-string) yields a
+    marker that a traced field can carry anywhere in its value. Audio is not
+    formatted into text: as a value it becomes `{mimeType, dataBase64 | url}`.
+    """
+
+    __slots__ = (
+        "mime_type",
+        "uri",
+        "_data",
+        "_encoded",
+        "_size",
+        "_unreadable",
+        "_id",
+        "__weakref__",
+    )
 
     def __init__(self, *, uri=None, data=None, encoded=None, mime_type=None):
         self.uri = uri if type(uri) is str and uri else None
@@ -95,6 +148,7 @@ class Media:
         )
         self._size = None
         self._unreadable = False
+        self._id = uuid4().hex
 
     @classmethod
     def from_bytes(cls, data, mime_type=None):
@@ -113,6 +167,15 @@ class Media:
         if type(uri) is not str or not uri:
             return None
         return cls(uri=uri, mime_type=mime_type)
+
+    @classmethod
+    def from_file(cls, path, mime_type=None):
+        """A local file, read only when its bytes are first needed."""
+        try:
+            path = fspath(path)
+        except TypeError:
+            return None
+        return cls.from_uri(path, mime_type) if type(path) is str else None
 
     @classmethod
     def from_data_uri(cls, value):
@@ -147,6 +210,12 @@ class Media:
     @property
     def is_inline(self):
         return self._data is not None or self._encoded is not None
+
+    @property
+    def is_audio(self):
+        return type(self.mime_type) is str and self.mime_type.startswith(
+            AUDIO_MIME_PREFIX
+        )
 
     @property
     def is_remote(self):
@@ -226,6 +295,34 @@ class Media:
         else:
             part["content"] = encoded
         return part
+
+    def to_attachment(self, max_bytes=None):
+        """The receiver's attachment shape, or None when the bytes can't travel."""
+        if self.is_remote:
+            attachment = {"url": self.uri}
+            if self.mime_type is not None:
+                attachment["mimeType"] = self.mime_type
+            return attachment
+        if not attachable_media(self.mime_type):
+            return None
+        encoded = self.base64(max_bytes)
+        if encoded is None:
+            return None
+        return {"dataBase64": encoded, "mimeType": self.mime_type}
+
+    def note(self):
+        """Text that replaces this media where its content isn't captured."""
+        mime = self.mime_type
+        valid = mime is not None and _NOTE_MIME.match(mime)
+        return f"<inline_data: {mime if valid else 'unknown'}, not captured>"
+
+    def __str__(self):
+        kind = _marker_type(self.mime_type)
+        if kind is None:
+            return self.note()
+        _REGISTRY[self._id] = self
+        _RECENT.append(self)
+        return f"[CONFIDENT:{kind}:{self._id}]"
 
     def __repr__(self):
         # Reprs reach logs; the payload must never ride along.

@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import ssl
 import threading
 import urllib.request
 import weakref
@@ -65,11 +66,20 @@ def _read(path):
         return recording.read()
 
 
-def _post(url, headers, body, result):
+def _ssl_context(skip_verify):
+    if not skip_verify:
+        return None
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    return context
+
+
+def _post(url, headers, body, result, skip_verify=False):
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(
-            request, timeout=UPLOAD_TIMEOUT_SECONDS
+            request, timeout=UPLOAD_TIMEOUT_SECONDS, context=_ssl_context(skip_verify)
         ) as response:
             result.append(200 <= response.status < 300)
     except Exception:
@@ -106,6 +116,7 @@ async def _upload(runtime, ctx, trace_uuid):
                 {**headers, "content-type": "audio/ogg"},
                 body,
                 result,
+                runtime.tls_skip_verify,
             ),
             daemon=True,
         )

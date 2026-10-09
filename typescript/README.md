@@ -282,10 +282,20 @@ pass `exportNonAiSpans: true` to export every span.
 option takes precedence. Standard OTel endpoint variables are ignored.
 
 `init()` accepts `instrumentations` (`"all"` or an array of integration names), plus camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
-`timeoutMillis`, `compression`, `exporter`, `exportNonAiSpans`, `resourceAttributes`, `captureContent`,
+`timeoutMillis`, `compression`, `tlsSkipVerify`, `exporter`, `exportNonAiSpans`, `resourceAttributes`, `captureContent`,
 `maxContentBytes`, and `redact`. The processor factory accepts export options only.
 An injected exporter is owned by the resulting processor and bypasses exporter
 configuration. Disabled/invalid-before-construction initialization does not consume it.
+
+For temporary POC connections, `init({ tlsSkipVerify: true })` skips TLS certificate verification
+for built-in HTTP/protobuf trace exports (including project routes) and LiveKit
+recording uploads. `tlsSkipVerify` overrides `CONFIDENT_OTEL_TLS_SKIP_VERIFY`: an
+explicit false value restores verification even when the environment is `true`.
+When omitted, only the exact environment value `true` enables the bypass; the
+default is verification enabled. Set this before initialization; it is resolved
+once. HTTPS remains encrypted, but the server certificate is not authenticated.
+This does not change gRPC, custom exporters, separate SDK subprocess exporters,
+or connections to model providers.
 
 - Default protocol: `http/protobuf`; default endpoint:
   `https://otel.confident-ai.com/v1/traces`.

@@ -1,4 +1,5 @@
 export { init, flush, shutdown } from '@/runtime/init';
+export { Media } from '@/content/media';
 export type { InitOptions } from '@/config/types';
 export type { TraceRuntime } from '@/runtime/types';
 export {

@@ -65,6 +65,16 @@ are automatically instrumented or fully mapped.
 
 ## Configuration
 
+For temporary POC connections, `init(tls_skip_verify=True)` skips TLS certificate verification
+for built-in HTTP/protobuf trace exports (including project routes) and LiveKit
+recording uploads. `tls_skip_verify` overrides `CONFIDENT_OTEL_TLS_SKIP_VERIFY`: an
+explicit false value restores verification even when the environment is `true`.
+When omitted, only the exact environment value `true` enables the bypass; the
+default is verification enabled. Set this before initialization; it is resolved
+once. HTTPS remains encrypted, but the server certificate is not authenticated.
+This does not change gRPC, custom exporters, separate SDK subprocess exporters,
+or connections to model providers.
+
 `init()` reads `CONFIDENT_API_KEY`, `CONFIDENT_OTEL_ENDPOINT`, `OTEL_SDK_DISABLED`,
 `OTEL_RESOURCE_ATTRIBUTES`, and standard OTel exporter settings. Unspecified
 exporter options are delegated to OTel, including TLS certificates/client keys,

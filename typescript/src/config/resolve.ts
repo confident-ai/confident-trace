@@ -23,7 +23,18 @@ export function resolveExportOptions(
   if (protocol !== 'http/protobuf' && protocol !== 'grpc') {
     throw new Error('Unsupported OTLP protocol');
   }
-  const result: ResolvedExportOptions = { protocol, headers: {} };
+  if (
+    options.tlsSkipVerify !== undefined &&
+    typeof options.tlsSkipVerify !== 'boolean'
+  ) {
+    throw new TypeError('tlsSkipVerify must be a boolean');
+  }
+  const result: ResolvedExportOptions = {
+    protocol,
+    headers: {},
+    tlsSkipVerify:
+      options.tlsSkipVerify ?? env.CONFIDENT_OTEL_TLS_SKIP_VERIFY === 'true',
+  };
   if (options.endpoint !== undefined) result.endpoint = options.endpoint;
   else if (env.CONFIDENT_OTEL_ENDPOINT)
     result.endpoint = env.CONFIDENT_OTEL_ENDPOINT;

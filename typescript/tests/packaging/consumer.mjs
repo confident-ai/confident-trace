@@ -21,6 +21,7 @@ assert.deepEqual(
 );
 assert.equal(esm.init, cjs.init);
 assert.deepEqual(Object.keys(esm).sort(), [
+  'Media',
   'flush',
   'init',
   'projectContext',
