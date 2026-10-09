@@ -135,6 +135,27 @@ async def test_configured_livekit_tracer_is_preserved():
 
 
 @pytest.mark.asyncio
+async def test_provider_set_after_init_also_exports_to_us():
+    from livekit.agents import telemetry
+
+    exporter = InMemorySpanExporter()
+    ct.init(exporter=exporter, instrumentations=("livekit", "openai"))
+    other = TracerProvider(shutdown_on_exit=False)
+    elsewhere = InMemorySpanExporter()
+    other.add_span_processor(SimpleSpanProcessor(elsewhere))
+    telemetry.set_tracer_provider(other)
+    telemetry.set_tracer_provider(other)
+    await converse()
+    other.shutdown()
+    await converse()
+    ct.flush()
+    livekit = by_scope(exporter.get_finished_spans(), "livekit-agents")
+    assert [s.name for s in livekit].count("agent_session") == 2
+    assert [s.name for s in livekit].count("llm_request") == 4
+    assert by_scope(elsewhere.get_finished_spans(), "livekit-agents")
+
+
+@pytest.mark.asyncio
 async def test_unselected_livekit_keeps_provider_spans():
     exporter = InMemorySpanExporter()
     ct.init(exporter=exporter, instrumentations=("openai",))

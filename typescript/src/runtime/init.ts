@@ -148,6 +148,7 @@ export function init(options: InitOptions = {}): TraceRuntime {
     state.ownedProvider = {
       tracerProvider: provider,
       registerSpanProcessor: (added) => registered.push(added),
+      spanProcessor: processor,
     };
     state.policy = policy;
     activate();

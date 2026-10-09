@@ -32,6 +32,8 @@ export const state: {
   ownedProvider?: {
     tracerProvider: TracerProvider;
     registerSpanProcessor(processor: SpanProcessor): void;
+    /** init()'s exporting processor, for providers a framework is handed later. */
+    spanProcessor: SpanProcessor;
   };
   router?: ProjectRouter;
   /** The OTLP/HTTP endpoint and headers init() exports spans with. */

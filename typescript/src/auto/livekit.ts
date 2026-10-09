@@ -10,6 +10,7 @@ import { observed, replace } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
 import { SCOPE, uploadCallRecording } from '@/integrations/livekit';
 import type { LiveKitJobContext } from '@/integrations/livekit';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { state } from '@/runtime/state';
 import { INTEGRATIONS } from '@/semconv/generated';
 
@@ -17,6 +18,41 @@ type GetJobContext = (required: false) => LiveKitJobContext | undefined;
 // The ESM and CJS builds each keep their own job context store.
 const getJobContextCopies = new Set<GetJobContext>();
 const jobsWithRecordingUpload = new WeakSet<LiveKitJobContext>();
+const sharedProviders = new WeakSet<object>();
+
+// A provider handed to LiveKit after init (e.g. per call) would otherwise take
+// its spans away from our exporter.
+function shareProvider(provider: Foreign, options: Foreign): void {
+  const owned = state.ownedProvider;
+  if (
+    !owned ||
+    !provider ||
+    provider === owned.tracerProvider ||
+    sharedProviders.has(provider)
+  )
+    return;
+  const register: ((processor: SpanProcessor) => void) | undefined =
+    options?.registerSpanProcessor ??
+    (typeof provider.addSpanProcessor === 'function'
+      ? (processor) => provider.addSpanProcessor(processor)
+      : undefined);
+  if (!register) {
+    diag.debug(
+      'LiveKit tracer provider cannot be shared; pass registerSpanProcessor to setTracerProvider',
+    );
+    return;
+  }
+  const ours = owned.spanProcessor;
+  // The application's provider may shut down per call; ours keeps exporting.
+  register({
+    onStart: (span, parent) => ours.onStart(span, parent),
+    onEnding: (span) => ours.onEnding?.(span),
+    onEnd: (span) => ours.onEnd(span),
+    forceFlush: () => ours.forceFlush(),
+    shutdown: async () => {},
+  });
+  sharedProviders.add(provider);
+}
 
 function registerRecordingUpload(): void {
   let ctx: LiveKitJobContext | undefined;
@@ -87,6 +123,26 @@ export function attachLiveKit(exports: Foreign, modulePath = ''): void {
   if (typeof telemetry.setTracerProvider !== 'function' || !telemetry.tracer)
     return;
   observed('livekit');
+  try {
+    replace(
+      telemetry,
+      'setTracerProvider',
+      (original) =>
+        function (this: Foreign, ...args: Foreign[]) {
+          const result = original.apply(this, args);
+          if (enabled('livekit')) {
+            try {
+              shareProvider(args[0], args[1]);
+            } catch {
+              diag.debug('LiveKit tracer provider could not be shared');
+            }
+          }
+          return result;
+        },
+    );
+  } catch {
+    diag.debug('LiveKit setTracerProvider could not be wrapped');
+  }
   onActivate('livekit', () => {
     state.integrationScopes.set(SCOPE, INTEGRATIONS.livekit);
     // LiveKit Cloud replaces an unset provider with a private one. Preserve a
