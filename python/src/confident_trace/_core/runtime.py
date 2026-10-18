@@ -8,6 +8,7 @@ import os
 import re
 import threading
 import warnings
+import weakref
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
@@ -96,7 +97,6 @@ class OwnedProcessor(SpanProcessor):
             return
         self.delegate.on_start(span, parent_context)
         from .observation import observe_start
-        from .safety import safe
 
         safe(observe_start, span, parent_context, self)
         try:
@@ -134,6 +134,25 @@ class OwnedProcessor(SpanProcessor):
                 log.debug("Exporter shutdown failed")
 
 
+class SharedProcessor(SpanProcessor):
+    """Our processor on a provider we do not own; its shutdown must not stop ours."""
+
+    def __init__(self, delegate):
+        self.delegate = delegate
+
+    def on_start(self, span, parent_context=None):
+        self.delegate.on_start(span, parent_context)
+
+    def on_end(self, span):
+        self.delegate.on_end(span)
+
+    def force_flush(self, timeout_millis=30000):
+        return self.delegate.force_flush(timeout_millis)
+
+    def shutdown(self):
+        pass
+
+
 @dataclass
 class Runtime:
     provider: object
@@ -148,10 +167,24 @@ class Runtime:
     truefoundry_proxy_urls: tuple[str, ...] = ()
 
     tls_skip_verify: bool = False
+    shared: weakref.WeakSet = field(default_factory=weakref.WeakSet, repr=False)
     otlp_environment: dict[str, str] | None = field(default=None, repr=False)
     otlp_http_export: tuple[str, dict[str, str]] | None = field(
         default=None, repr=False
     )
+
+    def share(self, provider):
+        """Also export from another SDK provider, at most once per provider."""
+        with _lock:
+            if (
+                self.active
+                and self.processor
+                and isinstance(provider, TracerProvider)
+                and provider is not self.provider
+                and provider not in self.shared
+            ):
+                provider.add_span_processor(SharedProcessor(self.processor))
+                self.shared.add(provider)
 
     def tracer(self):
         if not self.active or disabled():
@@ -220,18 +253,24 @@ def init(
                 raise ValueError("max_content_bytes must be at least 64")
             if max_media_bytes < 0:
                 raise ValueError("max_media_bytes must not be negative")
-            provider = (
-                tracer_provider
-                if tracer_provider is not None
-                else trace.get_tracer_provider()
-            )
-            if isinstance(provider, trace.ProxyTracerProvider):
-                provider = TracerProvider(
-                    resource=Resource.create(resource_attributes or {}),
-                    shutdown_on_exit=False,
+            if tracer_provider is not None and not isinstance(
+                tracer_provider, TracerProvider
+            ):
+                raise TypeError("A standard SDK TracerProvider is required")
+            installed = trace.get_tracer_provider()
+            if isinstance(installed, trace.ProxyTracerProvider):
+                # Nothing is registered yet. The supplied provider, or a new one,
+                # becomes global so later tracing tools join it.
+                trace.set_tracer_provider(
+                    tracer_provider
+                    if tracer_provider is not None
+                    else TracerProvider(
+                        resource=Resource.create(resource_attributes or {}),
+                        shutdown_on_exit=False,
+                    )
                 )
-                trace.set_tracer_provider(provider)
-                provider = trace.get_tracer_provider()
+                installed = trace.get_tracer_provider()
+            provider = tracer_provider if tracer_provider is not None else installed
             if not isinstance(provider, TracerProvider):
                 raise TypeError("A standard SDK TracerProvider is required")
             default_key = (
@@ -239,10 +278,20 @@ def init(
             )
             factory = project_exporter_factory
             if exporter is None:
+                endpoint_configured = endpoint is not None or bool(
+                    os.getenv("CONFIDENT_OTEL_ENDPOINT")
+                )
+                # The standard protocol variables describe the application's own
+                # collector. Without a Confident endpoint they do not apply here.
                 selected = (
                     protocol
-                    or os.getenv(otel_env.OTEL_EXPORTER_OTLP_TRACES_PROTOCOL)
-                    or os.getenv(otel_env.OTEL_EXPORTER_OTLP_PROTOCOL)
+                    or (
+                        endpoint_configured
+                        and (
+                            os.getenv(otel_env.OTEL_EXPORTER_OTLP_TRACES_PROTOCOL)
+                            or os.getenv(otel_env.OTEL_EXPORTER_OTLP_PROTOCOL)
+                        )
+                    )
                     or "http/protobuf"
                 )
                 if selected == "http/protobuf":
@@ -332,7 +381,7 @@ def init(
                     factory,
                     default_key,
                     export_non_ai_spans=export_non_ai_spans,
-                )
+                ),
             )
             provider.add_span_processor(processor)
             runtime = Runtime(
@@ -351,6 +400,9 @@ def init(
             runtime.portkey_proxy_urls = tuple(portkey_proxy_urls)
             runtime.bifrost_proxy_urls = tuple(bifrost_proxy_urls)
             runtime.truefoundry_proxy_urls = tuple(truefoundry_proxy_urls)
+            # Frameworks, auto-instrumentation and other SDKs emit on the global
+            # provider; a private one must not take those spans away from us.
+            runtime.share(installed)
             runtime.undo = _instrument(runtime) if _instrument else []
             return runtime
         except Exception:

@@ -81,7 +81,10 @@ exporter options are delegated to OTel, including TLS certificates/client keys,
 compression, headers, and timeouts.
 
 Explicit arguments override environment settings. `CONFIDENT_OTEL_ENDPOINT` is
-the full traces endpoint. Standard OTel endpoint variables are ignored.
+the full traces endpoint. Standard OTel endpoint variables are ignored, and the
+standard protocol variables apply only together with a Confident endpoint: the
+default Confident endpoint always uses HTTP/protobuf, so a gRPC setting meant
+for another collector does not disable tracing.
 Without an endpoint setting, HTTP export defaults to `https://otel.confident-ai.com/v1/traces`. `OTEL_SDK_DISABLED=true`
 always disables package tracing at initialization. Trace-specific exporter
 settings take precedence over generic settings. An explicit `endpoint` is the
@@ -104,12 +107,25 @@ Collector that does not require it, omit the variable or pass `api_key=""`.
 The Confident default endpoint supports HTTP/protobuf. gRPC requires a custom
 endpoint. Authentication and project selection are handled by the backend.
 
-`init(tracer_provider=provider)` adds only a standard batch export pipeline to
-an existing SDK provider. It does not change its resources, sampler, propagator,
-or other processors. Resource arguments apply only when creating a provider.
-Without an explicit provider, an existing global provider is reused. Standard
-OTel W3C propagation remains available; the package does not instrument HTTP
-frameworks or install a different propagator.
+## Providers
+
+OpenTelemetry delivers a span only to the processors of the provider that
+created it. Frameworks, `opentelemetry-instrument`, Langfuse and other tracing
+SDKs emit on the global provider, so `init()` always exports from the global
+provider, creating and registering one when none exists. The plain `init()`
+call is right for almost every application.
+
+`init(tracer_provider=provider)` uses that provider for the package's own spans
+and still exports from the global provider, so a trace stays whole when the two
+differ. AI spans that other instrumentation emits on the global provider, and
+their parents, are exported under those instrumentors' own content policies;
+`capture_content` and `redact` govern only this package's spans. When no global
+provider is registered yet, the supplied one becomes global so later tracing
+tools join it. The package adds only a standard batch
+export pipeline to a provider; it does not change its resources, sampler,
+propagator, or other processors. Resource arguments apply only when creating a
+provider. Standard OTel W3C propagation remains available; the package does not
+instrument HTTP frameworks or install a different propagator.
 
 Initialization is idempotent; call `shutdown()` before reconfiguring. Initialization
 failure returns an inactive runtime and logs a content-free warning. `flush()`

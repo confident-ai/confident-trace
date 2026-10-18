@@ -63,7 +63,11 @@ being installed. Confirm it in the current docs first.
 
 If the application already owns a `TracerProvider`, keep that provider:
 
-- Python: pass it to `init(tracer_provider=provider, ...)`.
+- Python: register it as the global provider with
+  `trace.set_tracer_provider(provider)` and call `init()`, or pass it to
+  `init(tracer_provider=provider, ...)`; either way `init()` also exports from
+  the global provider, so framework and auto-instrumentation spans stay in the
+  trace.
 - TypeScript: install `createSpanProcessor()` from `confident-trace/otel` while
   constructing the provider; `init()` cannot attach to an existing provider.
 

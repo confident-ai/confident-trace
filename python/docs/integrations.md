@@ -38,7 +38,8 @@ The source must already have instrumentation enabled and emit through the shared
 SDK TracerProvider (or explicitly use the provider passed to `init`). `init()`
 enables Pydantic AI and Microsoft Agent Framework as described below. Strands,
 Google ADK and LiveKit Agents already emit native spans. Other frameworks must be enabled by the
-application. Spans from an unrelated provider are not collected automatically.
+application. `init()` exports from the global provider as well as any provider
+passed to it; spans from an unrelated private provider are not collected.
 
 We preserve the source's attributes, events, and schema URL. Spans without GenAI
 or Confident data are exported only as parents of exported spans unless

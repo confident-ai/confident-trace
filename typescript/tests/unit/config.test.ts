@@ -25,6 +25,18 @@ describe('export configuration', () => {
       tlsSkipVerify: false,
     });
   });
+  it('applies the generic gRPC protocol only with a Confident endpoint', () => {
+    vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'grpc');
+    expect(resolveExportOptions({})).toMatchObject({
+      protocol: 'http/protobuf',
+      endpoint: 'https://otel.confident-ai.com/v1/traces',
+    });
+    vi.stubEnv('CONFIDENT_OTEL_ENDPOINT', 'http://localhost:4317');
+    expect(resolveExportOptions({})).toMatchObject({
+      protocol: 'grpc',
+      endpoint: 'http://localhost:4317',
+    });
+  });
   it('uses explicit then trace-specific then generic options', () => {
     vi.stubEnv('OTEL_EXPORTER_OTLP_PROTOCOL', 'grpc');
     vi.stubEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', 'http/protobuf');

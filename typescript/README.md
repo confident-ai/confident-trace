@@ -279,7 +279,9 @@ pass `exportNonAiSpans: true` to export every span.
 
 `CONFIDENT_OTEL_ENDPOINT` sets the full traces endpoint (default:
 `https://otel.confident-ai.com/v1/traces` for HTTP export). An explicit `endpoint`
-option takes precedence. Standard OTel endpoint variables are ignored.
+option takes precedence. Standard OTel endpoint variables are ignored, and the
+standard protocol variables apply only together with a Confident endpoint, so a
+gRPC setting meant for another collector does not disable tracing.
 
 `init()` accepts `instrumentations` (`"all"` or an array of integration names), plus camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
 `timeoutMillis`, `compression`, `tlsSkipVerify`, `exporter`, `exportNonAiSpans`, `resourceAttributes`, `captureContent`,
