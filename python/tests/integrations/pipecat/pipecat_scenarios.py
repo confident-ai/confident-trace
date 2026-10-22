@@ -157,9 +157,9 @@ async def test_configured_global_provider_is_preserved():
     await converse()
     ct.flush()
     captured = exporter.get_finished_spans()
-    # A Pipecat span on another provider does not stand our provider span down.
-    assert by_scope(captured, "pipecat", "pipecat.turn") == []
-    assert len(by_scope(captured, "confident_trace")) == 1
+    pipecat = by_scope(captured, "pipecat", "pipecat.turn")
+    assert {"conversation", "turn", "llm"} <= {s.name for s in pipecat}
+    assert by_scope(captured, "confident_trace") == []
     assert by_scope(elsewhere.get_finished_spans(), "pipecat.turn")
 
 
