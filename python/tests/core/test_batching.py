@@ -1,7 +1,11 @@
 """Splitting keeps one oversized span from costing the spans batched with it."""
 
 import pytest
-from opentelemetry.sdk.trace.export import SpanExportResult
+from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from confident_trace._core.batching import (
     BoundedSpanExporter,
@@ -92,3 +96,60 @@ def test_configuration_stays_readable_through_the_wrapper():
     exporter.force_flush()
     exporter.shutdown()
     assert recorder.flushed and recorder.stopped
+
+
+@pytest.mark.parametrize("payload", ["x" * 1200, "界" * 1200], ids=["ascii", "unicode"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "span_name",
+        "attribute_key",
+        "attribute_value",
+        "array_value",
+        "event_name",
+        "event_key",
+        "event_value",
+    ],
+)
+def test_unicode_batches_fit_the_encoded_otlp_limit(field, payload):
+    memory = InMemorySpanExporter()
+    provider = TracerProvider(resource=Resource({}), shutdown_on_exit=False)
+    provider.add_span_processor(SimpleSpanProcessor(memory))
+    tracer = provider.get_tracer("batching-regression")
+    for _ in range(2):
+        with tracer.start_as_current_span(
+            payload if field == "span_name" else "span"
+        ) as span:
+            if field == "attribute_key":
+                span.set_attribute(payload, "value")
+            elif field == "attribute_value":
+                span.set_attribute("value", payload)
+            elif field == "array_value":
+                span.set_attribute("values", [payload])
+            elif field == "event_name":
+                span.add_event(payload)
+            elif field == "event_key":
+                span.add_event("event", {payload: "value"})
+            elif field == "event_value":
+                span.add_event("event", {"value": payload})
+    spans = memory.get_finished_spans()
+    provider.shutdown()
+
+    class ByteLimitedRecorder(Recorder):
+        def export(self, spans):
+            self.requests.append(list(spans))
+            body = encode_spans(spans).SerializeToString()
+            return (
+                SpanExportResult.SUCCESS
+                if len(body) <= 7000
+                else SpanExportResult.FAILURE
+            )
+
+    recorder = ByteLimitedRecorder()
+    exporter = BoundedSpanExporter(recorder, max_bytes=7000)
+    assert exporter.export(spans) is SpanExportResult.SUCCESS
+    assert [span for batch in recorder.requests for span in batch] == list(spans)
+    assert all(
+        len(encode_spans(batch).SerializeToString()) <= 7000
+        for batch in recorder.requests
+    )
