@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — Provider setup
+
+- Always export from the global TracerProvider (Python). `init(tracer_provider=...)`
+  now also attaches to the global provider instead of replacing it, and
+  registers the supplied provider globally when none is set, so spans from
+  frameworks, auto-instrumentation and other SDKs no longer go missing.
+  Behavior change for `tracer_provider=` users: AI spans emitted by other
+  instrumentation on the global provider, and their parents, are now exported
+  too, under those instrumentors' own content policies.
+- Apply the standard `OTEL_EXPORTER_OTLP_PROTOCOL` variables only when a
+  Confident endpoint is configured (Python and TypeScript), so a gRPC setting
+  meant for another collector no longer disables tracing to the default endpoint.
+
 ## Unreleased — Pipecat
 
 - Trace Pipecat pipelines (Python): `init()` turns on Pipecat's tracing for every

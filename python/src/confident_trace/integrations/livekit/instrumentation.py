@@ -1,10 +1,8 @@
 """Native LiveKit Agents telemetry interoperability."""
 
-import weakref
 from importlib.metadata import version
 
 from opentelemetry import trace
-from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
 
 from ..._attributes import Integration
 from ..._core.runtime import log
@@ -13,25 +11,6 @@ from .._shared.lifecycle import register_native_inference
 from .._shared.patching import install_targets
 from ._constants import INFERENCE_SPANS, SCOPE_NAME
 from .recording import register_recording_upload
-
-
-class _SharedProcessor(SpanProcessor):
-    """Our processor on an application provider; its shutdown must not stop ours."""
-
-    def __init__(self, delegate):
-        self.delegate = delegate
-
-    def on_start(self, span, parent_context=None):
-        self.delegate.on_start(span, parent_context)
-
-    def on_end(self, span):
-        self.delegate.on_end(span)
-
-    def force_flush(self, timeout_millis=30000):
-        return self.delegate.force_flush(timeout_millis)
-
-    def shutdown(self):
-        pass
 
 
 def instrument(runtime):
@@ -72,26 +51,15 @@ def instrument(runtime):
 
         return start
 
-    shared = weakref.WeakSet()
-
     # A provider handed to LiveKit after init (e.g. per call) would otherwise
     # take its spans away from our exporter.
     def provider_wrapper(original, method):
         def set_provider(wrapped, instance, args, kwargs):
             result = wrapped(*args, **kwargs)
-            provider = instance._tracer_provider
-            if (
-                runtime.active
-                and runtime.processor
-                and isinstance(provider, TracerProvider)
-                and provider is not runtime.provider
-                and provider not in shared
-            ):
-                try:
-                    provider.add_span_processor(_SharedProcessor(runtime.processor))
-                    shared.add(provider)
-                except Exception:
-                    log.debug("LiveKit tracer provider could not be shared")
+            try:
+                runtime.share(instance._tracer_provider)
+            except Exception:
+                log.debug("LiveKit tracer provider could not be shared")
             return result
 
         return set_provider

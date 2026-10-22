@@ -15,10 +15,16 @@ export function resolveExportOptions(
   options: ExportOptions,
 ): ResolvedExportOptions {
   const env = process.env;
+  const endpointConfigured =
+    options.endpoint !== undefined || Boolean(env.CONFIDENT_OTEL_ENDPOINT);
+  // The standard protocol variables describe the application's own collector.
+  // Without a Confident endpoint they do not apply here.
   const protocol =
     options.protocol ??
-    env.OTEL_EXPORTER_OTLP_TRACES_PROTOCOL ??
-    env.OTEL_EXPORTER_OTLP_PROTOCOL ??
+    (endpointConfigured
+      ? (env.OTEL_EXPORTER_OTLP_TRACES_PROTOCOL ??
+        env.OTEL_EXPORTER_OTLP_PROTOCOL)
+      : undefined) ??
     'http/protobuf';
   if (protocol !== 'http/protobuf' && protocol !== 'grpc') {
     throw new Error('Unsupported OTLP protocol');
