@@ -26,6 +26,21 @@ export function liveKitOwnsCall(): boolean {
   );
 }
 
+// Confident AI's voice simulations dispatch the agent with this key in the job
+// metadata, naming the simulated test case the call's trace belongs to.
+const TEST_CASE_ID_METADATA_KEY = 'confident_test_case_id';
+
+/** The Confident AI test case a simulated call was dispatched for, if any. */
+export function testCaseIdFrom(metadata: string | undefined): string | undefined {
+  if (!metadata) return undefined;
+  try {
+    const value: unknown = JSON.parse(metadata)?.[TEST_CASE_ID_METADATA_KEY];
+    return typeof value === 'string' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // About what the upload bound carries at 50 Mbps, roughly 25 minutes of call.
 const MAX_RECORDING_BYTES = 18 * 1024 * 1024;
 // Leaves the final span flush its own share of LiveKit's 10s shutdown budget.
@@ -84,7 +99,7 @@ type SessionReport = {
   audioRecordingStartedAt?: number;
 };
 export type LiveKitJobContext = {
-  job: { room?: { sid?: string } };
+  job: { room?: { sid?: string }; metadata?: string };
   makeSessionReport(): SessionReport;
   addShutdownCallback(callback: () => Promise<void>): void;
 };

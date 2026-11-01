@@ -451,3 +451,37 @@ it('bounds a hung call recording upload', async () => {
     edge.close();
   }
 }, 15_000);
+
+it.each([
+  ['{"confident_test_case_id": "case-1"}', 'case-1'],
+  ['{"caller": "+15550100"}', undefined],
+  ['not json', undefined],
+  ['', undefined],
+])(
+  'links the trace to the test case named in dispatch metadata %s',
+  async (metadata, testCaseId) => {
+    const { init } = await import('@/runtime/init');
+    const { attachLiveKit } = await import('@/auto/livekit');
+    init({ exporter: new InMemorySpanExporter() });
+    attachLiveKit({ telemetry });
+    const ctx = {
+      job: { room: { sid: 'RM_room' }, metadata },
+      makeSessionReport: () => ({}),
+      addShutdownCallback: () => {},
+    };
+    class AgentSession {
+      async start() {}
+    }
+    attachLiveKit({ getJobContext: () => ctx });
+    attachLiveKit({ AgentSession });
+    const attributes = await trace
+      .getTracer('livekit-test-case-test')
+      .startActiveSpan('livekit-job', async (span) => {
+        await new AgentSession().start();
+        span.end();
+        return (span as unknown as { attributes: Record<string, unknown> })
+          .attributes;
+      });
+    expect(attributes['confident.trace.test_case_id']).toBe(testCaseId);
+  },
+);

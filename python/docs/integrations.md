@@ -397,6 +397,11 @@ recorded are traced as before. `capture_content=False` or
 The recording is attached to the room's thread, so a call placed under a custom
 thread ID gets its audio on a separate thread named after the room.
 
+When a Confident AI voice simulation dispatches the agent, the job metadata
+carries `confident_test_case_id`. The SDK reads it when the session starts and
+sets it as the trace's `confident.trace.test_case_id`, unless the trace already
+has one, so the call's trace is linked to its simulated test case.
+
 ## Pipecat (native OTel)
 
 Call `init()` before the pipeline is built, normally at the top of the bot file.
@@ -431,6 +436,13 @@ counted once. Pass `PipelineParams(enable_metrics=True)` to also get
 time-to-first-byte on service spans. Static context known before the call
 (customer, environment) goes in `PipelineWorker(additional_span_attributes={...})`,
 which Pipecat sets on the `conversation` span.
+
+When a Confident AI voice simulation starts the bot, the start request's body
+carries `confident_test_case_id`. Pipecat passes that body on the runner
+arguments; the SDK reads it there and sets it as the trace's
+`confident.trace.test_case_id` when the conversation span starts, so the call's
+trace is linked to its simulated test case. A bot reached directly at its
+`/api/offer` URL gets no body, so it isn't linked this way.
 
 When the pipeline finishes, Confident flushes after Pipecat ends the conversation
 span, with a five-second budget, so bots that exit as soon as the call ends

@@ -289,7 +289,7 @@ class Receiver:
         self.endpoint = f"http://127.0.0.1:{self.server.server_port}/v1/traces"
 
 
-def fake_job_context(monkeypatch, recording_path, started_at=1788652800.5):
+def fake_job_context(monkeypatch, recording_path, started_at=1788652800.5, metadata=""):
     from types import SimpleNamespace
 
     import livekit.agents
@@ -301,7 +301,7 @@ def fake_job_context(monkeypatch, recording_path, started_at=1788652800.5):
     )
 
     class FakeJobContext:
-        job = SimpleNamespace(room=SimpleNamespace(sid="RM_room"))
+        job = SimpleNamespace(room=SimpleNamespace(sid="RM_room"), metadata=metadata)
         add_shutdown_callback = staticmethod(callbacks.append)
 
         def make_session_report(self):
@@ -441,4 +441,29 @@ async def test_session_start_outside_a_job_registers_nothing():
     await converse()
     ct.flush()
     assert by_scope(exporter.get_finished_spans(), "livekit-agents")
+    ct.shutdown()
+
+
+@pytest.mark.parametrize(
+    "metadata, test_case_id",
+    [
+        ('{"confident_test_case_id": "case-1"}', "case-1"),
+        ('{"caller": "+15550100"}', None),
+        ("not json", None),
+        ("", None),
+    ],
+)
+def test_dispatch_metadata_links_the_trace_to_its_test_case(
+    metadata, test_case_id, monkeypatch
+):
+    from confident_trace.integrations.livekit.test_case import link_test_case
+
+    exporter = InMemorySpanExporter()
+    ct.init(exporter=exporter, instrumentations=("livekit",))
+    fake_job_context(monkeypatch, None, metadata=metadata)
+    with ct.span("livekit-job"):
+        link_test_case()
+    ct.flush()
+    [span] = exporter.get_finished_spans()
+    assert span.attributes.get("confident.trace.test_case_id") == test_case_id
     ct.shutdown()

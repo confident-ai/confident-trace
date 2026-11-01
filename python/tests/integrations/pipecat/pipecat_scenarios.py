@@ -567,3 +567,27 @@ async def test_buffered_audio_is_uploaded_as_one_recording(tmp_path):
     recording.write_bytes(body)
     assert soundfile.info(recording).duration > 2.5
     ct.shutdown()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body, test_case_id",
+    [
+        ({"confident_test_case_id": "case-1"}, "case-1"),
+        ({"caller": "+15550100"}, None),
+        ({}, None),
+    ],
+)
+async def test_start_body_links_the_trace_to_its_test_case(body, test_case_id):
+    from pipecat.runner.types import RunnerArguments
+
+    exporter = InMemorySpanExporter()
+    ct.init(exporter=exporter, instrumentations=("pipecat",))
+    RunnerArguments(body=body)
+    await converse()
+    ct.flush()
+    (conversation,) = [
+        s for s in exporter.get_finished_spans() if s.name == "conversation"
+    ]
+    assert conversation.attributes.get("confident.trace.test_case_id") == test_case_id
+    ct.shutdown()
