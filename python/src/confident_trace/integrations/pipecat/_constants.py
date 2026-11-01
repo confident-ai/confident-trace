@@ -26,6 +26,4 @@ CONTENT_ATTRIBUTES = frozenset(
         "function_calls",
     }
 )
-# Confident AI's voice simulations start the bot with this key in the request
-# body, naming the simulated test case the call's trace belongs to.
 TEST_CASE_ID_BODY_KEY = "confident_test_case_id"

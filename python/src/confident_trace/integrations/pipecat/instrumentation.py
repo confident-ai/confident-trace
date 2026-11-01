@@ -58,8 +58,6 @@ def instrument(runtime):
 
         return cleanup
 
-    # Pipecat Cloud and the development runner pass the /start request body to
-    # the bot on its runner arguments.
     def runner_arguments_wrapper(original, method):
         def post_init(wrapped, instance, args, kwargs):
             result = wrapped(*args, **kwargs)
