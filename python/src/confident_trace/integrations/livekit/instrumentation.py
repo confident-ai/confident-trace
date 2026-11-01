@@ -13,7 +13,6 @@ from .._shared.lifecycle import register_native_inference
 from .._shared.patching import install_targets
 from ._constants import INFERENCE_SPANS, SCOPE_NAME
 from .recording import register_recording_upload
-from .test_case import link_test_case
 
 
 class _SharedProcessor(SpanProcessor):
@@ -69,10 +68,6 @@ def instrument(runtime):
                     register_recording_upload(runtime)
                 except Exception:
                     log.debug("LiveKit call recording upload unavailable")
-                try:
-                    link_test_case()
-                except Exception:
-                    log.debug("LiveKit test case link unavailable")
             return result
 
         return start

@@ -57,7 +57,6 @@ def livekit_environment():
         "test_call_recording_upload_skips_tls_verification_when_asked",
         "test_call_recording_is_skipped_without_an_active_trace",
         "test_session_start_outside_a_job_registers_nothing",
-        "test_dispatch_metadata_links_the_trace_to_its_test_case",
     ],
 )
 def test_livekit_scenario(scenario, livekit_environment, tmp_path):

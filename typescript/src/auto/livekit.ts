@@ -5,22 +5,14 @@ import {
   ProxyTracerProvider,
   trace,
 } from '@opentelemetry/api';
-import type { Span } from '@opentelemetry/api';
 import { enabled, failed, onActivate } from '@/auto/control';
 import { observed, replace } from '@/auto/patch';
 import type { Foreign } from '@/auto/patch';
-import {
-  SCOPE,
-  testCaseIdFrom,
-  uploadCallRecording,
-} from '@/integrations/livekit';
+import { SCOPE, uploadCallRecording } from '@/integrations/livekit';
 import type { LiveKitJobContext } from '@/integrations/livekit';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { state } from '@/runtime/state';
-import {
-  ATTR_CONFIDENT_TRACE_TEST_CASE_ID,
-  INTEGRATIONS,
-} from '@/semconv/generated';
+import { INTEGRATIONS } from '@/semconv/generated';
 
 type GetJobContext = (required: false) => LiveKitJobContext | undefined;
 // The ESM and CJS builds each keep their own job context store.
@@ -62,16 +54,12 @@ function shareProvider(provider: Foreign, options: Foreign): void {
   sharedProviders.add(provider);
 }
 
-function currentJobContext(): LiveKitJobContext | undefined {
-  for (const getJobContext of getJobContextCopies) {
-    const ctx = getJobContext(false);
-    if (ctx) return ctx;
-  }
-  return undefined;
-}
-
 function registerRecordingUpload(): void {
-  const ctx = currentJobContext();
+  let ctx: LiveKitJobContext | undefined;
+  for (const getJobContext of getJobContextCopies) {
+    ctx = getJobContext(false);
+    if (ctx) break;
+  }
   if (!ctx || jobsWithRecordingUpload.has(ctx)) return;
   const spanContext = trace.getSpan(context.active())?.spanContext();
   if (!spanContext || !isSpanContextValid(spanContext)) return;
@@ -80,19 +68,6 @@ function registerRecordingUpload(): void {
   const job = ctx;
   const traceUuid = spanContext.traceId;
   job.addShutdownCallback(() => uploadCallRecording(job, traceUuid));
-}
-
-function linkTestCase(): void {
-  const testCaseId = testCaseIdFrom(currentJobContext()?.job.metadata);
-  const span = trace.getSpan(context.active()) as
-    (Span & { attributes?: Record<string, unknown> }) | undefined;
-  if (
-    !testCaseId ||
-    !span?.isRecording() ||
-    span.attributes?.[ATTR_CONFIDENT_TRACE_TEST_CASE_ID] !== undefined
-  )
-    return;
-  span.setAttribute(ATTR_CONFIDENT_TRACE_TEST_CASE_ID, testCaseId);
 }
 
 export function attachLiveKit(exports: Foreign, modulePath = ''): void {
@@ -110,11 +85,6 @@ export function attachLiveKit(exports: Foreign, modulePath = ''): void {
               registerRecordingUpload();
             } catch {
               diag.debug('LiveKit call recording upload unavailable');
-            }
-            try {
-              linkTestCase();
-            } catch {
-              diag.debug('LiveKit test case link unavailable');
             }
           }
           return result;

@@ -397,11 +397,6 @@ recorded are traced as before. `capture_content=False` or
 The recording is attached to the room's thread, so a call placed under a custom
 thread ID gets its audio on a separate thread named after the room.
 
-When a Confident AI voice simulation dispatches the agent, the job metadata
-carries `confident_test_case_id`. The SDK reads it when the session starts and
-sets it as the trace's `confident.trace.test_case_id`, unless the trace already
-has one, so the call's trace is linked to its simulated test case.
-
 ## Pipecat (native OTel)
 
 Call `init()` before the pipeline is built, normally at the top of the bot file.
