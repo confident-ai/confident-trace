@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Voice simulation test cases
+
+- Link a Pipecat call's trace to the test case named by
+  `confident_test_case_id` in the bot's start request body (Python).
+
 ## Unreleased — OpenAI tool results
 
 - Keep tool calls and their results in an OpenAI Responses input (TypeScript):

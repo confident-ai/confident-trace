@@ -5,6 +5,7 @@ from importlib.metadata import version
 from opentelemetry import trace
 
 from ..._attributes import Integration
+from ..._core.runtime import log
 from .._shared.flush import bounded_flush
 from .._shared.lifecycle import register_native_inference
 from .._shared.patching import install_targets
@@ -20,6 +21,7 @@ from .recording import (
     recording_started,
     upload_recording,
 )
+from .test_case import link_test_case, remember_test_case
 
 
 def instrument(runtime):
@@ -56,6 +58,30 @@ def instrument(runtime):
 
         return cleanup
 
+    def runner_arguments_wrapper(original, method):
+        def post_init(wrapped, instance, args, kwargs):
+            result = wrapped(*args, **kwargs)
+            if runtime.active:
+                try:
+                    remember_test_case(instance)
+                except Exception:
+                    log.debug("Pipecat test case link unavailable")
+            return result
+
+        return post_init
+
+    def conversation_wrapper(original, method):
+        def start_conversation(wrapped, instance, args, kwargs):
+            result = wrapped(*args, **kwargs)
+            if runtime.active:
+                try:
+                    link_test_case(instance)
+                except Exception:
+                    log.debug("Pipecat test case link unavailable")
+            return result
+
+        return start_conversation
+
     def recorder_setup_wrapper(original, method):
         async def setup(wrapped, instance, args, kwargs):
             result = await wrapped(*args, **kwargs)
@@ -79,6 +105,20 @@ def instrument(runtime):
         raise RuntimeError("Pipecat pipeline hook could not be installed")
     undo += install_targets(
         [("pipecat.pipeline.worker", "PipelineWorker", "_cleanup")], cleanup_wrapper
+    )
+    undo += install_targets(
+        [("pipecat.runner.types", "RunnerArguments", "__post_init__")],
+        runner_arguments_wrapper,
+    )
+    undo += install_targets(
+        [
+            (
+                "pipecat.utils.tracing.turn_trace_observer",
+                "TurnTraceObserver",
+                "start_conversation_tracing",
+            )
+        ],
+        conversation_wrapper,
     )
     undo += install_targets(
         [

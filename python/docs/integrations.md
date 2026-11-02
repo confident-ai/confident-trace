@@ -432,6 +432,13 @@ time-to-first-byte on service spans. Static context known before the call
 (customer, environment) goes in `PipelineWorker(additional_span_attributes={...})`,
 which Pipecat sets on the `conversation` span.
 
+When a Confident AI voice simulation starts the bot, the start request's body
+carries `confident_test_case_id`. Pipecat passes that body on the runner
+arguments; the SDK reads it there and sets it as the trace's
+`confident.trace.test_case_id` when the conversation span starts, so the call's
+trace is linked to its simulated test case. A bot reached directly at its
+`/api/offer` URL gets no body, so it isn't linked this way.
+
 When the pipeline finishes, Confident flushes after Pipecat ends the conversation
 span, with a five-second budget, so bots that exit as soon as the call ends
 (Pipecat Cloud, serverless) still deliver the trace. A failed export does not

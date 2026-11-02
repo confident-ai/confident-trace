@@ -26,3 +26,4 @@ CONTENT_ATTRIBUTES = frozenset(
         "function_calls",
     }
 )
+TEST_CASE_ID_BODY_KEY = "confident_test_case_id"

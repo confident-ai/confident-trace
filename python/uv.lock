@@ -21,7 +21,7 @@ wheels = [
 
 [[package]]
 name = "confident-trace"
-version = "0.1.5"
+version = "0.1.11"
 source = { editable = "." }
 dependencies = [
     { name = "opentelemetry-api" },

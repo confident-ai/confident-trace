@@ -58,6 +58,7 @@ def pipecat_environment():
         "test_user_audio_handlers_keep_receiving_audio",
         "test_call_recording_upload_is_bounded",
         "test_buffered_audio_is_uploaded_as_one_recording",
+        "test_start_body_links_the_trace_to_its_test_case",
     ],
 )
 def test_pipecat_scenario(scenario, pipecat_environment, tmp_path):
