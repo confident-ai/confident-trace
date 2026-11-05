@@ -107,9 +107,15 @@ endpoint. Authentication and project selection are handled by the backend.
 `init(tracer_provider=provider)` adds only a standard batch export pipeline to
 an existing SDK provider. It does not change its resources, sampler, propagator,
 or other processors. Resource arguments apply only when creating a provider.
-Without an explicit provider, an existing global provider is reused. Standard
-OTel W3C propagation remains available; the package does not instrument HTTP
-frameworks or install a different propagator.
+Without an explicit provider, an existing global provider is reused. If none is
+set, `init()` installs its own as the global provider, so your own OTel spans and
+other instrumentation are recorded too. A library that starts tracing on its users'
+behalf can pass `global_provider=False` to keep ours private instead, so the
+application can still set its own global provider afterwards. The Google ADK,
+Microsoft Agent Framework, Pipecat, Pydantic AI and Strands integrations still
+install ours there when none is set, because those frameworks create their spans on
+the global provider. Standard OTel W3C propagation remains available; the package
+does not instrument HTTP frameworks or install a different propagator.
 
 Initialization is idempotent; call `shutdown()` before reconfiguring. Initialization
 failure returns an inactive runtime and logs a content-free warning. `flush()`
