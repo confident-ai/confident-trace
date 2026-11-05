@@ -268,7 +268,8 @@ await provider.shutdown();
 
 JavaScript OTel SDK 2.x does not support adding processors after provider
 construction. `init()` never attaches to or replaces an existing global provider;
-it returns an inactive runtime and reports a diagnostic through OTel `diag`.
+it returns an inactive runtime and reports a diagnostic through OTel `diag`, unless
+`globalProvider: false` is passed.
 Package-level `flush()` and `shutdown()` apply only to the package-owned runtime.
 The processor factory throws on invalid configuration; `init()` catches setup
 failures and returns an inactive runtime with a content-free diagnostic.
@@ -283,9 +284,16 @@ option takes precedence. Standard OTel endpoint variables are ignored.
 
 `init()` accepts `instrumentations` (`"all"` or an array of integration names), plus camelCase options: `apiKey`, `endpoint`, `protocol`, `headers`,
 `timeoutMillis`, `compression`, `tlsSkipVerify`, `exporter`, `exportNonAiSpans`, `resourceAttributes`, `captureContent`,
-`maxContentBytes`, `redact`, and `spanProcessors`. The processor factory accepts export options only.
+`maxContentBytes`, `redact`, `spanProcessors`, and `globalProvider`. The processor factory accepts export options only.
 `spanProcessors` run after the package's exporting processor on the package-owned
 provider, see every span, and are shut down with the runtime.
+By default `init()` registers its provider and propagator globally, so your own OTel
+spans and other instrumentation are recorded too. A library that starts tracing on its
+users' behalf can pass `globalProvider: false` to keep them private instead: the
+application can still register its own provider later, and an application that
+already registered one doesn't turn tracing off. This package's spans are still
+recorded; other OTel spans are not. Create the library's own spans on
+`runtime.provider`, the provider the runtime records on.
 An injected exporter is owned by the resulting processor and bypasses exporter
 configuration. Disabled/invalid-before-construction initialization does not consume it.
 
