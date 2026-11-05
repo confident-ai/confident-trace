@@ -243,6 +243,9 @@ def test_global_provider_can_be_left_to_the_application(monkeypatch):
     with ct.span("step"):
         pass
     assert [s.name for s in spans(exporter)] == ["step"]
+    # A library may install ours for frameworks its user asked it to trace.
+    holder[0] = rt.provider
+    assert use_global_provider(rt)
     ct.shutdown()
     # An application provider set beforehand is neither joined nor replaced.
     application_spans = InMemorySpanExporter()
@@ -253,6 +256,7 @@ def test_global_provider_can_be_left_to_the_application(monkeypatch):
     rt = ct.init(exporter=exporter, instrumentations=(), global_provider=False)
     assert rt.provider is not application
     assert holder[0] is application
+    assert not use_global_provider(rt)
     with ct.span("step"):
         pass
     assert [s.name for s in spans(exporter)] == ["step"]

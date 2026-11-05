@@ -41,11 +41,12 @@ def use_global_provider(rt):
     provider. Install ours there unless the application has set one.
 
     Returns whether native spans reach us. With `init(global_provider=False)`
-    they don't: the global provider is left alone, and callers shouldn't turn
-    a framework's telemetry on just to send it to the application's pipeline.
+    the global provider is left alone, so they do only if a library installed
+    ours there itself; callers shouldn't turn a framework's telemetry on just to
+    send it to the application's pipeline.
     """
     if not getattr(rt, "global_provider", True):
-        return False
+        return trace.get_tracer_provider() is rt.provider
     if isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider):
         trace.set_tracer_provider(rt.provider)
     return True

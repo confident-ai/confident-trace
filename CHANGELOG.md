@@ -11,7 +11,8 @@
   - Python: the Google ADK, Microsoft Agent Framework, Pipecat, Pydantic AI and
     Strands integrations don't install ours as the global provider, and Pydantic
     AI, Microsoft Agent Framework and Pipecat don't turn their native telemetry
-    on, since it would only reach the application's pipeline.
+    on, since it would only reach the application's pipeline. A library that
+    installs `runtime.provider` as the global provider itself gets both.
   - TypeScript: the propagator stays private too, `init()` stays active beside a
     provider the application already registered instead of turning tracing off,
     and `shutdown()` leaves the context manager enabled. This package's spans now

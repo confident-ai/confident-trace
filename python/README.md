@@ -116,7 +116,8 @@ afterwards, and an existing one isn't joined. This package's spans are still
 recorded on `runtime.provider`; other OTel spans are not. That includes the Google
 ADK, Microsoft Agent Framework, Pipecat, Pydantic AI and Strands integrations,
 which create their spans on the global provider: their native telemetry isn't
-turned on or recorded. Standard OTel W3C propagation remains available; the package
+turned on or recorded unless the library installs `runtime.provider` as the
+global provider itself. Standard OTel W3C propagation remains available; the package
 does not instrument HTTP frameworks or install a different propagator.
 
 Initialization is idempotent; call `shutdown()` before reconfiguring. Initialization
