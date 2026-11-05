@@ -8,11 +8,12 @@ from ._constants import SCOPE_NAME
 def instrument(runtime):
     from pydantic_ai import Agent
 
-    use_global_provider(runtime)
-
     # There is no public getter for the process default. Preserve configured
     # settings; unknown future layouts leave enablement to the application.
-    if getattr(Agent, "_instrument_default", None) is False:
+    if (
+        use_global_provider(runtime)
+        and getattr(Agent, "_instrument_default", None) is False
+    ):
         Agent.instrument_all(True)
     # Native enablement remains in place for other application exporters.
     runtime.processor.integration_scopes[SCOPE_NAME] = Integration.PYDANTIC_AI

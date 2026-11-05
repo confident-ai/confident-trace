@@ -110,11 +110,13 @@ or other processors. Resource arguments apply only when creating a provider.
 Without an explicit provider, an existing global provider is reused. If none is
 set, `init()` installs its own as the global provider, so your own OTel spans and
 other instrumentation are recorded too. A library that starts tracing on its users'
-behalf can pass `global_provider=False` to keep ours private instead, so the
-application can still set its own global provider afterwards. The Google ADK,
-Microsoft Agent Framework, Pipecat, Pydantic AI and Strands integrations still
-install ours there when none is set, because those frameworks create their spans on
-the global provider. Standard OTel W3C propagation remains available; the package
+behalf can pass `global_provider=False` to leave the global provider to the
+application: ours stays private, so the application can still set its own
+afterwards, and an existing one isn't joined. This package's spans are still
+recorded on `runtime.provider`; other OTel spans are not. That includes the Google
+ADK, Microsoft Agent Framework, Pipecat, Pydantic AI and Strands integrations,
+which create their spans on the global provider: their native telemetry isn't
+turned on or recorded. Standard OTel W3C propagation remains available; the package
 does not instrument HTTP frameworks or install a different propagator.
 
 Initialization is idempotent; call `shutdown()` before reconfiguring. Initialization

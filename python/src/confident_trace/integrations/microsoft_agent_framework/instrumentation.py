@@ -8,12 +8,10 @@ from ._constants import SCOPE_NAME
 def instrument(runtime):
     from agent_framework import observability
 
-    use_global_provider(runtime)
-
     settings = observability.OBSERVABILITY_SETTINGS
     # Preserve native content settings and the framework's sticky user disable.
     # Native instrumentation remains application-owned across our shutdown.
-    if not settings.enable_instrumentation:
+    if use_global_provider(runtime) and not settings.enable_instrumentation:
         observability.enable_instrumentation(
             enable_sensitive_data=settings.enable_sensitive_data
         )

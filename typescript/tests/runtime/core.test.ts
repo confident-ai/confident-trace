@@ -229,6 +229,13 @@ async function appAndPackageSpans(registerAppFirst: boolean) {
     spans.getFinishedSpans().map((s) => s.instrumentationScope.name);
   expect(scopes(exporter)).toEqual(['confident-trace', 'library']);
   expect(scopes(appSpans)).toEqual(['app']);
+  // The application may rely on our context manager; shutdown leaves it on.
+  expect(await runtime.shutdown()).toBe(true);
+  await trace.getTracer('app').startActiveSpan('after', async (span) => {
+    await Promise.resolve();
+    expect(trace.getActiveSpan()).toBe(span);
+    span.end();
+  });
   await app.shutdown();
 }
 it('can leave the global provider for the application to register later', () =>

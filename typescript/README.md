@@ -293,7 +293,8 @@ users' behalf can pass `globalProvider: false` to keep them private instead: the
 application can still register its own provider later, and an application that
 already registered one doesn't turn tracing off. This package's spans are still
 recorded; other OTel spans are not. Create the library's own spans on
-`runtime.provider`, the provider the runtime records on.
+`runtime.provider`, the provider the runtime records on. `shutdown()` then leaves
+the context manager enabled, since the application may rely on it.
 An injected exporter is owned by the resulting processor and bypasses exporter
 configuration. Disabled/invalid-before-construction initialization does not consume it.
 

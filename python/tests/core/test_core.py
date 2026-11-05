@@ -203,35 +203,60 @@ def test_idempotence_and_shared_provider_ownership(telemetry):
     assert len(other.get_finished_spans()) == 1
 
 
-def test_global_provider_can_be_left_to_the_application(monkeypatch):
-    from confident_trace.integrations._shared.lifecycle import use_global_provider
-
+def _global_provider(monkeypatch):
+    """A stand-in for the process's set-once global provider."""
     ct.shutdown()
     holder = [otel.ProxyTracerProvider()]
     monkeypatch.setattr(otel, "get_tracer_provider", lambda: holder[0])
     monkeypatch.setattr(
         otel, "set_tracer_provider", lambda value: holder.__setitem__(0, value)
     )
+    return holder
+
+
+def test_global_provider_by_default(monkeypatch):
+    from confident_trace.integrations._shared.lifecycle import use_global_provider
+
+    holder = _global_provider(monkeypatch)
     rt = ct.init(exporter=InMemorySpanExporter(), instrumentations=())
-    assert holder[0] is rt.provider  # By default ours becomes the global provider.
+    assert holder[0] is rt.provider
+    # A framework integration never replaces the application's provider.
+    application = TracerProvider()
+    holder[0] = application
+    assert use_global_provider(rt)
+    assert holder[0] is application
     ct.shutdown()
-    holder[0] = otel.ProxyTracerProvider()
+
+
+def test_global_provider_can_be_left_to_the_application(monkeypatch):
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+    from confident_trace.integrations._shared.lifecycle import use_global_provider
+
+    holder = _global_provider(monkeypatch)
     exporter = InMemorySpanExporter()
     rt = ct.init(exporter=exporter, instrumentations=(), global_provider=False)
-    # Unset, so the application can still install its own provider.
+    # Unset, so the application can still install its own provider, and
+    # frameworks that emit only on the global provider don't install ours.
+    assert not use_global_provider(rt)
     assert isinstance(holder[0], otel.ProxyTracerProvider)
     with ct.span("step"):
         pass
     assert [s.name for s in spans(exporter)] == ["step"]
-    # A framework that creates its spans on the global provider installs ours,
-    # but never replaces the application's.
+    ct.shutdown()
+    # An application provider set beforehand is neither joined nor replaced.
+    application_spans = InMemorySpanExporter()
     application = TracerProvider()
+    application.add_span_processor(SimpleSpanProcessor(application_spans))
     holder[0] = application
-    use_global_provider(rt)
+    exporter = InMemorySpanExporter()
+    rt = ct.init(exporter=exporter, instrumentations=(), global_provider=False)
+    assert rt.provider is not application
     assert holder[0] is application
-    holder[0] = otel.ProxyTracerProvider()
-    use_global_provider(rt)
-    assert holder[0] is rt.provider
+    with ct.span("step"):
+        pass
+    assert [s.name for s in spans(exporter)] == ["step"]
+    assert application_spans.get_finished_spans() == ()
     ct.shutdown()
 
 

@@ -3,17 +3,20 @@
 ## Unreleased — Leaving the global provider to the application
 
 - Accept `global_provider=False` in `init()` (Python) and `globalProvider: false`
-  (TypeScript), for libraries that start tracing on their users' behalf. Without a
-  global provider set, `init()` then keeps its own private, so the application can
-  still set one later; OpenTelemetry keeps the first one set. The default is
-  unchanged.
+  (TypeScript), for libraries that start tracing on their users' behalf. `init()`
+  then leaves the global provider to the application: ours stays private, so the
+  application can still set one later (OpenTelemetry keeps the first one set), and
+  an existing one isn't joined. This package's spans are recorded on
+  `runtime.provider`; other OTel spans are not. The default is unchanged.
   - Python: the Google ADK, Microsoft Agent Framework, Pipecat, Pydantic AI and
-    Strands integrations still install ours as the global provider when none is
-    set, because those frameworks create their spans there.
-  - TypeScript: the propagator stays private too, and `init()` stays active beside
-    a provider the application already registered instead of turning tracing off.
-    This package's spans now always come from its own provider, which
-    `runtime.provider` exposes for a library's own spans, as in Python.
+    Strands integrations don't install ours as the global provider, and Pydantic
+    AI, Microsoft Agent Framework and Pipecat don't turn their native telemetry
+    on, since it would only reach the application's pipeline.
+  - TypeScript: the propagator stays private too, `init()` stays active beside a
+    provider the application already registered instead of turning tracing off,
+    and `shutdown()` leaves the context manager enabled. This package's spans now
+    always come from its own provider, which `runtime.provider` exposes for a
+    library's own spans, as in Python.
 
 ## Unreleased — Voice simulation test cases
 

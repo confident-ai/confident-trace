@@ -154,7 +154,13 @@ export function init(options: InitOptions = {}): TraceRuntime {
           ],
         }),
       );
-    runtime = new OwnedRuntime(provider, policy, ownedContext);
+    // Without the global provider, the application may set up its own and rely
+    // on this context manager, so shutdown leaves it enabled.
+    runtime = new OwnedRuntime(
+      provider,
+      policy,
+      global ? ownedContext : undefined,
+    );
     state.runtime = runtime;
     state.ownedProvider = {
       tracerProvider: provider,
