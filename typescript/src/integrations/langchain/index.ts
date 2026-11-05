@@ -7,7 +7,7 @@ import {
   safely,
   toolArguments,
 } from '@/integrations/framework';
-import { count, get, list } from '@/integrations/extract';
+import { count, get, list, reasoning } from '@/integrations/extract';
 import * as S from '@/semconv/generated';
 
 export interface LangChainCallbackOptions extends CallbackOptions {
@@ -30,6 +30,13 @@ function messages(values: unknown): unknown {
       'user';
     const content = get(value, 'content');
     const normalized = frameworkMessages([{ role, content }]);
+    const extra = get(value, 'additional_kwargs');
+    const reasoningContent = get(extra, 'reasoning_content');
+    const thought =
+      (typeof reasoningContent === 'string' && reasoningContent) ||
+      reasoning(get(extra, 'reasoning'));
+    if (thought)
+      normalized[0]?.parts.unshift({ type: 'reasoning', content: thought });
     const calls = list(get(value, 'tool_calls'));
     for (const call of calls)
       normalized[0]?.parts.push({

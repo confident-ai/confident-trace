@@ -237,7 +237,7 @@ def valid_content(value, shape):
         if type(part) is not dict or type(part.get("type")) is not str:
             return False
         kind = part["type"]
-        if kind == "text" and type(part.get("content")) is not str:
+        if kind in ("text", "reasoning") and type(part.get("content")) is not str:
             return False
         if kind == "tool_call" and type(part.get("name")) is not str:
             return False

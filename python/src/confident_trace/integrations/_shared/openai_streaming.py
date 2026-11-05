@@ -27,6 +27,11 @@ class Accumulator(BaseAccumulator):
                     self.append(tool, "arguments", delta)
             elif get(chunk, "type") == "response.output_text.delta":
                 self.append(first, "text", delta)
+            elif get(chunk, "type") in (
+                "response.reasoning_summary_text.delta",
+                "response.reasoning_text.delta",
+            ):
+                self.append(first, "reasoning", delta)
         else:
             self.append(first, "text", get(delta, "text"))
         reason = finish_reason(get(delta, "stop_reason"))
@@ -41,6 +46,11 @@ class Accumulator(BaseAccumulator):
                 candidate["finish_reason"] = reason
             change = get(choice, "delta", {})
             self.append(candidate, "text", get(change, "content"))
+            self.append(
+                candidate,
+                "reasoning",
+                get(change, "reasoning_content") or get(change, "reasoning"),
+            )
             for item in sequence(get(change, "tool_calls"), 32):
                 tool = self.tool(candidate, get(item, "index", 0))
                 if tool is None:

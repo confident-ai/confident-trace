@@ -35,7 +35,7 @@ class Accumulator:
         if type(index) is not int or index < 0 or index >= 128:
             return None
         return self.candidates.setdefault(
-            index, {"text": "", "tools": {}, "finish_reason": ""}
+            index, {"reasoning": "", "text": "", "tools": {}, "finish_reason": ""}
         )
 
     def tool(self, candidate, index):
@@ -55,11 +55,11 @@ class Accumulator:
     def emit(self, op):
         output = []
         for _, candidate in sorted(self.candidates.items()):
-            blocks = (
-                [{"type": "text", "content": candidate["text"]}]
-                if candidate["text"]
-                else []
-            )
+            blocks = [
+                {"type": kind, "content": candidate[kind]}
+                for kind in ("reasoning", "text")
+                if candidate[kind]
+            ]
             blocks += [
                 {**tool, "arguments": arguments(tool["arguments"])}
                 for tool in candidate["tools"].values()

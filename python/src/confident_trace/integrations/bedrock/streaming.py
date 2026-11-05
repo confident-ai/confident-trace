@@ -69,6 +69,7 @@ class Accumulator(BaseAccumulator):
         block = get(event, "contentBlockDelta")
         delta = get(block, "delta", {})
         self.append(candidate, "text", get(delta, "text"))
+        self.append(candidate, "reasoning", get(get(delta, "reasoningContent"), "text"))
         fragment = get(get(delta, "toolUse"), "input")
         if type(fragment) is str:
             tool = self.tool(candidate, get(block, "contentBlockIndex", 0))

@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import count, media
+from .._shared.extraction import count, media, reasoning, string
 
 try:
     from langgraph.types import Command, Send
@@ -53,10 +53,18 @@ def messages(values, *, output=False):
                         parts.append({"type": "text", "content": block})
                     elif type(block) is not dict:
                         continue
+                    elif (thought := reasoning(block)) is not None:
+                        parts.append({"type": "reasoning", "content": thought})
                     elif block.get("type") == "text" and type(block.get("text")) is str:
                         parts.append({"type": "text", "content": block["text"]})
                     elif block.get("type") in _MEDIA_BLOCKS:
                         parts.append(media(block))
+            extra = mapping(data.get("additional_kwargs"))
+            thought = string(extra.get("reasoning_content")) or reasoning(
+                extra.get("reasoning")
+            )
+            if thought:
+                parts.insert(0, {"type": "reasoning", "content": thought})
             for call in data.get("tool_calls", [])[:128]:
                 if type(call.get("name")) is str:
                     part = {

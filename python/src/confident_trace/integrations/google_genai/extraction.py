@@ -7,7 +7,7 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import count, get, media, sequence, string
+from .._shared.extraction import count, get, media, reasoning, sequence, string
 
 
 def parts(value, depth=0):
@@ -18,7 +18,10 @@ def parts(value, depth=0):
     result = []
     for block in sequence(value):
         text = get(block, "text")
-        if type(text) is str:
+        thought = reasoning(block)
+        if thought is not None:
+            result.append({"type": "reasoning", "content": thought})
+        elif type(text) is str:
             result.append({"type": "text", "content": text})
         elif get(block, "function_call") is not None:
             call = get(block, "function_call")

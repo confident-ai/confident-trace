@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — Thinking on model spans
+
+- Capture the model's readable thinking as `reasoning` parts in
+  `gen_ai.output.messages` (and input messages that replay it), ahead of the
+  answer, plain and streamed: Anthropic `thinking` blocks, Google thought parts,
+  Bedrock `reasoningContent`, OpenAI Responses reasoning summaries and the
+  `reasoning_content`/`reasoning` fields OpenAI-compatible gateways return.
+  Covers the provider integrations (including LiteLLM, OpenRouter and Portkey),
+  LangChain in both languages, and the OpenAI Agents SDK and AI SDK
+  (TypeScript). Anthropic thinking and Bedrock reasoning were dropped before,
+  and Google thoughts were recorded as answer text. Redacted and encrypted
+  thinking is still omitted.
+- Record Anthropic's `usage.output_tokens_details.thinking_tokens` as
+  `gen_ai.usage.reasoning.output_tokens` (Python and TypeScript).
+- OpenAI Responses reasoning items without a summary no longer add an empty
+  user message to TypeScript output messages.
+
 ## Unreleased — Streaming and token breakdowns on model spans (TypeScript)
 
 - Mark streamed model calls with `gen_ai.request.stream` and record

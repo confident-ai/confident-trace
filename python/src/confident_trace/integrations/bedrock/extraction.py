@@ -5,7 +5,7 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import count, get, media, sequence, string
+from .._shared.extraction import count, get, media, reasoning, sequence, string
 
 _MEDIA_BLOCKS = ("image", "document", "video")
 
@@ -18,7 +18,10 @@ def parts(blocks, depth=0):
         text = get(block, "text")
         tool = get(block, "toolUse")
         result = get(block, "toolResult")
-        if type(text) is str:
+        thought = reasoning(block)
+        if thought is not None:
+            output.append({"type": "reasoning", "content": thought})
+        elif type(text) is str:
             output.append({"type": "text", "content": text})
         elif type(tool) is dict:
             output.append(
@@ -42,7 +45,7 @@ def parts(blocks, depth=0):
         elif any(get(block, key) is not None for key in _MEDIA_BLOCKS):
             output.append(media(block))
         else:
-            # Reasoning signatures and unknown payloads stay out of content
+            # Redacted reasoning and unknown payloads stay out of content
             # capture; do not stringify SDK objects.
             output.append({"type": "unsupported", "content_omitted": True})
     return output

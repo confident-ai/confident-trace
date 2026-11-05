@@ -7,7 +7,15 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import arguments, count, get, media, sequence, string
+from .._shared.extraction import (
+    arguments,
+    count,
+    get,
+    media,
+    reasoning,
+    sequence,
+    string,
+)
 
 
 def media_part(block):
@@ -29,7 +37,10 @@ def parts(value, depth=0):
     for block in sequence(value):
         text = get(block, "text")
         kind = get(block, "type")
-        if type(text) is str:
+        thought = reasoning(block)
+        if thought is not None:
+            result.append({"type": "reasoning", "content": thought})
+        elif type(text) is str:
             result.append({"type": "text", "content": text})
         elif kind == "tool_use":
             name = get(block, "name")
@@ -231,11 +242,15 @@ def response(op, value):
                 )
                 safe(op.span.set_attribute, attr, number)
                 break
-    for attr, key in (
-        (ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, "cache_read_input_tokens"),
-        (ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, "cache_creation_input_tokens"),
+    for attr, path in (
+        (ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, ("cache_read_input_tokens",)),
+        (ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, ("cache_creation_input_tokens",)),
+        (
+            ai.GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+            ("output_tokens_details", "thinking_tokens"),
+        ),
     ):
-        number = count(usage, (key,))
+        number = count(usage, path)
         if number:
             safe(op.span.set_attribute, attr, number)
     output, reasons = ([], [])

@@ -87,7 +87,7 @@ def test_a_source_we_cannot_resolve_still_reports_the_media():
 
 
 def test_unknown_blocks_are_skipped():
-    assert parts({"type": "thinking", "thinking": "hmm"}) == []
+    assert parts({"type": "redacted_thinking", "data": "opaque"}) == []
 
 
 def test_media_is_omitted_when_content_capture_is_off():
