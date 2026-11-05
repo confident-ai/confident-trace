@@ -40,9 +40,11 @@ import { SCHEMA_URL } from '@/semconv/generated';
 import { VERSION } from '@/runtime/version';
 import { state } from '@/runtime/state';
 
-const noop = new ProxyTracerProvider().getTracer('confident-trace-disabled');
+const disabled = new ProxyTracerProvider();
+const noop = disabled.getTracer('confident-trace-disabled');
 const inactive: TraceRuntime = {
   active: false,
+  provider: disabled,
   getTracer: () => noop,
   getInstrumentationStatus,
   flush: async () => true,
@@ -54,7 +56,7 @@ class OwnedRuntime implements TraceRuntime {
   private running = true;
   private closing: Promise<void> | undefined;
   constructor(
-    private readonly provider: NodeTracerProvider,
+    readonly provider: NodeTracerProvider,
     readonly policy: ContentPolicy,
     private readonly contextManager?: AsyncLocalStorageContextManager,
   ) {}
@@ -132,7 +134,8 @@ export function init(options: InitOptions = {}): TraceRuntime {
       resource,
       spanProcessors: [processor, fanout(registered)],
     });
-    if (!trace.setGlobalTracerProvider(provider)) {
+    const global = options.globalProvider ?? true;
+    if (global && !trace.setGlobalTracerProvider(provider)) {
       void provider.shutdown().catch(() => {});
       diag.warn(
         'Confident Trace could not register: install createSpanProcessor() when constructing your existing provider',
@@ -142,14 +145,15 @@ export function init(options: InitOptions = {}): TraceRuntime {
     const manager = new AsyncLocalStorageContextManager().enable();
     if (context.setGlobalContextManager(manager)) ownedContext = manager;
     else manager.disable();
-    propagation.setGlobalPropagator(
-      new CompositePropagator({
-        propagators: [
-          new W3CTraceContextPropagator(),
-          new W3CBaggagePropagator(),
-        ],
-      }),
-    );
+    if (global)
+      propagation.setGlobalPropagator(
+        new CompositePropagator({
+          propagators: [
+            new W3CTraceContextPropagator(),
+            new W3CBaggagePropagator(),
+          ],
+        }),
+      );
     runtime = new OwnedRuntime(provider, policy, ownedContext);
     state.runtime = runtime;
     state.ownedProvider = {

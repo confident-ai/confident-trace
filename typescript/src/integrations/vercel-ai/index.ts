@@ -20,7 +20,7 @@ import { get, list } from '@/integrations/extract';
 import { vercelSpanType } from '@/integrations/span-type';
 import { isDisabled } from '@/config/resolve';
 import { state } from '@/runtime/state';
-import { VERSION } from '@/runtime/version';
+import { confidentTracer } from '@/runtime/tracer';
 import * as S from '@/semconv/generated';
 
 export type VercelAITracerOptions = InstrumentationOptions;
@@ -60,11 +60,7 @@ export function createVercelAITracer(
     )
       return noop.startSpan(name);
     const policy = frameworkPolicy(options);
-    const tracer =
-      options.tracer ??
-      trace
-        .getTracerProvider()
-        .getTracer('confident-trace', VERSION, { schemaUrl: S.SCHEMA_URL });
+    const tracer = options.tracer ?? confidentTracer();
     const tool = name === 'ai.toolCall' || name.startsWith('execute_tool ');
     const model =
       /\.(doGenerate|doStream)$/.test(name) || name.startsWith('chat ');
