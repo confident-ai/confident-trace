@@ -8,6 +8,7 @@ from ..._core.safety import safe
 from ..._semconv import genai_v1_41_0 as ai
 from .._shared.accumulation import Accumulator as BaseAccumulator
 from .._shared.extraction import get
+from .._shared.lifecycle import streamed
 from .extraction import finish_reason, usage
 
 
@@ -17,7 +18,7 @@ class EventStream(wrapt.ObjectProxy):
     def __init__(self, wrapped, op):
         super().__init__(wrapped)
         self._self_op = op
-        self._self_consume = Accumulator()
+        self._self_consume = streamed(Accumulator())
         self._self_finalizer = weakref.finalize(self, op.end)
 
     def __iter__(self):

@@ -7,7 +7,7 @@ from opentelemetry.trace import StatusCode
 from ..._attributes import SPAN_TYPE, Integration
 from ..._semconv import genai_v1_41_0 as ai
 from .._shared.extraction import get
-from .._shared.lifecycle import begin_call, finish_call, wrapper
+from .._shared.lifecycle import begin_call, finish_call, streamed, wrapper
 from .._shared.openai_extraction import request
 from .._shared.openai_extraction import response as extract_response
 from .._shared.openai_streaming import Accumulator as OpenAIAccumulator
@@ -51,9 +51,9 @@ class Accumulator(OpenAIAccumulator):
 def finish(op, value, asynchronous=False):
     # LiteLLM exposes both protocols; follow the calling API.
     if asynchronous and hasattr(value, "__anext__"):
-        return AsyncStream(value, operation=op, consume=Accumulator())
+        return AsyncStream(value, operation=op, consume=streamed(Accumulator()))
     if hasattr(value, "__next__"):
-        return Stream(value, operation=op, consume=Accumulator())
+        return Stream(value, operation=op, consume=streamed(Accumulator()))
     return finish_call(op, value, response, Accumulator)
 
 

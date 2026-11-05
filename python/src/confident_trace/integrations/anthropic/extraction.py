@@ -7,7 +7,7 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import arguments, get, media, sequence, string
+from .._shared.extraction import arguments, count, get, media, sequence, string
 
 
 def media_part(block):
@@ -231,6 +231,13 @@ def response(op, value):
                 )
                 safe(op.span.set_attribute, attr, number)
                 break
+    for attr, key in (
+        (ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, "cache_read_input_tokens"),
+        (ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, "cache_creation_input_tokens"),
+    ):
+        number = count(usage, (key,))
+        if number:
+            safe(op.span.set_attribute, attr, number)
     output, reasons = ([], [])
     reason = finish_reason(
         get(value, "stop_reason", get(get(value, "delta"), "stop_reason"))

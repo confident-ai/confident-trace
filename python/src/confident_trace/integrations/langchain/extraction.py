@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import media
+from .._shared.extraction import count, media
 
 try:
     from langgraph.types import Command, Send
@@ -172,6 +172,29 @@ def request(op, kind, value, options):
         ):
             if type(item) is str:
                 op.span.set_attribute(key, item[:256])
+        for key, candidates, integral in (
+            (
+                ai.GEN_AI_REQUEST_TEMPERATURE,
+                (md.get("ls_temperature"), params.get("temperature")),
+                False,
+            ),
+            (
+                ai.GEN_AI_REQUEST_MAX_TOKENS,
+                (
+                    md.get("ls_max_tokens"),
+                    params.get("max_tokens"),
+                    params.get("max_completion_tokens"),
+                    params.get("max_output_tokens"),
+                ),
+                True,
+            ),
+            (ai.GEN_AI_REQUEST_TOP_P, (params.get("top_p"),), False),
+            (ai.GEN_AI_REQUEST_TOP_K, (params.get("top_k"),), False),
+        ):
+            for item in candidates:
+                if type(item) is int or (not integral and type(item) is float):
+                    op.span.set_attribute(key, item)
+                    break
         content(
             op.span,
             ai.GEN_AI_INPUT_MESSAGES,
@@ -235,6 +258,29 @@ def response(op, kind, value):
     ):
         amount = next((usage[k] for k in choices if type(usage.get(k)) is int), None)
         if amount is not None and amount >= 0:
+            op.span.set_attribute(key, amount)
+    for key, paths in (
+        (
+            ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+            (
+                ("input_token_details", "cache_read"),
+                ("prompt_tokens_details", "cached_tokens"),
+            ),
+        ),
+        (
+            ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+            (("input_token_details", "cache_creation"),),
+        ),
+        (
+            ai.GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+            (
+                ("output_token_details", "reasoning"),
+                ("completion_tokens_details", "reasoning_tokens"),
+            ),
+        ),
+    ):
+        amount = count(usage, *paths)
+        if amount:
             op.span.set_attribute(key, amount)
     if output:
         op.span.set_attribute(

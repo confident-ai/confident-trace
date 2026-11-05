@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Streaming and token breakdowns on model spans
+
+- Mark streamed model calls with `gen_ai.request.stream` and record
+  `gen_ai.response.time_to_first_chunk` (seconds from the request to the first
+  chunk) for OpenAI, Anthropic, Google GenAI, Bedrock ConverseStream, LiteLLM,
+  OpenRouter, Portkey and LangChain (Python).
+- Record cache-read, cache-creation and reasoning token counts as
+  `gen_ai.usage.cache_read.input_tokens`,
+  `gen_ai.usage.cache_creation.input_tokens` and
+  `gen_ai.usage.reasoning.output_tokens` when the provider reports them, still
+  included in the input/output totals (Python).
+- Record LangChain chat model temperature, max tokens, top_p and top_k from
+  `ls_*` metadata and invocation parameters (Python).
+
 ## Unreleased — GenAI semantic conventions 1.41.0
 
 - Pin GenAI semantic conventions to **1.41.0** (upstream tag `v1.41.0`, commit
