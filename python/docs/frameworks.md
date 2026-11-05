@@ -23,7 +23,7 @@ close the iterator there. Explicit selection uses `llamaindex`, `agno`, or
 Framework adapters emit execution structure: `invoke_agent` for agents,
 `execute_tool` for tools, and named INTERNAL spans for workflow/retrieval/step
 activity. Existing provider adapters own inference spans, normalized messages,
-usage, finish reasons and model tool requests under our pinned GenAI 1.37.0
+usage, finish reasons and model tool requests under our pinned GenAI 1.41.0
 contract. Framework adapters do not create a second model span or suppress direct
 provider calls made inside tools.
 

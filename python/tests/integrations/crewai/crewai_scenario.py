@@ -22,7 +22,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 import confident_trace as ct
 from confident_trace._core import runtime
-from confident_trace._semconv import genai_v1_37_0 as ai
+from confident_trace._semconv import genai_v1_41_0 as ai
 from confident_trace.integrations import registry
 
 # CrewAI creates credential storage even with tracing disabled. Isolate it before

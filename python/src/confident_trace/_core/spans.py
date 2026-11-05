@@ -17,7 +17,7 @@ from opentelemetry import trace as otel
 from opentelemetry.trace import Link, Status, StatusCode
 
 from .. import _attributes as confident
-from .._semconv import genai_v1_37_0 as ai
+from .._semconv import genai_v1_41_0 as ai
 from . import runtime as _runtime
 from .content import resolve_markers, span_budget
 from .safety import safe

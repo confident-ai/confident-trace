@@ -111,7 +111,7 @@ def main():
             ).stdout
             if not path.exists() or previous != path.read_bytes():
                 raise SystemExit(f"Existing snapshot is immutable: {name}")
-    release = json.loads((ROOT / "spec/releases/python-0.1.0.json").read_text())
+    release = json.loads((ROOT / "spec/releases/python-0.1.13.json").read_text())
     path = ROOT / "spec/genai" / (release["genai_version"] + ".json")
     raw = path.read_bytes()
     registry = json.loads(raw)
@@ -132,7 +132,7 @@ def main():
     assert source_hash == registry["upstream"]["source_checksum_sha256"]
     code, doc = render(registry, release)
     outputs = {
-        ROOT / "python/src/confident_trace/_semconv/genai_v1_37_0.py": code,
+        ROOT / "python/src/confident_trace/_semconv/genai_v1_41_0.py": code,
         ROOT / "python/docs/compatibility.md": doc,
     }
     for path, data in outputs.items():

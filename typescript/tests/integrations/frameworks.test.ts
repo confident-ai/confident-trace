@@ -118,7 +118,7 @@ it.each([OpenTelemetry, LegacyOpenTelemetry])(
       owned.every(
         (s) =>
           s.instrumentationScope.schemaUrl ===
-          'https://opentelemetry.io/schemas/1.37.0',
+          'https://opentelemetry.io/schemas/1.41.0',
       ),
     ).toBe(true);
     const parent = spans().find((s) => s.name === 'parent')!;

@@ -1,6 +1,6 @@
-OpenTelemetry semantic-conventions v1.37.0
+OpenTelemetry semantic-conventions v1.41.0
 https://github.com/open-telemetry/semantic-conventions
-Commit: aec6e9d3e86754683dab7c707655d69d953b2768
+Commit: e018fe6f91862f5ed63c082f87697cddac596784
 
-_semconv/genai_v1_37_0.py contains generated constants derived from the Apache-2.0-licensed upstream registry.
+_semconv/genai_v1_41_0.py contains generated constants derived from the Apache-2.0-licensed upstream registry.
 The shared registry and generated release documentation are maintained in the Confident Trace repository.

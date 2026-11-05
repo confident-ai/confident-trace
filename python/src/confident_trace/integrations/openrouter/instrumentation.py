@@ -5,7 +5,7 @@ import inspect
 from opentelemetry.trace import StatusCode
 
 from ..._attributes import SPAN_TYPE, Integration
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from .._shared.extraction import get
 from .._shared.lifecycle import begin_call, finish_call, wrapper
 from .._shared.openai_extraction import request

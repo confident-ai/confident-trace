@@ -26,7 +26,7 @@ not serialize agent configuration, credentials, memory stores, or checkpoint
 state. Explicit thread IDs associate conversations without reusing trace IDs.
 
 Model spans belong to the existing provider adapters. Their normalized messages,
-tool requests, usage, and finish reasons follow our pinned GenAI 1.37.0 contract.
+tool requests, usage, and finish reasons follow our pinned GenAI 1.41.0 contract.
 There is **no additional CrewAI LLM span** and no CrewAI-wide provider suppression.
 The internal agent Flow is preserved too. A typical hierarchy is:
 

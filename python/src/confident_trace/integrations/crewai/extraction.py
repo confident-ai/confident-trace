@@ -1,6 +1,6 @@
 """Explicit execution payloads only; never serialize agents, config or state."""
 
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 
 
 def text(value, fallback):

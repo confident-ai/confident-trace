@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — GenAI semantic conventions 1.41.0
+
+- Pin GenAI semantic conventions to **1.41.0** (upstream tag `v1.41.0`, commit
+  `e018fe6f91862f5ed63c082f87697cddac596784`) in Python and TypeScript. Package
+  spans now declare the `https://opentelemetry.io/schemas/1.41.0` schema URL. No
+  emitted attribute changes name, type or meaning, and the 1.37.0 snapshot is kept
+  unchanged.
+- The 1.41.0 snapshot catalogs `gen_ai.request.stream`,
+  `gen_ai.response.time_to_first_chunk`, `gen_ai.usage.cache_read.input_tokens`,
+  `gen_ai.usage.cache_creation.input_tokens` and
+  `gen_ai.usage.reasoning.output_tokens`. Integrations do not emit them yet.
+- Bind the next Python release to the new registry in
+  `spec/releases/python-0.1.13.json`. It also carries the LiveKit and Pipecat
+  compatibility entries that had been edited only into the generated
+  `python/docs/compatibility.md`, so regenerating that page keeps them.
+
 ## Unreleased — Voice simulation test cases
 
 - Link a Pipecat call's trace to the test case named by

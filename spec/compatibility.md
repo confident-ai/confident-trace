@@ -12,7 +12,7 @@ Python support: [compatibility matrix](../python/docs/compatibility.md).
 | OTel stable SDK family | >=2.0.0,<3; minimum 2.0.0, current lockfile 2.11.0 |
 | OTel OTLP exporters | >=0.200.0,<0.223.0; minimum 0.200.0, current lockfile 0.222.0 |
 | Transport | HTTP/protobuf; gRPC with configured collector |
-| Semantic contract | Selected GenAI 1.37.0 constants and unchanged shared wire fixtures |
+| Semantic contract | Selected GenAI 1.41.0 constants and unchanged shared wire fixtures |
 | Provider integrations | OpenAI Chat Completions/Responses create; Anthropic Messages create/stream; Google models generateContent/generateContentStream |
 | OpenAI JavaScript SDK | >=7.10.0,<8; tested 7.10.0 |
 | Anthropic JavaScript SDK | >=0.124.0,<0.125; tested 0.124.0 |

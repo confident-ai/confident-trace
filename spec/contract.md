@@ -14,8 +14,8 @@ Python processor and are not stamped.
 
 Trace IDs, parentage, sampling, status, resources, links, and propagation belong
 to OpenTelemetry. Inference spans are CLIENT; custom steps/tools are INTERNAL.
-Package instrumentation uses semantic conventions **1.37.0** and scope schema
-`https://opentelemetry.io/schemas/1.37.0`. Registry completeness does not imply
+Package instrumentation uses semantic conventions **1.41.0** and scope schema
+`https://opentelemetry.io/schemas/1.41.0`. Registry completeness does not imply
 instrumentation of every operation or emission of every signal.
 
 ## Export selection
@@ -27,14 +27,14 @@ export every span. Shared cases live in `spec/span-export-vectors.json`.
 
 ## Convention source and release audit
 
-`genai/1.37.0.json` is the language-neutral snapshot. It contains resolved attribute
+`genai/1.41.0.json` is the language-neutral snapshot. It contains resolved attribute
 and operation requirements, known enum values, metrics/events, original message
 schemas, and attributed upstream source text with checksums. The upstream tag and
 commit identify the exact release; this version is distinct from both the OTel SDK
 version and the Confident SDK version.
 
 Published snapshots are immutable. Add a new versioned snapshot for convention
-upgrades. `releases/python-0.1.0.json` binds the SDK release to the registry hash,
+upgrades. `releases/python-0.1.13.json` binds the SDK release to the registry hash,
 content representation, integration coverage, dependency matrix, and deviations.
 See [registry maintenance](genai/README.md) for reproducible generation and CI checks.
 
@@ -118,8 +118,8 @@ entry, the Confident thread field. No conversation is inferred from prompt text.
 Metadata never changes OTel parentage, starts a turn scope, or merges traces.
 
 Tool spans use `execute_tool`, a tool name, and the standard tool span naming
-convention. Custom tool arguments/results use Confident fields: the newer
-`gen_ai.tool.call.arguments/result` attributes are absent in 1.37.0.
+convention. Custom tool arguments/results use Confident fields: the
+`gen_ai.tool.call.arguments/result` attributes cataloged in 1.41.0 are not emitted yet.
 
 ## Receiver handoff (implemented separately)
 

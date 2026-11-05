@@ -8,11 +8,11 @@ architecture; it does not mean every provider SDK creates OTel spans itself.
 
 | Source | Who creates the spans? | What `init()` does | Current support and validation |
 |---|---|---|---|
-| OpenAI Python: Chat Completions / Responses `create` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync, async, streaming; GenAI 1.37.0 inference attributes; mocked provider tests |
-| Anthropic Python: Messages `create` / `stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync, async, streaming; GenAI 1.37.0 inference attributes; mocked provider tests |
-| Google GenAI Python: `generate_content` / `generate_content_stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync/async surfaces; GenAI 1.37.0 inference attributes; mocked sync and async streaming tests |
+| OpenAI Python: Chat Completions / Responses `create` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync, async, streaming; GenAI 1.41.0 inference attributes; mocked provider tests |
+| Anthropic Python: Messages `create` / `stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync, async, streaming; GenAI 1.41.0 inference attributes; mocked provider tests |
+| Google GenAI Python: `generate_content` / `generate_content_stream` | Confident Trace wraps the SDK methods and creates OTel spans | Automatically instruments the installed SDK | Sync/async surfaces; GenAI 1.41.0 inference attributes; mocked sync and async streaming tests |
 | An SDK/framework already emitting OTel with GenAI conventions | The SDK/framework's own instrumentation | Adds export to the shared SDK TracerProvider; does not enable the framework's instrumentation | Standard span export is supported; richer backend interpretation depends on emitted attributes/version. See separately verified native integrations below |
-| An external OTel instrumentor | That instrumentor | Exports its spans on the shared provider, unchanged | Transport interoperability; conventions and API coverage belong to the external instrumentor, not this release's 1.37.0 pin |
+| An external OTel instrumentor | That instrumentor | Exports its spans on the shared provider, unchanged | Transport interoperability; conventions and API coverage belong to the external instrumentor, not this release's 1.41.0 pin |
 | AWS Bedrock Runtime via Boto3 | Confident Trace wraps Botocore Converse calls | Automatically instruments installed Botocore | Sync Converse and ConverseStream, including real event-stream parsing tests |
 | Custom Python functions | Confident Trace's optional `@span` | No automatic discovery of arbitrary functions | Sync, async, generators, async generators tested |
 
@@ -94,7 +94,7 @@ capture and a fixed convention version. No upstream instrumentor source was copi
 upstream adoption when these guarantees can be configured through public hooks.
 
 References:
-- https://github.com/open-telemetry/semantic-conventions/tree/v1.37.0/docs/gen-ai
+- https://github.com/open-telemetry/semantic-conventions/tree/v1.41.0/docs/gen-ai
 - https://github.com/open-telemetry/opentelemetry-python-genai
 
 ## Bedrock Runtime details
@@ -501,7 +501,7 @@ default exporter, remain installed. Existing bridge configuration is preserved.
 We reuse its agent, task/turn, model, tool, handoff and guardrail tracing rather
 than maintaining another conversion layer. Its OpenInference attributes and
 content/error policy pass through unchanged; they are not rewritten as GenAI
-1.37.0. Confident's content limits and redactor do not govern these spans. Configure
+1.41.0. Confident's content limits and redactor do not govern these spans. Configure
 capture with OpenInference's `TraceConfig`/environment settings before `init()` if
 needed. Backend interpretation of OpenInference remains separate work.
 
@@ -616,7 +616,7 @@ Reference: [Claude Agent SDK OpenTelemetry observability](https://code.claude.co
 ### LangChain / LangGraph (in-house)
 
 `init()` attaches one inheritable callback bridge and owned execution-context hooks.
-Both framework names select the same bridge. The bridge emits our GenAI 1.37.0
+Both framework names select the same bridge. The bridge emits our GenAI 1.41.0
 spans through the existing OTel pipeline, preserves full callback hierarchy, and
 parents custom/third-party spans under the executing node, tool or model. It does
 not require OpenInference or a tracing extra. See [setup, concurrency and supported

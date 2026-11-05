@@ -1,7 +1,7 @@
 {
   "contractVersion": 1,
-  "semconvVersion": "1.37.0",
-  "schemaUrl": "https://opentelemetry.io/schemas/1.37.0",
+  "semconvVersion": "1.41.0",
+  "schemaUrl": "https://opentelemetry.io/schemas/1.41.0",
   "attributes": {
     "ATTR_CONFIDENT_SPAN_ATTACHMENTS": "confident.span.attachments",
     "ATTR_CONFIDENT_SPAN_CONTENT_TRUNCATED": "confident.span.content_truncated",

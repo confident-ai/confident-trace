@@ -1,6 +1,6 @@
 {
   "contract_version": "1",
-  "emitted_semconv": "1.37.0",
+  "emitted_semconv": "1.41.0",
   "cases": [
     {"name":"attributes", "attributes":{"gen_ai.input.messages":"[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"hello\"}]}]", "gen_ai.output.messages":"[{\"role\":\"assistant\",\"parts\":[{\"type\":\"text\",\"content\":\"world\"}]}]"},"events":[],"expected":{"input":[{"role":"user","content":"hello"}],"output":[{"role":"assistant","content":"world"}]}},
     {"name":"legacy-span-events", "attributes":{}, "events":[{"name":"gen_ai.user.message","attributes":{"content":"hello"}},{"name":"gen_ai.choice","attributes":{"message":"{\"role\":\"assistant\",\"content\":\"world\"}"}}],"expected":{"input":[{"role":"user","content":"hello"}],"output":[{"role":"assistant","content":"world"}]}},

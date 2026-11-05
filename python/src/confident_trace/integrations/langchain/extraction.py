@@ -12,7 +12,7 @@ from langchain_core.prompt_values import ChatPromptValue, StringPromptValue
 from pydantic import BaseModel
 
 from ..._core.spans import content
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from .._shared.extraction import media
 
 try:

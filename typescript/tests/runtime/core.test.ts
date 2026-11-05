@@ -48,7 +48,7 @@ it('exports standard spans, preserves async parentage and merges resources', asy
     custom: 'env',
   });
   expect(parent?.instrumentationScope.schemaUrl).toBe(
-    'https://opentelemetry.io/schemas/1.37.0',
+    'https://opentelemetry.io/schemas/1.41.0',
   );
   expect(await shutdown()).toBe(true);
   expect(runtime.active).toBe(false);

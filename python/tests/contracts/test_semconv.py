@@ -13,9 +13,9 @@ from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
 
 import confident_trace as ct
 from confident_trace._core.content import ContentPolicy
-from confident_trace._semconv import genai_v1_37_0 as ai
+from confident_trace._semconv import genai_v1_41_0 as ai
 
-REGISTRY = json.loads((ROOT / "spec/genai/1.37.0.json").read_text())
+REGISTRY = json.loads((ROOT / "spec/genai/1.41.0.json").read_text())
 VECTORS = json.loads((ROOT / "spec/genai-emission-vectors.json").read_text())
 
 
@@ -23,10 +23,10 @@ def test_generated_files_and_provenance():
     subprocess.run(
         [sys.executable, str(ROOT / "tools/generate_genai.py"), "--check"], check=True
     )
-    release = json.loads((ROOT / "spec/releases/python-0.1.0.json").read_text())
-    assert ct.__version__ == release["version"] == "0.1.0"
-    assert REGISTRY["upstream"]["commit"] == "aec6e9d3e86754683dab7c707655d69d953b2768"
-    assert REGISTRY["upstream"]["tag"] == "v1.37.0"
+    release = json.loads((ROOT / "spec/releases/python-0.1.13.json").read_text())
+    assert ct.__version__ == release["version"] == "0.1.13"
+    assert REGISTRY["upstream"]["commit"] == "e018fe6f91862f5ed63c082f87697cddac596784"
+    assert REGISTRY["upstream"]["tag"] == "v1.41.0"
     for source in REGISTRY["sources"].values():
         assert hashlib.sha256(source["text"].encode()).hexdigest() == source["sha256"]
     assert any(g["type"] == "metric" for g in REGISTRY["groups"].values())
