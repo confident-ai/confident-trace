@@ -1,12 +1,14 @@
 """Native Pydantic AI telemetry interoperability."""
 
 from ..._attributes import Integration
-from .._shared.lifecycle import register_native_inference
+from .._shared.lifecycle import register_native_inference, use_global_provider
 from ._constants import SCOPE_NAME
 
 
 def instrument(runtime):
     from pydantic_ai import Agent
+
+    use_global_provider(runtime)
 
     # There is no public getter for the process default. Preserve configured
     # settings; unknown future layouts leave enablement to the application.

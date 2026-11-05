@@ -36,6 +36,13 @@ def register_native_inference(
     return [remove]
 
 
+def use_global_provider(rt):
+    """Frameworks with native telemetry create their spans on the global
+    provider. Install ours there unless the application has set one."""
+    if isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider):
+        trace.set_tracer_provider(rt.provider)
+
+
 def same_provider(span, rt):
     processor = getattr(rt, "processor", None)
     router = getattr(processor, "delegate", None)

@@ -202,6 +202,7 @@ def init(
     compression=None,
     tls_skip_verify: bool | None = None,
     tracer_provider=None,
+    global_provider=True,
     exporter=None,
     project_exporter_factory=None,
     resource_attributes=None,
@@ -223,6 +224,8 @@ def init(
     An explicit endpoint is a traces endpoint (HTTP includes /v1/traces).
     Call shutdown() before changing configuration. Initialization failures disable
     this package and emit a content-free warning rather than breaking the host.
+    With no global provider set, `global_provider=False` keeps ours private so the
+    application can set its own later; frameworks that need it still install ours.
     """
     global _runtime
     with _lock:
@@ -251,8 +254,9 @@ def init(
                     resource=Resource.create(resource_attributes or {}),
                     shutdown_on_exit=False,
                 )
-                trace.set_tracer_provider(provider)
-                provider = trace.get_tracer_provider()
+                if global_provider:
+                    trace.set_tracer_provider(provider)
+                    provider = trace.get_tracer_provider()
             if not isinstance(provider, TracerProvider):
                 raise TypeError("A standard SDK TracerProvider is required")
             default_key = (

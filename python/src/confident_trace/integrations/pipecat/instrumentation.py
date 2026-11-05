@@ -2,12 +2,10 @@
 
 from importlib.metadata import version
 
-from opentelemetry import trace
-
 from ..._attributes import Integration
 from ..._core.runtime import log
 from .._shared.flush import bounded_flush
-from .._shared.lifecycle import register_native_inference
+from .._shared.lifecycle import register_native_inference, use_global_provider
 from .._shared.patching import install_targets
 from ._constants import (
     CONTENT_ATTRIBUTES,
@@ -27,10 +25,8 @@ from .test_case import link_test_case, remember_test_case
 def instrument(runtime):
     version("pipecat-ai")
 
-    # Pipecat creates every span on the global provider. A provider passed to
-    # init() is installed there only if nothing else has been.
-    if isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider):
-        trace.set_tracer_provider(runtime.provider)
+    # Pipecat creates every span on the global provider.
+    use_global_provider(runtime)
 
     # Tracing is opt-in per pipeline; selecting this integration turns it on.
     # An explicit enable_tracing=False is respected.
