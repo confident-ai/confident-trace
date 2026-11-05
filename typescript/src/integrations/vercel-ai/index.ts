@@ -38,10 +38,26 @@ const mappings: Record<string, string> = {
   'ai.settings.maxOutputTokens': S.ATTR_GEN_AI_REQUEST_MAX_TOKENS,
   'ai.settings.temperature': S.ATTR_GEN_AI_REQUEST_TEMPERATURE,
   'ai.settings.topP': S.ATTR_GEN_AI_REQUEST_TOP_P,
+  'ai.settings.topK': S.ATTR_GEN_AI_REQUEST_TOP_K,
   'ai.settings.stopSequences': S.ATTR_GEN_AI_REQUEST_STOP_SEQUENCES,
   'ai.toolCall.name': S.ATTR_GEN_AI_TOOL_NAME,
+  'ai.usage.cachedInputTokens': S.ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+  'ai.usage.inputTokenDetails.cacheReadTokens':
+    S.ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+  'ai.usage.inputTokenDetails.cacheWriteTokens':
+    S.ATTR_GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+  'ai.usage.reasoningTokens': S.ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+  'ai.usage.outputTokenDetails.reasoningTokens':
+    S.ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+  [S.ATTR_GEN_AI_OUTPUT_TYPE]: S.ATTR_GEN_AI_OUTPUT_TYPE,
   [S.ATTR_GEN_AI_RESPONSE_FINISH_REASONS]:
     S.ATTR_GEN_AI_RESPONSE_FINISH_REASONS,
+};
+/** First-chunk timing keys, and the factor each needs to become seconds. */
+const firstChunkSeconds: Record<string, number> = {
+  [S.ATTR_GEN_AI_RESPONSE_TIME_TO_FIRST_CHUNK]: 1,
+  'gen_ai.client.operation.time_to_first_chunk': 1,
+  'ai.response.msToFirstChunk': 1 / 1000,
 };
 
 /** Pass this tracer to AI SDK 7 OpenTelemetry (or LegacyOpenTelemetry). */
@@ -91,6 +107,10 @@ export function createVercelAITracer(
             : model
               ? 'chat'
               : 'invoke_agent',
+          // The legacy integration names a streamed provider call `*.doStream`.
+          ...(name.endsWith('.doStream')
+            ? { [S.ATTR_GEN_AI_REQUEST_STREAM]: true }
+            : {}),
         },
         kind: model ? SpanKind.CLIENT : SpanKind.INTERNAL,
       },
@@ -147,6 +167,17 @@ export function createVercelAITracer(
             key,
             list(value).filter((v): v is string => typeof v === 'string'),
           );
+        return;
+      }
+      const factor = firstChunkSeconds[key];
+      if (factor !== undefined) {
+        if (model && typeof value === 'number' && Number.isFinite(value)) {
+          span.setAttribute(S.ATTR_GEN_AI_REQUEST_STREAM, true);
+          span.setAttribute(
+            S.ATTR_GEN_AI_RESPONSE_TIME_TO_FIRST_CHUNK,
+            value * factor,
+          );
+        }
         return;
       }
       const mapped =

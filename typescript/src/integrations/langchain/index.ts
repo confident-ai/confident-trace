@@ -7,7 +7,7 @@ import {
   safely,
   toolArguments,
 } from '@/integrations/framework';
-import { get, list } from '@/integrations/extract';
+import { count, get, list } from '@/integrations/extract';
 import * as S from '@/semconv/generated';
 
 export interface LangChainCallbackOptions extends CallbackOptions {
@@ -273,6 +273,9 @@ export class ConfidentLangChainCallbackHandler {
       ),
     );
   };
+  handleLLMNewToken = (_token: string, _idx: unknown, runId: string): void => {
+    this.runs.firstChunk(runId);
+  };
   handleLLMEnd = (output: unknown, runId: string): void => {
     safely(() => {
       const generations = list(get(output, 'generations')).flatMap(list);
@@ -294,6 +297,21 @@ export class ConfidentLangChainCallbackHandler {
         S.ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
         get(usage, 'output_tokens') ?? get(usage, 'completionTokens'),
       );
+      for (const [attr, path] of [
+        [
+          S.ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+          ['input_token_details', 'cache_read'],
+        ],
+        [
+          S.ATTR_GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+          ['input_token_details', 'cache_creation'],
+        ],
+        [
+          S.ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+          ['output_token_details', 'reasoning'],
+        ],
+      ] as const)
+        this.runs.attribute(runId, attr, count(usage, path));
       const metadata = get(first, 'response_metadata');
       this.runs.attribute(
         runId,
@@ -341,6 +359,22 @@ export class ConfidentLangChainCallbackHandler {
         S.ATTR_GEN_AI_PROVIDER_NAME,
         get(metadata, 'ls_provider'),
       );
+      for (const [attr, value] of [
+        [
+          S.ATTR_GEN_AI_REQUEST_TEMPERATURE,
+          get(metadata, 'ls_temperature') ?? get(params, 'temperature'),
+        ],
+        [
+          S.ATTR_GEN_AI_REQUEST_MAX_TOKENS,
+          get(metadata, 'ls_max_tokens') ??
+            get(params, 'max_tokens') ??
+            get(params, 'max_completion_tokens') ??
+            get(params, 'max_output_tokens'),
+        ],
+        [S.ATTR_GEN_AI_REQUEST_TOP_P, get(params, 'top_p')],
+        [S.ATTR_GEN_AI_REQUEST_TOP_K, get(params, 'top_k')],
+      ] as const)
+        this.runs.attribute(id, attr, value);
     });
   }
   private finish(output: unknown, id: string): void {

@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — Streaming and token breakdowns on model spans (TypeScript)
+
+- Mark streamed model calls with `gen_ai.request.stream` and record
+  `gen_ai.response.time_to_first_chunk` (seconds) for OpenAI, Anthropic, Google
+  GenAI, OpenRouter, Portkey, LangChain/LangGraph, Mastra and AI SDK spans. AI
+  SDK first-chunk timings (`gen_ai.client.operation.time_to_first_chunk`,
+  legacy `ai.response.msToFirstChunk` in milliseconds) are converted to this key.
+- Record cache-read, cache-creation and reasoning token counts
+  (`gen_ai.usage.cache_read.input_tokens`,
+  `gen_ai.usage.cache_creation.input_tokens`,
+  `gen_ai.usage.reasoning.output_tokens`) for the provider integrations,
+  LangChain, OpenAI Agents SDK, Mastra and the AI SDK.
+- Record `gen_ai.request.top_k` and `gen_ai.output.type` for provider calls, and
+  top_k from Mastra and the AI SDK, which the AI SDK tracer used to drop. Record
+  LangChain temperature, max tokens, top_p and top_k, and OpenAI Agents SDK
+  temperature, top_p and max output tokens.
+- Count Anthropic cache-read and cache-write tokens in `gen_ai.usage.input_tokens`
+  and Google thinking tokens in `gen_ai.usage.output_tokens`, as the conventions
+  and the Python SDK do. Both totals were previously too low.
+
 ## Unreleased — Streaming and token breakdowns on model spans
 
 - Mark streamed model calls with `gen_ai.request.stream` and record
