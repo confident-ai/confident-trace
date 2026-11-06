@@ -159,6 +159,7 @@ class Runtime:
     policy: ContentPolicy = field(default_factory=ContentPolicy)
     processor: OwnedProcessor | None = None
     active: bool = True
+    global_provider: bool = True
     undo: list = field(default_factory=list)
     litellm_proxy_urls: tuple[str, ...] = ()
     openrouter_proxy_urls: tuple[str, ...] = ()
@@ -202,6 +203,7 @@ def init(
     compression=None,
     tls_skip_verify: bool | None = None,
     tracer_provider=None,
+    global_provider=True,
     exporter=None,
     project_exporter_factory=None,
     resource_attributes=None,
@@ -223,6 +225,9 @@ def init(
     An explicit endpoint is a traces endpoint (HTTP includes /v1/traces).
     Call shutdown() before changing configuration. Initialization failures disable
     this package and emit a content-free warning rather than breaking the host.
+    `global_provider=False` leaves the global provider to the application: ours
+    stays private, an existing one isn't joined, and native framework telemetry that
+    only reaches the global provider isn't turned on or recorded.
     """
     global _runtime
     with _lock:
@@ -241,18 +246,17 @@ def init(
             if max_media_bytes < 0:
                 raise ValueError("max_media_bytes must not be negative")
             resolved_max_nesting_depth = resolve_max_nesting_depth(max_nesting_depth)
-            provider = (
-                tracer_provider
-                if tracer_provider is not None
-                else trace.get_tracer_provider()
-            )
-            if isinstance(provider, trace.ProxyTracerProvider):
+            provider = tracer_provider
+            if provider is None and global_provider:
+                provider = trace.get_tracer_provider()
+            if provider is None or isinstance(provider, trace.ProxyTracerProvider):
                 provider = TracerProvider(
                     resource=Resource.create(resource_attributes or {}),
                     shutdown_on_exit=False,
                 )
-                trace.set_tracer_provider(provider)
-                provider = trace.get_tracer_provider()
+                if global_provider:
+                    trace.set_tracer_provider(provider)
+                    provider = trace.get_tracer_provider()
             if not isinstance(provider, TracerProvider):
                 raise TypeError("A standard SDK TracerProvider is required")
             default_key = (
@@ -373,6 +377,7 @@ def init(
                 tls_skip_verify=resolved_tls_skip_verify,
             )
             _runtime = runtime
+            runtime.global_provider = global_provider
             runtime.litellm_proxy_urls = tuple(litellm_proxy_urls)
             runtime.openrouter_proxy_urls = tuple(openrouter_proxy_urls)
             runtime.portkey_proxy_urls = tuple(portkey_proxy_urls)
