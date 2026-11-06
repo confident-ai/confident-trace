@@ -1,5 +1,7 @@
 """Shared call lifecycle, independent of SDK names or payload formats."""
 
+from time import time_ns
+
 from opentelemetry import context, trace
 from opentelemetry.trace import SpanKind
 
@@ -7,7 +9,7 @@ from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from ..._semconv import native as native_ai
 from .streams import AsyncStream, Stream
 
@@ -110,6 +112,37 @@ def begin_call(
     return op
 
 
+def first_chunk(op):
+    """Mark a model call as streamed and record its time to first chunk, in seconds."""
+    span = op.span
+    if op.ended or not span.is_recording():
+        return
+    safe(span.set_attribute, ai.GEN_AI_REQUEST_STREAM, True)
+    # The span starts when the request is issued.
+    started = getattr(span, "start_time", None)
+    if type(started) is int:
+        elapsed = max(0, time_ns() - started) / 1e9
+        safe(span.set_attribute, ai.GEN_AI_RESPONSE_TIME_TO_FIRST_CHUNK, elapsed)
+
+
+def streamed(consume):
+    """Run first_chunk on a stream's first chunk, then consume every chunk as usual.
+
+    It waits for the first chunk rather than the stream's creation: a deferred Google
+    operation only resolves its span once the first chunk proves it is ours.
+    """
+    pending = True
+
+    def call(op, chunk):
+        nonlocal pending
+        if pending:
+            pending = False
+            first_chunk(op)
+        return consume(op, chunk)
+
+    return call
+
+
 def finish_call(
     op,
     value,
@@ -120,9 +153,11 @@ def finish_call(
 ):
     try:
         if hasattr(value, "__anext__"):
-            return async_stream_class(value, operation=op, consume=accumulator())
+            return async_stream_class(
+                value, operation=op, consume=streamed(accumulator())
+            )
         if hasattr(value, "__next__"):
-            return stream_class(value, operation=op, consume=accumulator())
+            return stream_class(value, operation=op, consume=streamed(accumulator()))
         safe(response, op, value)
     except Exception:
         pass

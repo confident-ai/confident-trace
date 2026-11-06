@@ -10,11 +10,11 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 import confident_trace as ct
 from confident_trace._core.runtime import OwnedProcessor
-from confident_trace._semconv import genai_v1_37_0 as ai
+from confident_trace._semconv import genai_v1_41_0 as ai
 
 ROOT = Path(__file__).resolve().parents[2]
 
-REGISTRY = json.loads((ROOT / "spec/genai/1.37.0.json").read_text())
+REGISTRY = json.loads((ROOT / "spec/genai/1.41.0.json").read_text())
 
 
 @pytest.fixture

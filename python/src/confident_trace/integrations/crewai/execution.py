@@ -13,7 +13,7 @@ from ..._attributes import Integration
 from ..._core import runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from . import extraction
 
 _CALL = ContextVar("crewai_tool_call", default=None)

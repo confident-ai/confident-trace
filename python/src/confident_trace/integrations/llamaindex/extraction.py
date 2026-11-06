@@ -5,7 +5,7 @@ from llama_index.core.schema import BaseNode, NodeWithScore, QueryBundle
 from llama_index.core.tools.types import BaseTool, ToolOutput
 from workflows.events import Event, StopEvent
 
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 
 
 def describe(id_, instance):

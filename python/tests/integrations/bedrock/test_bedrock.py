@@ -14,7 +14,7 @@ from conftest import ROOT, enable, spans
 
 import confident_trace as ct
 from confident_trace._core.spans import Operation
-from confident_trace._semconv import genai_v1_37_0 as ai
+from confident_trace._semconv import genai_v1_41_0 as ai
 from confident_trace.integrations.bedrock.extraction import request, response
 
 

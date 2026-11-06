@@ -7,9 +7,10 @@ schemas, and normative documentation. It does not claim that we emit every signa
 
 ## Provenance and licensing
 
-Version 1.37.0 comes from OpenTelemetry semantic-conventions tag `v1.37.0`, commit
-`aec6e9d3e86754683dab7c707655d69d953b2768`. The source is Apache-2.0 licensed. The
-snapshot includes the original license, unmodified source texts, per-file SHA-256,
+Version 1.41.0, the active snapshot, comes from OpenTelemetry semantic-conventions
+tag `v1.41.0`, commit `e018fe6f91862f5ed63c082f87697cddac596784`. Version 1.37.0
+comes from tag `v1.37.0`, commit `aec6e9d3e86754683dab7c707655d69d953b2768`. The
+source is Apache-2.0 licensed. Each snapshot includes the original license, unmodified source texts, per-file SHA-256,
 and a source-set checksum. The resolved definitions are generated from those texts.
 
 ## Updating conventions

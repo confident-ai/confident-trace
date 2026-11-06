@@ -29,6 +29,31 @@ export function list(value: unknown): unknown[] {
 function text(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
+/** The first positive integer found at one of the nested key paths. */
+export function count(
+  value: unknown,
+  ...paths: readonly (readonly string[])[]
+): number | undefined {
+  for (const path of paths) {
+    const found = path.reduce<unknown>((node, key) => get(node, key), value);
+    if (typeof found === 'number' && Number.isSafeInteger(found) && found > 0)
+      return found;
+  }
+  return undefined;
+}
+/** Mark a model span streamed and record seconds from `startedAt` (performance.now()). */
+export function markFirstChunk(span: Span, startedAt: number): void {
+  span.setAttribute(S.ATTR_GEN_AI_REQUEST_STREAM, true);
+  span.setAttribute(
+    S.ATTR_GEN_AI_RESPONSE_TIME_TO_FIRST_CHUNK,
+    Math.max(0, performance.now() - startedAt) / 1000,
+  );
+}
+const OUTPUT_TYPE_BY_MODALITY: Record<string, string> = {
+  text: 'text',
+  image: 'image',
+  audio: 'speech',
+};
 function tool(value: unknown, google = false): GenAiPart {
   const name = text(get(value, 'name'));
   const id = text(get(value, 'call_id') ?? get(value, 'id'));
@@ -169,6 +194,8 @@ export class Capture {
   private retained: GenAiMessage[] = [];
   private used = 0;
   private full = false;
+  private readonly started = performance.now();
+  private streamed = false;
   private tools = new Map<
     string,
     { type: 'tool_call'; name: string; id: string; arguments: string }
@@ -209,6 +236,7 @@ export class Capture {
     for (const [attr, keys] of [
       [S.ATTR_GEN_AI_REQUEST_TEMPERATURE, ['temperature']],
       [S.ATTR_GEN_AI_REQUEST_TOP_P, ['top_p', 'topP']],
+      [S.ATTR_GEN_AI_REQUEST_TOP_K, ['top_k', 'topK']],
       [
         S.ATTR_GEN_AI_REQUEST_MAX_TOKENS,
         [
@@ -230,6 +258,28 @@ export class Capture {
           break;
         }
       }
+    const format =
+      get(get(config, 'response_format'), 'type') ??
+      get(get(get(config, 'text'), 'format'), 'type');
+    const mime = get(config, 'responseMimeType');
+    const modalities = list(
+      get(config, 'modalities') ?? get(config, 'responseModalities'),
+    );
+    const modality =
+      modalities.length === 1 && typeof modalities[0] === 'string'
+        ? OUTPUT_TYPE_BY_MODALITY[modalities[0].toLowerCase()]
+        : undefined;
+    this.set(
+      S.ATTR_GEN_AI_OUTPUT_TYPE,
+      modality ??
+        (format === 'json_object' ||
+        format === 'json_schema' ||
+        mime === 'application/json'
+          ? 'json'
+          : format === 'text' || mime === 'text/plain'
+            ? 'text'
+            : undefined),
+    );
     if (!this.policy.enabled) return;
     const raw =
       get(value, 'messages') ??
@@ -271,18 +321,49 @@ export class Capture {
       get(value, 'model') ?? get(value, 'modelVersion'),
     );
     const usage = get(value, 'usage') ?? get(value, 'usageMetadata');
+    const cacheRead = count(
+      usage,
+      ['prompt_tokens_details', 'cached_tokens'],
+      ['input_tokens_details', 'cached_tokens'],
+      ['cache_read_input_tokens'],
+      ['cachedContentTokenCount'],
+    );
+    const cacheCreation = count(
+      usage,
+      ['prompt_tokens_details', 'cache_write_tokens'],
+      ['cache_creation_input_tokens'],
+    );
+    const reasoning = count(
+      usage,
+      ['completion_tokens_details', 'reasoning_tokens'],
+      ['output_tokens_details', 'reasoning_tokens'],
+      ['thoughtsTokenCount'],
+    );
+    const inputTokens =
+      get(usage, 'input_tokens') ??
+      get(usage, 'prompt_tokens') ??
+      get(usage, 'promptTokenCount');
+    const outputTokens =
+      get(usage, 'output_tokens') ??
+      get(usage, 'completion_tokens') ??
+      get(usage, 'candidatesTokenCount');
+    // Totals include the breakdowns: Anthropic reports uncached input apart from
+    // cache reads/writes, and Google reports thinking apart from candidates.
     this.set(
       S.ATTR_GEN_AI_USAGE_INPUT_TOKENS,
-      get(usage, 'input_tokens') ??
-        get(usage, 'prompt_tokens') ??
-        get(usage, 'promptTokenCount'),
+      this.provider === 'anthropic' && typeof inputTokens === 'number'
+        ? inputTokens + (cacheRead ?? 0) + (cacheCreation ?? 0)
+        : inputTokens,
     );
     this.set(
       S.ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
-      get(usage, 'output_tokens') ??
-        get(usage, 'completion_tokens') ??
-        get(usage, 'candidatesTokenCount'),
+      this.provider === 'google_genai' && typeof outputTokens === 'number'
+        ? outputTokens + (reasoning ?? 0)
+        : outputTokens,
     );
+    this.set(S.ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, cacheRead);
+    this.set(S.ATTR_GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, cacheCreation);
+    this.set(S.ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS, reasoning);
     const choices = list(get(value, 'choices') ?? get(value, 'candidates'));
     const reasons = [
       ...choices.map((c) => get(c, 'finish_reason') ?? get(c, 'finishReason')),
@@ -331,6 +412,10 @@ export class Capture {
       t[field] += this.append(get(value, field));
   }
   chunk(value: unknown) {
+    if (!this.streamed) {
+      this.streamed = true;
+      markFirstChunk(this.span, this.started);
+    }
     const nested = get(value, 'response') ?? get(value, 'message');
     this.response(nested ?? value, false);
     const delta = get(value, 'delta');

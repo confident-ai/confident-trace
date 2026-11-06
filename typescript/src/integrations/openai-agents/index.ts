@@ -6,7 +6,7 @@ import {
   safely,
   toolArguments,
 } from '@/integrations/framework';
-import { get, list, parts } from '@/integrations/extract';
+import { count, get, list, parts } from '@/integrations/extract';
 import { state } from '@/runtime/state';
 import * as S from '@/semconv/generated';
 
@@ -152,6 +152,40 @@ export class ConfidentOpenAIAgentsProcessor {
         id,
         S.ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
         get(usage, 'output_tokens'),
+      );
+      this.runs.attribute(
+        id,
+        S.ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+        count(
+          usage,
+          ['input_tokens_details', 'cached_tokens'],
+          ['prompt_tokens_details', 'cached_tokens'],
+        ),
+      );
+      this.runs.attribute(
+        id,
+        S.ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+        count(
+          usage,
+          ['output_tokens_details', 'reasoning_tokens'],
+          ['completion_tokens_details', 'reasoning_tokens'],
+        ),
+      );
+      const settings = get(data, 'model_config') ?? response;
+      this.runs.attribute(
+        id,
+        S.ATTR_GEN_AI_REQUEST_TEMPERATURE,
+        get(settings, 'temperature'),
+      );
+      this.runs.attribute(
+        id,
+        S.ATTR_GEN_AI_REQUEST_TOP_P,
+        get(settings, 'top_p'),
+      );
+      this.runs.attribute(
+        id,
+        S.ATTR_GEN_AI_REQUEST_MAX_TOKENS,
+        get(response, 'max_output_tokens'),
       );
       if (type === 'response')
         this.runs.attribute(id, S.ATTR_GEN_AI_PROVIDER_NAME, 'openai');

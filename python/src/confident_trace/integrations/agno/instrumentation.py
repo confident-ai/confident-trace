@@ -5,7 +5,7 @@ from functools import partial
 
 from ..._attributes import Integration
 from ..._core.safety import safe
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from .._shared.execution import State, execution_wrapper, patch, stream
 
 

@@ -348,7 +348,7 @@ import {
 import type { GenAiMessage } from 'confident-trace/semconv';
 ```
 
-Constants represent the selected GenAI **1.37.0** contract, not full GenAI coverage.
+Constants represent the selected GenAI **1.41.0** contract, not full GenAI coverage.
 `spec/semconv.json` at the repository root generates native constants in both SDKs.
 The repository also shares wire/content fixtures and one Apache-2.0 license.
 Neither installed SDK requires the other language or the repository checkout.
@@ -429,7 +429,7 @@ instrumentation side effects and do not load any provider SDK.
 | `confident-trace/anthropic`    | `messages.create` (including streaming), `messages.stream` (iteration, events, and `finalMessage`) |
 | `confident-trace/google-genai` | `models.generateContent`, `models.generateContentStream`                                           |
 
-Each inference emits a CLIENT span with GenAI 1.37.0 attributes, integration label,
+Each inference emits a CLIENT span with GenAI 1.41.0 attributes, integration label,
 model, response ID, available usage/finish reasons, and bounded messages. Calls
 inherit the active OTel parent; root calls also write Confident trace input/output.
 Streaming captures a bounded prefix of text and OpenAI/Anthropic tool arguments;
@@ -491,7 +491,7 @@ and parent context. One integration instance can serve concurrent calls.
 
 Agent, step, model, and tool spans carry `confident.span.integration=Vercel AI SDK`.
 Model calls are CLIENT spans; orchestration and tool calls are INTERNAL spans.
-Known attributes are normalized to the selected GenAI 1.37.0 message contract;
+Known attributes are normalized to the selected GenAI 1.41.0 message contract;
 tool inputs/results use Confident span content attributes. Text and tool calls are
 captured, while reasoning, binary, and other unsupported message parts are marked.
 Raw request headers, arbitrary SDK metadata, and exception messages/stacks are

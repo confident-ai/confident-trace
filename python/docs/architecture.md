@@ -71,7 +71,7 @@ core and shared streaming code.
 2. Register its lazy module path in `integrations/registry.py`. Update the default
    selection in `_bootstrap.py` only when automatic enablement is intended.
 3. Keep request/response and event parsing in that package. Use generated constants
-   from `_semconv/genai_v1_37_0.py`; preserve third-party OTel telemetry as emitted.
+   from `_semconv/genai_v1_41_0.py`; preserve third-party OTel telemetry as emitted.
 4. Add mocked SDK transport tests under `tests/integrations/<provider>/`, including
    exceptions, streaming completion/close, and async behavior where supported.
    Reusable exporters and schema checks are in `tests/conftest.py`; shared lifecycle
@@ -103,7 +103,7 @@ own content, stream lifecycle, convention versions, and span production.
 
 ## Telemetry vocabulary ownership
 
-- `_semconv/genai_v1_37_0.py` is generated from the immutable snapshot and defines
+- `_semconv/genai_v1_41_0.py` is generated from the immutable snapshot and defines
   what Confident-owned instrumentation emits. It remains the emission contract.
 - `_semconv/native.py` contains the small read-only recognition vocabulary used
   for native inference deduplication. It does not select a schema or import the

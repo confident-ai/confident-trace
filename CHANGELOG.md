@@ -1,5 +1,55 @@
 # Changelog
 
+## Unreleased — Streaming and token breakdowns on model spans (TypeScript)
+
+- Mark streamed model calls with `gen_ai.request.stream` and record
+  `gen_ai.response.time_to_first_chunk` (seconds) for OpenAI, Anthropic, Google
+  GenAI, OpenRouter, Portkey, LangChain/LangGraph, Mastra and AI SDK spans. AI
+  SDK first-chunk timings (`gen_ai.client.operation.time_to_first_chunk`,
+  legacy `ai.response.msToFirstChunk` in milliseconds) are converted to this key.
+- Record cache-read, cache-creation and reasoning token counts
+  (`gen_ai.usage.cache_read.input_tokens`,
+  `gen_ai.usage.cache_creation.input_tokens`,
+  `gen_ai.usage.reasoning.output_tokens`) for the provider integrations,
+  LangChain, OpenAI Agents SDK, Mastra and the AI SDK.
+- Record `gen_ai.request.top_k` and `gen_ai.output.type` for provider calls, and
+  top_k from Mastra and the AI SDK, which the AI SDK tracer used to drop. Record
+  LangChain temperature, max tokens, top_p and top_k, and OpenAI Agents SDK
+  temperature, top_p and max output tokens.
+- Count Anthropic cache-read and cache-write tokens in `gen_ai.usage.input_tokens`
+  and Google thinking tokens in `gen_ai.usage.output_tokens`, as the conventions
+  and the Python SDK do. Both totals were previously too low.
+
+## Unreleased — Streaming and token breakdowns on model spans
+
+- Mark streamed model calls with `gen_ai.request.stream` and record
+  `gen_ai.response.time_to_first_chunk` (seconds from the request to the first
+  chunk) for OpenAI, Anthropic, Google GenAI, Bedrock ConverseStream, LiteLLM,
+  OpenRouter, Portkey and LangChain (Python).
+- Record cache-read, cache-creation and reasoning token counts as
+  `gen_ai.usage.cache_read.input_tokens`,
+  `gen_ai.usage.cache_creation.input_tokens` and
+  `gen_ai.usage.reasoning.output_tokens` when the provider reports them, still
+  included in the input/output totals (Python).
+- Record LangChain chat model temperature, max tokens, top_p and top_k from
+  `ls_*` metadata and invocation parameters (Python).
+
+## Unreleased — GenAI semantic conventions 1.41.0
+
+- Pin GenAI semantic conventions to **1.41.0** (upstream tag `v1.41.0`, commit
+  `e018fe6f91862f5ed63c082f87697cddac596784`) in Python and TypeScript. Package
+  spans now declare the `https://opentelemetry.io/schemas/1.41.0` schema URL. No
+  emitted attribute changes name, type or meaning, and the 1.37.0 snapshot is kept
+  unchanged.
+- The 1.41.0 snapshot catalogs `gen_ai.request.stream`,
+  `gen_ai.response.time_to_first_chunk`, `gen_ai.usage.cache_read.input_tokens`,
+  `gen_ai.usage.cache_creation.input_tokens` and
+  `gen_ai.usage.reasoning.output_tokens`. Integrations do not emit them yet.
+- Bind the next Python release to the new registry in
+  `spec/releases/python-0.1.13.json`. It also carries the LiveKit and Pipecat
+  compatibility entries that had been edited only into the generated
+  `python/docs/compatibility.md`, so regenerating that page keeps them.
+
 ## Unreleased — Voice simulation test cases
 
 - Link a Pipecat call's trace to the test case named by

@@ -4,8 +4,8 @@ from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
-from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import get, media, sequence, string
+from ..._semconv import genai_v1_41_0 as ai
+from .._shared.extraction import count, get, media, sequence, string
 
 _MEDIA_BLOCKS = ("image", "document", "video")
 
@@ -99,6 +99,13 @@ def usage(op, value):
                     for field in ("cacheReadInputTokens", "cacheWriteInputTokens")
                     if type(cached := get(value, field)) is int and cached >= 0
                 )
+            safe(op.span.set_attribute, attr, number)
+    for attr, key in (
+        (ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, "cacheReadInputTokens"),
+        (ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, "cacheWriteInputTokens"),
+    ):
+        number = count(value, (key,))
+        if number:
             safe(op.span.set_attribute, attr, number)
 
 

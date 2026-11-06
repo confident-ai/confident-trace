@@ -10,7 +10,7 @@ OpenTelemetry Collector.
 - **25 integrations:** 16 agent frameworks, 4 model providers, and 5 LLM gateways
   across Python and TypeScript, with language-specific coverage listed below.
 - **OpenTelemetry semantic conventions:** Confident Trace emits GenAI spans using
-  the supported subset of GenAI 1.37.0 conventions for model calls, messages, tools,
+  the supported subset of GenAI 1.41.0 conventions for model calls, messages, tools,
   and token usage. Native framework spans retain their original conventions.
 
 ## SDKs

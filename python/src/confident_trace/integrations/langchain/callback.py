@@ -12,7 +12,8 @@ from ..._attributes import SPAN_TYPE, Integration
 from ..._core import runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
+from .._shared.lifecycle import first_chunk
 from . import extraction
 
 _BRIDGES = weakref.WeakSet()
@@ -35,6 +36,7 @@ class Run:
     operation: Operation
     kind: str
     integration: Integration = Integration.LANGCHAIN
+    streamed: bool = False
 
 
 class Bridge(BaseCallbackHandler):
@@ -77,7 +79,7 @@ class Bridge(BaseCallbackHandler):
             if kind == "execute_tool":
                 attrs[ai.GEN_AI_TOOL_NAME] = title
             if kind == "retriever":
-                # GenAI 1.37.0 has no retrieval operation; mark it Confident's way.
+                # Confident's marker; GenAI 1.41.0's `retrieval` is not adopted yet.
                 attrs[SPAN_TYPE] = "retriever"
             # The token is local to this synchronous callback, never saved on a run.
             token = context.attach(
@@ -183,6 +185,15 @@ class Bridge(BaseCallbackHandler):
 
     def on_chain_end(self, outputs, *, run_id, **kwargs):
         safe(self.finish, run_id, outputs, inputs=kwargs.get("inputs"))
+
+    def on_llm_new_token(self, token, *, run_id, **kwargs):
+        with self.lock:
+            run = self.runs.get(run_id)
+            model_call = run is not None and run.kind in ("chat", "text_completion")
+            if not model_call or run.streamed:
+                return
+            run.streamed = True
+        safe(first_chunk, run.operation)
 
     def on_llm_end(self, response, *, run_id, **kwargs):
         safe(self.finish, run_id, response)

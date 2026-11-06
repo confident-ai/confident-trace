@@ -1,6 +1,7 @@
 import { context, trace, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import type { Span, TimeInput } from '@opentelemetry/api';
 import { isDisabled } from '@/config/resolve';
+import { markFirstChunk } from '@/integrations/extract';
 import { frameworkPolicy, safely } from '@/integrations/framework';
 import type { InstrumentationOptions } from '@/integrations/instrument';
 import type { IntegrationSpanType } from '@/integrations/span-type';
@@ -19,6 +20,9 @@ export interface CallbackRun {
   policy: ContentPolicy;
   root: boolean;
   type: IntegrationSpanType;
+  /** performance.now() at start; time to first chunk is measured from here. */
+  started: number;
+  streamed: boolean;
 }
 /** Shared lifecycle; callbacks never change the application's ambient context. */
 export class CallbackRuns {
@@ -90,8 +94,17 @@ export class CallbackRuns {
         type,
         root: !trace.getSpanContext(parentContext),
         policy: frameworkPolicy(this.options),
+        started: performance.now(),
+        streamed: false,
       });
     });
+  }
+  /** Mark an LLM run streamed and record its time to first chunk, once. */
+  firstChunk(id: string): void {
+    const run = this.active.get(id);
+    if (!run || run.type !== 'llm' || run.streamed) return;
+    run.streamed = true;
+    safely(() => markFirstChunk(run.span, run.started));
   }
   content(
     id: string,
