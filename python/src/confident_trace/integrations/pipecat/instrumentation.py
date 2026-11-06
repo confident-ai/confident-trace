@@ -25,14 +25,12 @@ from .test_case import link_test_case, remember_test_case
 def instrument(runtime):
     version("pipecat-ai")
 
-    # Pipecat creates every span on the global provider.
-    reaches_us = use_global_provider(runtime)
-
-    # Tracing is opt-in per pipeline; selecting this integration turns it on.
+    # Tracing is opt-in per pipeline; selecting this integration turns it on
+    # when the global provider, where Pipecat creates every span, reaches us.
     # An explicit enable_tracing=False is respected.
     def init_wrapper(original, method):
         def init(wrapped, instance, args, kwargs):
-            if runtime.active and reaches_us:
+            if runtime.active and use_global_provider(runtime):
                 kwargs.setdefault("enable_tracing", True)
             return wrapped(*args, **kwargs)
 
