@@ -5,6 +5,7 @@ import wrapt
 from ..._core.safety import safe
 from .._shared.accumulation import Accumulator as BaseAccumulator
 from .._shared.extraction import get
+from .._shared.lifecycle import streamed
 from .._shared.streams import AsyncStream as BaseAsyncStream
 from .._shared.streams import Stream as BaseStream
 from .extraction import finish_reason, response
@@ -103,7 +104,7 @@ class Manager(wrapt.ObjectProxy):
         try:
             with op.active():
                 value = self.__wrapped__.__enter__()
-            return Stream(value, operation=op, consume=Accumulator())
+            return Stream(value, operation=op, consume=streamed(Accumulator()))
         except BaseException as error:
             op.end(error)
             raise
@@ -121,7 +122,7 @@ class Manager(wrapt.ObjectProxy):
         try:
             with op.active():
                 value = await self.__wrapped__.__aenter__()
-            return AsyncStream(value, operation=op, consume=Accumulator())
+            return AsyncStream(value, operation=op, consume=streamed(Accumulator()))
         except BaseException as error:
             op.end(error)
             raise

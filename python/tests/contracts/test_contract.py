@@ -36,7 +36,7 @@ def test_emitted_schema_version(telemetry):
     wire = encode_spans(spans(exporter))
     assert (
         wire.resource_spans[0].scope_spans[0].schema_url
-        == "https://opentelemetry.io/schemas/1.37.0"
+        == "https://opentelemetry.io/schemas/1.41.0"
     )
 
 

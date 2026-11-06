@@ -1,5 +1,5 @@
 {
-  "genai_version": "1.37.0",
+  "genai_version": "1.41.0",
   "cases": [
     {
       "name": "openai-chat",

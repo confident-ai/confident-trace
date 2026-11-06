@@ -19,8 +19,8 @@ from opentelemetry.sdk.trace import SpanProcessor, TracerProvider
 from opentelemetry.util.re import parse_env_headers
 
 from .. import _attributes as confident
-from .._semconv.genai_v1_37_0 import SCHEMA_URL
-from .._semconv.genai_v1_37_0 import SEMCONV_VERSION as SEMCONV_VERSION
+from .._semconv.genai_v1_41_0 import SCHEMA_URL
+from .._semconv.genai_v1_41_0 import SEMCONV_VERSION as SEMCONV_VERSION
 from .batching import BoundedSpanExporter
 from .content import MAX_NESTING_DEPTH, ContentPolicy, apply_native_policy
 from .otlp import child_environment

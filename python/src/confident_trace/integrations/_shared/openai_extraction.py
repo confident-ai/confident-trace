@@ -6,8 +6,8 @@ from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
-from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import arguments, get, media, sequence, string
+from ..._semconv import genai_v1_41_0 as ai
+from .._shared.extraction import arguments, count, get, media, sequence, string
 
 _MEDIA_KINDS = (
     "image_url",
@@ -270,6 +270,32 @@ def response(op, value):
                 )
                 safe(op.span.set_attribute, attr, number)
                 break
+    for attr, paths in (
+        (
+            ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+            (
+                ("prompt_tokens_details", "cached_tokens"),
+                ("input_tokens_details", "cached_tokens"),
+            ),
+        ),
+        (
+            ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+            (
+                ("prompt_tokens_details", "cache_write_tokens"),
+                ("cache_creation_input_tokens",),
+            ),
+        ),
+        (
+            ai.GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+            (
+                ("completion_tokens_details", "reasoning_tokens"),
+                ("output_tokens_details", "reasoning_tokens"),
+            ),
+        ),
+    ):
+        number = count(usage, *paths)
+        if number:
+            safe(op.span.set_attribute, attr, number)
     output, reasons = ([], [])
     for choice in sequence(get(value, "choices")):
         reason = finish_reason(get(choice, "finish_reason"))

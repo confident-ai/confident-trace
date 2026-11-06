@@ -132,7 +132,7 @@ it('traces real Runnable chains, chat models and tools under an existing parent'
   expect(
     result
       .filter((s) => s !== parent)
-      .every((s) => s.instrumentationScope.schemaUrl?.endsWith('/1.37.0')),
+      .every((s) => s.instrumentationScope.schemaUrl?.endsWith('/1.41.0')),
   ).toBe(true);
 });
 it("records a structured tool's arguments as an object", async () => {

@@ -46,6 +46,17 @@ def get(value, key, default=None):
         return default
 
 
+def count(value, *paths):
+    """The first positive integer found at one of the nested key paths, or None."""
+    for path in paths:
+        found = value
+        for key in path:
+            found = get(found, key)
+        if type(found) is int and found > 0:
+            return found
+    return None
+
+
 def sequence(value, limit=128):
     return islice(value if type(value) in (list, tuple) else (), limit)
 

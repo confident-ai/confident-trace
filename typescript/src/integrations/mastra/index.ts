@@ -30,7 +30,7 @@ import {
   frameworkOutput,
   frameworkPolicy,
 } from '@/integrations/framework';
-import { get, list } from '@/integrations/extract';
+import { count, get, list } from '@/integrations/extract';
 import { mastraSpanType } from '@/integrations/span-type';
 import * as S from '@/semconv/generated';
 
@@ -212,6 +212,29 @@ export class ConfidentMastraExporter {
         const usage = get(data, 'usage');
         set(S.ATTR_GEN_AI_USAGE_INPUT_TOKENS, get(usage, 'inputTokens'));
         set(S.ATTR_GEN_AI_USAGE_OUTPUT_TOKENS, get(usage, 'outputTokens'));
+        set(
+          S.ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+          count(usage, ['inputDetails', 'cacheRead']),
+        );
+        set(
+          S.ATTR_GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS,
+          count(usage, ['inputDetails', 'cacheWrite']),
+        );
+        set(
+          S.ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+          count(usage, ['outputDetails', 'reasoning']),
+        );
+        if (get(data, 'streaming') === true) {
+          attributes[S.ATTR_GEN_AI_REQUEST_STREAM] = true;
+          // Mastra stamps its first streamed chunk; the span starts with the request.
+          const firstChunk = get(data, 'completionStartTime');
+          if (firstChunk instanceof Date)
+            set(
+              S.ATTR_GEN_AI_RESPONSE_TIME_TO_FIRST_CHUNK,
+              Math.max(0, firstChunk.getTime() - source.startTime.getTime()) /
+                1000,
+            );
+        }
       }
       const finish = get(data, 'finishReason');
       if (typeof finish === 'string')
@@ -220,6 +243,7 @@ export class ConfidentMastraExporter {
       for (const [key, attr] of [
         ['temperature', S.ATTR_GEN_AI_REQUEST_TEMPERATURE],
         ['topP', S.ATTR_GEN_AI_REQUEST_TOP_P],
+        ['topK', S.ATTR_GEN_AI_REQUEST_TOP_K],
         ['maxOutputTokens', S.ATTR_GEN_AI_REQUEST_MAX_TOKENS],
       ] as const)
         set(attr, get(parameters, key));

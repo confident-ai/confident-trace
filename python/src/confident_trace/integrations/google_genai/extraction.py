@@ -6,8 +6,8 @@ from ... import _attributes as confident
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
-from ..._semconv import genai_v1_37_0 as ai
-from .._shared.extraction import get, media, sequence, string
+from ..._semconv import genai_v1_41_0 as ai
+from .._shared.extraction import count, get, media, sequence, string
 
 
 def parts(value, depth=0):
@@ -243,6 +243,13 @@ def response(op, value):
                 )
                 safe(op.span.set_attribute, attr, number)
                 break
+    for attr, key in (
+        (ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, "cached_content_token_count"),
+        (ai.GEN_AI_USAGE_REASONING_OUTPUT_TOKENS, "thoughts_token_count"),
+    ):
+        number = count(usage, (key,))
+        if number:
+            safe(op.span.set_attribute, attr, number)
     output, reasons = ([], [])
     for candidate in sequence(get(value, "candidates")):
         reason = finish_reason(get(candidate, "finish_reason"))

@@ -207,7 +207,7 @@ explicitly for the affected product/deployment/version.
   support does not prove downstream forwarding to every model provider.
 - **Semantics:** inspect emitted scopes, versions, content shapes, statuses, usage,
   cache/fallback attempts and extensions. Portkey documents GenAI 1.40.0; other
-  modes/presets may differ from our 1.37.0 emission contract. Preserve foreign
+  modes/presets may differ from our 1.41.0 emission contract. Preserve foreign
   spans and map them in the backend rather than relabeling their schema.
 - **End-to-end acceptance:** `ct.span("request")` → LangChain/model → gateway →
   provider attempts must preserve expected IDs/parents under concurrency and

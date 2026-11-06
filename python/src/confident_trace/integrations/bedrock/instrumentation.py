@@ -9,7 +9,7 @@ from ..._attributes import Integration
 from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import Operation
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from .._shared.patching import install_targets
 from .extraction import request, response
 from .streaming import EventStream

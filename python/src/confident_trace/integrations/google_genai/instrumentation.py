@@ -6,7 +6,7 @@ import sys
 from opentelemetry import trace
 
 from ..._attributes import Integration
-from ..._semconv import genai_v1_37_0 as ai
+from ..._semconv import genai_v1_41_0 as ai
 from .._shared.lifecycle import begin_call, finish_call, same_provider, wrapper
 from .._shared.patching import install_targets
 from ._constants import INSTRUMENTATION_MODULE, SCOPE_NAMES

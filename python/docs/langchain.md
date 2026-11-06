@@ -1,7 +1,7 @@
 # LangChain and LangGraph
 
 The in-house bridge creates ordinary OpenTelemetry spans using Confident Trace's
-existing provider and exporter. It emits the pinned GenAI 1.37.0 attributes; it
+existing provider and exporter. It emits the pinned GenAI 1.41.0 attributes; it
 does not use OpenInference, LangSmith export, or DeepEval's trace model.
 
 `init()` automatically instruments installed LangChain Core and optionally

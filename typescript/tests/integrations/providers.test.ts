@@ -177,7 +177,7 @@ it.each(['chat', 'responses', 'anthropic', 'google'] as const)(
     expect(child!.kind).toBe(SpanKind.CLIENT);
     expect(child!.parentSpanContext?.spanId).toBe(parent!.spanContext().spanId);
     expect(child!.instrumentationScope.schemaUrl).toBe(
-      'https://opentelemetry.io/schemas/1.37.0',
+      'https://opentelemetry.io/schemas/1.41.0',
     );
     expect(attrs()).toMatchObject({
       'confident.span.type': 'llm',
