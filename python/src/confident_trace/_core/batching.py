@@ -10,20 +10,20 @@ SPAN_OVERHEAD = 1024
 
 def value_size(value):
     if type(value) is str:
-        return len(value)
+        return len(value.encode("utf-8"))
     if type(value) in (list, tuple):
         return sum(value_size(item) for item in value) + 2 * len(value)
     return 8
 
 
 def span_size(span):
-    total = SPAN_OVERHEAD + len(span.name or "")
+    total = SPAN_OVERHEAD + value_size(span.name or "")
     for key, value in (span.attributes or {}).items():
-        total += len(key) + value_size(value)
+        total += value_size(key) + value_size(value)
     for event in span.events:
-        total += SPAN_OVERHEAD + len(event.name or "")
+        total += SPAN_OVERHEAD + value_size(event.name or "")
         for key, value in (event.attributes or {}).items():
-            total += len(key) + value_size(value)
+            total += value_size(key) + value_size(value)
     return total
 
 
