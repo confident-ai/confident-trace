@@ -39,6 +39,12 @@ export interface InitOptions extends ExportOptions, ContentOptions {
    * processor and shut down with the runtime.
    */
   spanProcessors?: readonly SpanProcessor[];
+  /**
+   * Register the package-owned provider and propagator globally (default), so
+   * other OTel spans are recorded too. `false` keeps them private, so the
+   * application can register its own later, and works beside one it already has.
+   */
+  globalProvider?: boolean;
 }
 
 export interface ResolvedExportOptions {

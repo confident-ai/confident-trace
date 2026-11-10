@@ -23,6 +23,7 @@ import type { MediaAttachment } from '@/content/media';
 import type { ContentOptions } from '@/content/types';
 import { isDisabled } from '@/config/resolve';
 import { state, traceContextKey, deferTraceContextKey } from '@/runtime/state';
+import { confidentTracer } from '@/runtime/tracer';
 import { detachedContext } from '@/runtime/scopes';
 import {
   applyLlmFields,
@@ -42,7 +43,6 @@ export type {
   UserFields,
   LlmFields,
 } from '@/spans/fields';
-import { VERSION } from '@/runtime/version';
 import * as S from '@/semconv/generated';
 
 export type SpanType = 'agent' | 'llm' | 'retriever' | 'tool' | 'custom';
@@ -492,11 +492,7 @@ class Operation {
         [S.ATTR_GEN_AI_OPERATION_NAME]: 'execute_tool',
         [S.ATTR_GEN_AI_TOOL_NAME]: name,
       });
-    const tracer =
-      options.tracer ??
-      trace
-        .getTracerProvider()
-        .getTracer('confident-trace', VERSION, { schemaUrl: S.SCHEMA_URL });
+    const tracer = options.tracer ?? confidentTracer();
     this.span = tracer.startSpan(
       name,
       {

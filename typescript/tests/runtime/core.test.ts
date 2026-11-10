@@ -1,5 +1,8 @@
 import { context, propagation, trace } from '@opentelemetry/api';
-import { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createSpanProcessor } from '@/runtime/processor';
@@ -193,3 +196,49 @@ it('shutdown closes the gate immediately, is idempotent, and cleanup can finish 
   expect(await runtime.shutdown()).toBe(true);
   expect(close).toHaveBeenCalledOnce();
 });
+async function appAndPackageSpans(registerAppFirst: boolean) {
+  const exporter = new InMemorySpanExporter();
+  const appSpans = new InMemorySpanExporter();
+  const app = new NodeTracerProvider({
+    spanProcessors: [new SimpleSpanProcessor(appSpans)],
+  });
+  const { init, flush } = await import('@/runtime/init');
+  const { instrument } = await import('@/integrations/instrument');
+  if (registerAppFirst) expect(trace.setGlobalTracerProvider(app)).toBe(true);
+  const runtime = init({
+    exporter,
+    instrumentations: [],
+    globalProvider: false,
+  });
+  expect(runtime.active).toBe(true);
+  // Registering succeeds only while the global slot is free.
+  if (!registerAppFirst) expect(trace.setGlobalTracerProvider(app)).toBe(true);
+  const client = { create: async () => ({ id: 'chat-1', choices: [] }) };
+  instrument([[client, 'create']], 'openai');
+  await trace.getTracer('app').startActiveSpan('request', async (span) => {
+    await client.create();
+    // A library that starts tracing for its users records on our provider.
+    runtime.provider
+      .getTracer('library')
+      .startSpan('step', { attributes: { 'gen_ai.operation.name': 'chat' } })
+      .end();
+    span.end();
+  });
+  expect(await flush()).toBe(true);
+  const scopes = (spans: InMemorySpanExporter) =>
+    spans.getFinishedSpans().map((s) => s.instrumentationScope.name);
+  expect(scopes(exporter)).toEqual(['confident-trace', 'library']);
+  expect(scopes(appSpans)).toEqual(['app']);
+  // The application may rely on our context manager; shutdown leaves it on.
+  expect(await runtime.shutdown()).toBe(true);
+  await trace.getTracer('app').startActiveSpan('after', async (span) => {
+    await Promise.resolve();
+    expect(trace.getActiveSpan()).toBe(span);
+    span.end();
+  });
+  await app.shutdown();
+}
+it('can leave the global provider for the application to register later', () =>
+  appAndPackageSpans(false));
+it('can run beside a global provider the application already registered', () =>
+  appAndPackageSpans(true));
