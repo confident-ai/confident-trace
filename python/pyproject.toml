@@ -9,6 +9,15 @@ description = "OpenTelemetry-first tracing for AI applications"
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.10"
+keywords = ["opentelemetry", "otlp", "tracing", "llm", "llm-observability", "genai", "ai-agents", "confident-ai"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: System :: Monitoring",
+]
 dependencies = [
   "opentelemetry-api>=1.39,<2",
   "opentelemetry-sdk>=1.39,<2",
@@ -17,6 +26,13 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-grpc>=1.39,<2",
   "wrapt>=1.17,<3",
 ]
+
+[project.urls]
+Homepage = "https://www.confident-ai.com"
+Documentation = "https://www.confident-ai.com/docs/llm-tracing/quickstart"
+Repository = "https://github.com/confident-ai/confident-trace"
+Issues = "https://github.com/confident-ai/confident-trace/issues"
+Changelog = "https://github.com/confident-ai/confident-trace/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 openai-agents = ["openinference-instrumentation-openai-agents>=2.2.1,<3"]

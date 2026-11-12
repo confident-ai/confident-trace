@@ -2,6 +2,10 @@
   "name": "confident-trace",
   "version": "0.1.0",
   "description": "OpenTelemetry-first tracing for AI applications",
+  "keywords": ["opentelemetry", "otlp", "tracing", "llm", "llm-observability", "genai", "ai-agents", "confident-ai"],
+  "homepage": "https://www.confident-ai.com/docs/llm-tracing/quickstart",
+  "repository": { "type": "git", "url": "git+https://github.com/confident-ai/confident-trace.git", "directory": "typescript" },
+  "bugs": { "url": "https://github.com/confident-ai/confident-trace/issues" },
   "license": "Apache-2.0",
   "type": "module",
   "engines": {
