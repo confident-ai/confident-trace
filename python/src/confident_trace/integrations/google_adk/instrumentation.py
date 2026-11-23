@@ -3,7 +3,7 @@
 from importlib.metadata import PackageNotFoundError, distribution
 
 from ..._attributes import Integration
-from .._shared.lifecycle import register_native_inference
+from .._shared.lifecycle import register_native_inference, use_global_provider
 from ._constants import SCOPE_NAME
 
 
@@ -12,6 +12,7 @@ def instrument(runtime):
         distribution("google-adk")
     except PackageNotFoundError:
         return []
+    use_global_provider(runtime)
     # Recognition depends on the active span's scope and operation, not the
     # installed SDK version. Unrecognized native spans still export unchanged.
     runtime.processor.integration_scopes[SCOPE_NAME] = Integration.GOOGLE_ADK

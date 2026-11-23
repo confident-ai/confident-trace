@@ -7,7 +7,7 @@ import type { InstrumentationOptions } from '@/integrations/instrument';
 import type { IntegrationSpanType } from '@/integrations/span-type';
 import type { ContentPolicy } from '@/content/policy';
 import { state } from '@/runtime/state';
-import { VERSION } from '@/runtime/version';
+import { confidentTracer } from '@/runtime/tracer';
 import * as S from '@/semconv/generated';
 import { messageShape, spanBudget } from '@/content/policy';
 
@@ -60,11 +60,7 @@ export class CallbackRuns {
       const parentContext = parent
         ? trace.setSpan(context.active(), parent.span)
         : context.active();
-      const tracer =
-        this.options.tracer ??
-        trace.getTracerProvider().getTracer('confident-trace', VERSION, {
-          schemaUrl: S.SCHEMA_URL,
-        });
+      const tracer = this.options.tracer ?? confidentTracer();
       const span = tracer.startSpan(
         name,
         {

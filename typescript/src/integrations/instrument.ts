@@ -5,7 +5,7 @@ import { isDisabled } from '@/config/resolve';
 import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
 import { state, suppress, patched, automaticOriginals } from '@/runtime/state';
-import { VERSION } from '@/runtime/version';
+import { confidentTracer } from '@/runtime/tracer';
 import { Capture, get } from '@/integrations/extract';
 import { liveKitOwnsCall } from '@/integrations/livekit';
 import type { Provider } from '@/integrations/extract';
@@ -69,11 +69,7 @@ export function instrument(
         const policy = explicit
           ? (state.policy?.withOptions(options) ?? explicit)
           : (state.policy ?? new ContentPolicy());
-        const tracer =
-          options.tracer ??
-          trace.getTracerProvider().getTracer('confident-trace', VERSION, {
-            schemaUrl: S.SCHEMA_URL,
-          });
+        const tracer = options.tracer ?? confidentTracer();
         const parent = context.active();
         const operation =
           provider === 'google_genai' ? 'generate_content' : 'chat';
