@@ -6,7 +6,7 @@ import {
   safely,
   toolArguments,
 } from '@/integrations/framework';
-import { count, get, list, parts } from '@/integrations/extract';
+import { count, get, list, parts, reasoning } from '@/integrations/extract';
 import { state } from '@/runtime/state';
 import * as S from '@/semconv/generated';
 
@@ -67,6 +67,17 @@ function messages(value: unknown, fallback: string): unknown {
       return frameworkMessages([
         { role: 'tool', content: get(item, 'output') },
       ]);
+    if (type === 'reasoning') {
+      const thought = reasoning(item);
+      return thought
+        ? [
+            {
+              role: 'assistant',
+              parts: [{ type: 'reasoning', content: thought }],
+            },
+          ]
+        : [];
+    }
     const content = get(item, 'content');
     return frameworkMessages([
       {

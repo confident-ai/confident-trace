@@ -24,6 +24,7 @@ class Accumulator(BaseAccumulator):
         first = self.candidate()
         delta = get(chunk, "delta", {})
         self.append(first, "text", chunk if type(chunk) is str else get(delta, "text"))
+        self.append(first, "reasoning", get(delta, "thinking"))
         reason = finish_reason(get(delta, "stop_reason"))
         if reason:
             first["finish_reason"] = reason

@@ -68,6 +68,25 @@ def string(value):
     return value if type(value) is str else None
 
 
+def reasoning(block):
+    if get(block, "thought") is True:
+        return string(get(block, "text")) or None
+    kind = get(block, "type")
+    if kind in ("thinking", "reasoning"):
+        text = string(get(block, kind)) or string(get(block, "text"))
+        for key in ("content", "summary"):
+            if text:
+                break
+            text = "\n\n".join(
+                t
+                for item in sequence(get(block, key))
+                if (t := string(get(item, "text")))
+            )
+        return text or None
+    inner = get(block, "reasoningContent", get(block, "reasoning_content"))
+    return string(get(get(inner, "reasoningText", inner), "text")) or None
+
+
 def arguments(value):
     if type(value) is str and len(value) <= 16384:
         try:

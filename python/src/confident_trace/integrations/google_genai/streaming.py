@@ -27,7 +27,8 @@ class Accumulator(BaseAccumulator):
             if reason:
                 candidate["finish_reason"] = reason
             for part in sequence(get(get(item, "content", {}), "parts")):
-                self.append(candidate, "text", get(part, "text"))
+                kind = "reasoning" if get(part, "thought") is True else "text"
+                self.append(candidate, kind, get(part, "text"))
                 fn = get(part, "function_call")
                 if fn:
                     tool = self.tool(candidate, get(fn, "id") or get(fn, "name", ""))

@@ -7,7 +7,15 @@ from ..._core import runtime as _runtime
 from ..._core.safety import safe
 from ..._core.spans import content
 from ..._semconv import genai_v1_41_0 as ai
-from .._shared.extraction import arguments, count, get, media, sequence, string
+from .._shared.extraction import (
+    arguments,
+    count,
+    get,
+    media,
+    reasoning,
+    sequence,
+    string,
+)
 
 _MEDIA_KINDS = (
     "image_url",
@@ -76,6 +84,12 @@ def messages(value):
                 }
             )
             continue
+        if kind == "reasoning":
+            thought = reasoning(message)
+            if thought is not None:
+                part = {"type": "reasoning", "content": thought}
+                result.append({"role": "assistant", "parts": [part]})
+            continue
         body = get(message, "content", get(message, "parts", ""))
         role = get(message, "role", "user") or "user"
         if role == "tool":
@@ -88,6 +102,11 @@ def messages(value):
             ]
         else:
             p = parts(body)
+        thought = string(get(message, "reasoning_content")) or string(
+            get(message, "reasoning")
+        )
+        if thought:
+            p.insert(0, {"type": "reasoning", "content": thought})
         for tool in sequence(get(message, "tool_calls")):
             fn = get(tool, "function", {})
             p.append(

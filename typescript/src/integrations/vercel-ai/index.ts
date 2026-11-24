@@ -115,6 +115,7 @@ export function createVercelAITracer(
     if (!span.isRecording()) return span;
     let ended = false;
     let outputText: string | undefined;
+    let outputReasoning: string | undefined;
     let outputTools: unknown;
     const content = (key: string, value: unknown) => {
       const encoded = policy.encode(
@@ -133,6 +134,11 @@ export function createVercelAITracer(
     };
     const output = () => {
       const normalized = frameworkMessages(outputText ?? '', 'assistant');
+      if (outputReasoning)
+        normalized[0]!.parts.unshift({
+          type: 'reasoning',
+          content: outputReasoning,
+        });
       for (const t of list(outputTools))
         normalized[0]!.parts.push({
           type: 'tool_call',
@@ -236,6 +242,11 @@ export function createVercelAITracer(
         if (outputText.length < value.length)
           span.setAttribute(S.ATTR_CONFIDENT_SPAN_CONTENT_TRUNCATED, true);
         output();
+      } else if (key === 'ai.response.reasoning' && typeof value === 'string') {
+        outputReasoning = value.slice(0, policy.maxBytes);
+        if (outputReasoning.length < value.length)
+          span.setAttribute(S.ATTR_CONFIDENT_SPAN_CONTENT_TRUNCATED, true);
+        output();
       } else if (key === 'ai.response.toolCalls') {
         outputTools = parseContent(value, policy);
         output();
@@ -308,6 +319,7 @@ export function createVercelAITracer(
         if (ended) return;
         ended = true;
         outputText = undefined;
+        outputReasoning = undefined;
         outputTools = undefined;
         safely(() => span.end(time));
       },

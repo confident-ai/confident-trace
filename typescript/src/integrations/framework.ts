@@ -1,7 +1,7 @@
 import { ContentPolicy } from '@/content/policy';
 import type { ContentOptions } from '@/content/types';
 import { state } from '@/runtime/state';
-import { get, list, media } from '@/integrations/extract';
+import { get, list, media, reasoning } from '@/integrations/extract';
 import { Media } from '@/content/media';
 import type { GenAiMessage, GenAiPart } from '@/semconv/messages';
 
@@ -29,6 +29,9 @@ export function frameworkMessages(
       typeof content === 'string'
         ? [{ type: 'text', content }]
         : list(content).map((part) => {
+            const thought = reasoning(part);
+            if (thought !== undefined)
+              return { type: 'reasoning', content: thought };
             if (
               get(part, 'type') === 'text' &&
               typeof get(part, 'text') === 'string'
@@ -102,11 +105,12 @@ function upstreamMedia(part: unknown): Media | undefined {
 export function semanticParts(value: unknown): unknown {
   if (typeof value === 'string') return value;
   return list(value).map((part) => {
+    const kind = get(part, 'type');
     if (
-      get(part, 'type') === 'text' &&
+      (kind === 'text' || kind === 'reasoning') &&
       typeof get(part, 'content') === 'string'
     )
-      return { type: 'text', content: get(part, 'content') };
+      return { type: kind, content: get(part, 'content') };
     if (get(part, 'type') === 'tool_call')
       return {
         type: 'tool_call',

@@ -151,9 +151,31 @@ export function media(block: unknown): Media {
   return new Media({ mimeType: mime });
 }
 
+export function reasoning(block: unknown): string | undefined {
+  if (get(block, 'thought') === true)
+    return text(get(block, 'text')) || undefined;
+  const kind = get(block, 'type');
+  if (kind === 'thinking' || kind === 'reasoning') {
+    const own = text(get(block, kind)) || text(get(block, 'text'));
+    if (own) return own;
+    for (const key of ['content', 'summary']) {
+      const joined = list(get(block, key))
+        .map((item) => text(get(item, 'text')))
+        .filter(Boolean)
+        .join('\n\n');
+      if (joined) return joined;
+    }
+    return undefined;
+  }
+  const inner = get(block, 'reasoning_content');
+  const nested = get(inner ?? block, 'reasoningText') ?? inner;
+  return text(get(nested, 'text')) || undefined;
+}
 export function parts(value: unknown): GenAiPart[] {
   if (typeof value === 'string') return [{ type: 'text', content: value }];
   return list(value).map((block) => {
+    const thought = reasoning(block);
+    if (thought !== undefined) return { type: 'reasoning', content: thought };
     const t = get(block, 'text');
     if (typeof t === 'string') return { type: 'text', content: t };
     if (
@@ -169,14 +191,26 @@ export function parts(value: unknown): GenAiPart[] {
 }
 export function messages(value: unknown): GenAiMessage[] {
   if (typeof value === 'string') return [{ role: 'user', parts: parts(value) }];
-  return (Array.isArray(value) ? list(value) : [value]).map((m) => {
+  const items = Array.isArray(value) ? list(value) : [value];
+  return items.flatMap((m): GenAiMessage | GenAiMessage[] => {
     if (typeof m === 'string') return { role: 'user', parts: parts(m) };
     if (get(m, 'type') === 'function_call')
       return { role: 'assistant', parts: [tool(m)] };
     if (get(m, 'type') === 'function_call_output')
       return { role: 'tool', parts: [toolResult(m)] };
+    if (get(m, 'type') === 'reasoning') {
+      const thought = reasoning(m);
+      if (!thought) return [];
+      return {
+        role: 'assistant',
+        parts: [{ type: 'reasoning', content: thought }],
+      };
+    }
     const role = text(get(m, 'role')) ?? 'user';
     const p = parts(get(m, 'content') ?? get(m, 'parts') ?? '');
+    const thought =
+      text(get(m, 'reasoning_content')) || text(get(m, 'reasoning'));
+    if (thought) p.unshift({ type: 'reasoning', content: thought });
     for (const t of list(get(m, 'tool_calls'))) {
       const fn = get(t, 'function');
       p.push(
@@ -337,6 +371,7 @@ export class Capture {
       usage,
       ['completion_tokens_details', 'reasoning_tokens'],
       ['output_tokens_details', 'reasoning_tokens'],
+      ['output_tokens_details', 'thinking_tokens'],
       ['thoughtsTokenCount'],
     );
     const inputTokens =
@@ -428,12 +463,23 @@ export class Capture {
       this.span.setStatus({ code: 2 });
     if (!this.policy.enabled || this.full) return;
     const texts: unknown[] = [];
+    const thoughts: unknown[] = [];
     if (typeof delta === 'string' && event === 'response.output_text.delta')
       texts.push(delta);
-    else texts.push(get(delta, 'text'));
+    else if (
+      typeof delta === 'string' &&
+      (event === 'response.reasoning_summary_text.delta' ||
+        event === 'response.reasoning_text.delta')
+    )
+      thoughts.push(delta);
+    else {
+      texts.push(get(delta, 'text'));
+      thoughts.push(get(delta, 'thinking'));
+    }
     for (const c of list(get(value, 'choices'))) {
       const d = get(c, 'delta');
       texts.push(get(d, 'content'));
+      thoughts.push(get(d, 'reasoning_content') ?? get(d, 'reasoning'));
       for (const t of list(get(d, 'tool_calls')))
         this.deltaTool(
           `o:${String(get(c, 'index'))}:${String(get(t, 'index'))}`,
@@ -446,7 +492,7 @@ export class Capture {
     }
     for (const c of list(get(value, 'candidates')))
       for (const p of list(get(get(c, 'content'), 'parts'))) {
-        texts.push(get(p, 'text'));
+        (get(p, 'thought') === true ? thoughts : texts).push(get(p, 'text'));
         if (get(p, 'functionCall')) {
           // Encode each complete Google tool call under the same retention budget.
           const encoded = new ContentPolicy({
@@ -489,17 +535,21 @@ export class Capture {
       this.deltaTool(`r:${String(get(value, 'output_index'))}`, {
         arguments: delta,
       });
-    for (const t of texts) {
-      const s = this.append(t);
-      if (!s) continue;
-      const last = this.retained.at(-1)?.parts[0];
-      if (last && 'type' in last && last.type === 'text') last.content += s;
-      else
-        this.retained.push({
-          role: 'assistant',
-          parts: [{ type: 'text', content: s }],
-        });
-    }
+    for (const [type, values] of [
+      ['reasoning', thoughts],
+      ['text', texts],
+    ] as const)
+      for (const t of values) {
+        const s = this.append(t);
+        if (!s) continue;
+        const last = this.retained.at(-1)?.parts[0];
+        if (last && 'type' in last && last.type === type) last.content += s;
+        else
+          this.retained.push({
+            role: 'assistant',
+            parts: [{ type, content: s }],
+          });
+      }
     const output = [...this.retained];
     if (this.tools.size)
       output.push({ role: 'assistant', parts: [...this.tools.values()] });
