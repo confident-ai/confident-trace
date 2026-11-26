@@ -117,6 +117,7 @@ CONTENT_FIELDS = frozenset(
 )
 SPAN_FIELDS = {key: f"confident.span.{key}" for key in CONTENT_FIELDS}
 SPAN_FIELDS["metric_collection"] = "confident.span.metric_collection"
+SPAN_FIELDS["level"] = "confident.span.level"
 TRACE_FIELDS = MappingProxyType(
     {
         **TRACE_FIELDS,

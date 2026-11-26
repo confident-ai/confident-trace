@@ -7,6 +7,7 @@ from ._core.runtime import VERSION as __version__
 from ._core.runtime import flush, shutdown
 from ._core.scopes import project_context, suppress_tracing
 from ._core.spans import (
+    SpanLevel,
     SpanType,
     span,
     trace_context,
@@ -27,6 +28,7 @@ __all__ = [
     "flush",
     "init",
     "shutdown",
+    "SpanLevel",
     "SpanType",
     "span",
     "turn",
