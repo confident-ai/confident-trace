@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from contextlib import aclosing
 from functools import cached_property
 
@@ -50,6 +51,29 @@ def make_runner(handler, tools=()):
         ),
     )
     return runner, client
+
+
+LEGACY_LLM_CONTENT = "gcp.vertex.agent.llm_request"
+LEGACY_TOOL_CONTENT = (
+    "gcp.vertex.agent.tool_call_args",
+    "gcp.vertex.agent.tool_response",
+)
+SEMCONV_TOOL_CONTENT = ("gen_ai.tool.call.arguments", "gen_ai.tool.call.result")
+
+
+def has_llm_content(span):
+    # Legacy schema writes a request JSON on call_llm; the semconv-aligned one
+    # (default from ADK 2.14) writes gen_ai.input.messages on generate_content.
+    return (
+        span.attributes.get(LEGACY_LLM_CONTENT, "{}") != "{}"
+        or "gen_ai.input.messages" in span.attributes
+    )
+
+
+def has_tool_content(span):
+    return all(
+        span.attributes.get(key, "{}") != "{}" for key in LEGACY_TOOL_CONTENT
+    ) or all(key in span.attributes for key in SEMCONV_TOOL_CONTENT)
 
 
 async def run(runner, session="session", stream=False):
@@ -110,7 +134,7 @@ async def test_native_hierarchy_and_independent_calls(native, stream):
         assert len({s.context.trace_id for s in agents}) == 2
         ids = {s.context.span_id for s in captured}
         assert all(s.parent is None or s.parent.span_id in ids for s in captured)
-        assert any("gcp.vertex.agent.llm_request" in s.attributes for s in captured)
+        assert any(has_llm_content(s) for s in captured)
         assert tuple(captured) == native[2].get_finished_spans()
         await client.aio.models.generate_content(
             model="gemini-2.5-flash", contents="direct"
@@ -324,3 +348,86 @@ async def test_scope_version_does_not_disable_suppression(native, scope_version)
         )
     finally:
         await client.aio.aclose()
+
+
+CAPTURE = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
+SCHEMA = "ADK_TELEMETRY_SCHEMA_VERSION_OPT_IN"
+
+
+def tool_round_trip(request):
+    text = json.dumps(json.loads(request.content).get("contents", []))
+    if "functionResponse" in text:
+        return httpx.Response(200, json=response([{"text": "done"}]))
+    return httpx.Response(
+        200,
+        json=response(
+            [{"functionCall": {"name": "lookup", "args": {"city": "Macau"}}}]
+        ),
+    )
+
+
+def lookup(city: str) -> dict:
+    """Look up a city."""
+    return {"city": city.upper()}
+
+
+def reinit(**kwargs):
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    ct.shutdown()
+    exporter = InMemorySpanExporter()
+    ct.init(exporter=exporter, **kwargs)
+    return exporter
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("schema", [None, "1", "2"])
+async def test_io_on_llm_and_tool_spans_by_default(native, monkeypatch, schema):
+    # ADK 2.14 defaults to schema 2, whose content is off unless CAPTURE names
+    # a span mode; with capture_content on, IO lands on spans in either schema.
+    monkeypatch.delenv(CAPTURE, raising=False)
+    if schema is None:
+        monkeypatch.delenv(SCHEMA, raising=False)
+    else:
+        monkeypatch.setenv(SCHEMA, schema)
+    exporter = reinit()
+    runner, client = make_runner(tool_round_trip, [lookup])
+    try:
+        await run(runner)
+        captured = spans(exporter)
+        assert any(has_llm_content(s) for s in captured)
+        tools = [
+            s
+            for s in captured
+            if s.attributes.get("gen_ai.operation.name") == "execute_tool"
+        ]
+        assert tools and all(has_tool_content(s) for s in tools)
+    finally:
+        await client.aio.aclose()
+    ct.shutdown()
+    assert CAPTURE not in os.environ
+
+
+@pytest.mark.parametrize(
+    "env, kwargs",
+    [
+        ({CAPTURE: ""}, {}),
+        ({CAPTURE: "EVENT_ONLY"}, {}),
+        ({"ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS": "false"}, {}),
+        ({}, {"capture_content": False}),
+        ({}, {"global_provider": False}),
+    ],
+)
+def test_application_content_choice_is_kept(native, monkeypatch, env, kwargs):
+    monkeypatch.delenv(CAPTURE, raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    if kwargs.get("global_provider") is False:
+        # Native spans reach only the application's provider, not ours.
+        from opentelemetry.sdk.trace import TracerProvider
+
+        kwargs = {**kwargs, "tracer_provider": TracerProvider()}
+    reinit(**kwargs)
+    assert os.environ.get(CAPTURE) == env.get(CAPTURE)

@@ -105,12 +105,23 @@ export class Ancestry<R extends { active: number }> {
       this.pending.size > MAX_PENDING_SPANS ||
       this.pendingBytes > MAX_PENDING_BYTES
     )
-      diag.debug('Ancestry buffer limit reached; exporting pending ancestors');
+      diag.debug(
+        'Ancestry buffer limit reached; dropping oldest pending ancestors',
+      );
     while (
       this.pending.size > MAX_PENDING_SPANS ||
       this.pendingBytes > MAX_PENDING_BYTES
     )
-      this.select(this.pending.keys().next().value!);
+      this.drop(this.pending.keys().next().value!);
+  }
+  /**
+   * Discard a buffered payload that has no AI descendant yet. The node stays
+   * tracked so its subtree's bookkeeping holds; if a descendant qualifies
+   * later, selection passes through it to the ancestors still held.
+   */
+  private drop(key: string): void {
+    const node = this.nodes.get(key);
+    if (node) this.releasePayload(key, node);
   }
   private clean(key: string | undefined): void {
     while (key) {
@@ -123,9 +134,6 @@ export class Ancestry<R extends { active: number }> {
       const parent = key ? this.nodes.get(key) : undefined;
       if (parent) parent.children--;
     }
-  }
-  flushPending(): void {
-    while (this.pending.size) this.select(this.pending.keys().next().value!);
   }
   clear(): void {
     for (const node of this.nodes.values()) node.route.active--;

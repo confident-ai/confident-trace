@@ -96,7 +96,7 @@ init({ instrumentations: [] });
 ```
 
 Names are `openai`, `anthropic`, `google-genai`, `vercel-ai`, `langchain`,
-`langgraph`, `mastra`, `openai-agents`, and `livekit`. Call `init()` once; subsequent calls
+`langgraph`, `mastra`, `openai-agents`, `livekit`, and `google-adk`. Call `init()` once; subsequent calls
 return the existing runtime. `tracing.getInstrumentationStatus()` reports whether
 the hook registered and each integration's attachment state. `not observed` means
 the corresponding SDK has not been observed, not that it is uninstalled.
@@ -717,6 +717,30 @@ are not recorded are traced as before. `captureContent: false` or
 (roughly 25 minutes of call) are skipped with a warning. The recording is attached to the room's thread, so a call placed under a
 custom thread ID gets its audio on a separate thread named after the room.
 
+## Google ADK
+
+Call `init()` at startup and run the agent with
+`node --import confident-trace/register agent.js`. ADK (`@google/adk` >=2.5.0 <3,
+tested 2.5.0) emits its own OpenTelemetry spans on the global provider, so nothing
+is patched: its `invoke_workflow`, `invoke_agent`, `generate_content` and
+`execute_tool` spans are exported as they are and labelled `Google ADK`. ADK's
+inference span records each model call, so the Google GenAI span inside it is
+skipped and cost is counted once; GenAI calls made outside ADK, including inside
+tools, are still recorded.
+
+ADK puts model and tool input/output on its spans (`gen_ai.input.messages`,
+`gen_ai.output.messages`, `gen_ai.system_instructions`, `gen_ai.tool.call.arguments`,
+`gen_ai.tool.call.result`) only when `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`
+is `SPAN_ONLY` or `SPAN_AND_EVENT`, and leaves it unset. So that IO is captured,
+`init()` sets it to `SPAN_ONLY` when `captureContent` is on, ADK's spans reach the
+Confident provider (not with `globalProvider: false`), the variable is unset (any
+value the application set, even an empty one, is kept) and
+`ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS` is not `false`. `shutdown()` removes it. The
+variable is process-wide, so other OpenTelemetry GenAI instrumentations that read it
+record content on their spans too; set it yourself before `init()` to choose
+otherwise. A per-run `RunConfig.telemetry` still overrides it. Redaction and size
+limits apply only to Confident spans, not to ADK's.
+
 ## Span types
 
 All package-owned TypeScript integration spans include `confident.span.type`
@@ -991,10 +1015,12 @@ tracked descendant finishes. Other exporters on the provider are unaffected.
 
 Pending ended payloads are limited per processor to 1,024 spans or 16 MiB of
 estimated payload, including attributes, events, links, resource and scope data.
-The estimate is conservative accounting, not a process RSS guarantee. Overflow
-exports the oldest pending ancestor and required ancestors instead of breaking
-relationships. Explicit flush and shutdown also export pending ancestors
-conservatively; these operations can therefore send extra infrastructure spans.
+The estimate is conservative accounting, not a process RSS guarantee. An
+infrastructure span is never exported unless a descendant becomes an AI span.
+Overflow drops the oldest pending ancestor; if one of its descendants later
+qualifies, it exports without that ancestor (its parent ID still names it).
+Explicit flush leaves pending ancestors pending, since a descendant can still
+qualify, and shutdown drops them, since none can.
 Shutdown never ends active application spans.
 
 Active ancestry bookkeeping has no age expiry and remains proportional to

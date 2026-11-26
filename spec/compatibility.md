@@ -60,7 +60,7 @@ and capacity controls.
 ### TypeScript automatic startup
 
 `node --import confident-trace/register <existing-entry>` plus synchronous `init()`
-activates all eight existing integrations. Automatic attachments reuse the manual
+activates all existing integrations, including Google ADK. Automatic attachments reuse the manual
 adapters and their version/method boundaries. `instrumentations: []` selects manual
 setup. The preload handles ESM, CommonJS, later imports, and worker preload
 inheritance; every worker initializes its own runtime. Bundled SDK code is excluded.
@@ -69,6 +69,21 @@ The automatic acceptance suite executes each public entry example against fake
 model responses and a local OTLP collector. It verifies model-span counts, privacy,
 ESM/CommonJS, late imports, runtime isolation, lifecycle, and tsx startup. SDK
 updates must pass both manual adapter tests and automatic startup tests.
+
+### Google ADK (TypeScript native OTel)
+
+- `@google/adk>=2.5.0,<3`: tested 2.5.0 with its own `@google/genai` 2.32.0. ADK's
+  native spans (scope `gcp.vertex.agent`) are exported unchanged and labelled
+  `Google ADK`; Confident GenAI inference spans are suppressed inside ADK's active
+  `generate_content` span on the Confident provider.
+- Content: `init()` sets `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=SPAN_ONLY`
+  when `captureContent` is on, ADK spans reach the Confident provider and the
+  application has set neither it nor `ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false`;
+  `shutdown()` removes it.
+- Verified with a real `InMemoryRunner`, `LlmAgent` and `FunctionTool` against a
+  faked Gemini HTTP transport, manually and through `confident-trace/register`:
+  model/tool IO, labels, duplicate suppression and concurrent sessions. ADK's OTel
+  logs, metrics and live/streaming-audio spans are not covered.
 
 ### LiteLLM application-side instrumentation
 

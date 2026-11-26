@@ -7,6 +7,7 @@ import type { ContentOptions } from '@/content/types';
 import { state, suppress, patched, automaticOriginals } from '@/runtime/state';
 import { confidentTracer } from '@/runtime/tracer';
 import { Capture, get } from '@/integrations/extract';
+import { adkOwnsCall } from '@/integrations/google-adk';
 import { liveKitOwnsCall } from '@/integrations/livekit';
 import type { Provider } from '@/integrations/extract';
 import * as S from '@/semconv/generated';
@@ -63,6 +64,7 @@ export function instrument(
           isDisabled() ||
           context.active().getValue(suppress) ||
           liveKitOwnsCall() ||
+          adkOwnsCall() ||
           (state.runtime && !state.runtime.active && !options.tracer)
         )
           return original.apply(this, args);

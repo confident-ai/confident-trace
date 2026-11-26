@@ -80,6 +80,7 @@
     "litellm": "LiteLLM",
     "openrouter": "OpenRouter",
     "portkey": "Portkey",
-    "livekit": "LiveKit"
+    "livekit": "LiveKit",
+    "google_adk": "Google ADK"
   }
 }

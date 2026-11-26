@@ -27,6 +27,7 @@ try {
   run('tests/auto/dynamic.mjs', preload);
   run('tests/auto/frameworks.mjs', preload);
   run('tests/auto/livekit.mjs', preload);
+  run('tests/auto/google-adk.mjs', preload);
   for (const mode of ['esm', 'cjs'])
     for (const provider of ['shared', 'separate'])
       run(

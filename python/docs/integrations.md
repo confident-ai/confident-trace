@@ -136,34 +136,50 @@ as specified by [AWS prompt caching](https://docs.aws.amazon.com/bedrock/latest/
 
 For an existing Google ADK application, install `pip install confident-trace`, then
 call `init()` before running your runner. Install `google-adk` separately when
-starting a new application (tested with Google ADK **2.8.0**). Native ADK tracing already emits through the
+starting a new application (tested with Google ADK **2.8.0** and **2.14.1**). Native ADK tracing already emits through the
 global OTel provider. There is no OpenInference dependency or extra exporter setup.
 The default `google_adk` integration suppresses Confident provider spans only when
 the current span is an ADK native inference operation on the shared provider.
 Direct provider calls and provider calls made inside tools remain instrumented.
 Keep `google_adk` selected when explicitly selecting `google_genai` in an ADK app.
 
-ADK emits `invocation`, `invoke_agent`, `call_llm`, inference, and tool spans.
-Its `call_llm` span is retained: it carries content that differs from the native
-inference span. This is native framework structure, not an extra Confident span.
-Conversation and invocation identifiers pass through unchanged. The observed
-scope is `gcp.vertex.agent`, version `2.8.0`, schema `1.36.0`; this does not imply
-that every emitted attribute belongs to that schema version.
+ADK has two telemetry schemas, chosen by `ADK_TELEMETRY_SCHEMA_VERSION_OPT_IN`.
+The legacy schema (`1`, ADK's default through 2.8.0) emits `invocation`,
+`invoke_agent`, `call_llm`, inference, and tool spans. Its `call_llm` span is
+retained: it carries content that differs from the native inference span. The
+semconv-aligned schema (`2`, ADK's default in 2.14.1) emits `invoke_workflow`,
+`invoke_agent`, inference, and tool spans, with no `call_llm`. This is native
+framework structure, not an extra Confident span. Conversation and invocation
+identifiers pass through unchanged. The observed scope is `gcp.vertex.agent`;
+its version does not imply that every emitted attribute belongs to one schema.
 
 Content locations verified in the real runner:
 
-| Data | Native representation |
-|---|---|
-| Session | `gen_ai.conversation.id`; legacy `gcp.vertex.agent.session_id` |
-| Invocation | `gcp.vertex.agent.invocation_id` |
-| Model input/output | JSON `gcp.vertex.agent.llm_request` / `gcp.vertex.agent.llm_response` on `call_llm` |
-| Tool arguments/result | `gcp.vertex.agent.tool_call_args` / `gcp.vertex.agent.tool_response` |
-| Usage/finish | `gen_ai.usage.*`, `gen_ai.response.finish_reasons` on native model spans |
-| Additional message content | Native OTel logs; this SDK does not configure a logs pipeline |
+| Data | Legacy schema (`1`) | Semconv-aligned schema (`2`) |
+|---|---|---|
+| Session | `gen_ai.conversation.id`; legacy `gcp.vertex.agent.session_id` | `gen_ai.conversation.id` |
+| Invocation | `gcp.vertex.agent.invocation_id` | `gcp.vertex.agent.invocation_id` on inference spans |
+| Model input/output | JSON `gcp.vertex.agent.llm_request` / `gcp.vertex.agent.llm_response` on `call_llm` | `gen_ai.input.messages`, `gen_ai.output.messages`, `gen_ai.system_instructions` on the inference span |
+| Tool arguments/result | `gcp.vertex.agent.tool_call_args` / `gcp.vertex.agent.tool_response` | `gen_ai.tool.call.arguments` / `gen_ai.tool.call.result` |
+| Usage/finish | `gen_ai.usage.*`, `gen_ai.response.finish_reasons` on native model spans | same |
+| Additional message content | Native OTel logs; this SDK does not configure a logs pipeline | same |
+
+The semconv-aligned schema puts content on spans only when
+`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` is `SPAN_ONLY` or
+`SPAN_AND_EVENT`, and ADK leaves it unset. So that model and tool IO are captured,
+`init()` sets it to `SPAN_ONLY` when all of these hold: `capture_content` is on,
+ADK's spans reach Confident (not under `global_provider=False` with another
+global provider), the variable is unset (any value the application set, even an
+empty one, is kept), and `ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS` is not `false`.
+`shutdown()` removes it again. The variable is process-wide, so other OpenTelemetry
+GenAI instrumentations that read it also record content on their spans; set it
+yourself before `init()` to choose otherwise.
 
 `ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false` disables ADK's legacy span content;
-ADK's own telemetry configuration can override its environment defaults. Confident's
-`capture_content`, `redact`, and size bounds govern Confident-owned spans only.
+ADK's own telemetry configuration, including a per-run `RunConfig.telemetry`, can
+override its environment defaults. Confident's `capture_content` decides only
+whether `init()` turns ADK span content on; `redact` and size bounds govern
+Confident-owned spans only.
 No native spans are rewritten to the package's pinned GenAI convention. Backend
 mapping of ADK content and logs is separate and has not been certified here.
 

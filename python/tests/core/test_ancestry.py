@@ -86,8 +86,12 @@ def test_unselected_subtree_discards_after_descendants_finish(telemetry):
     assert router().ancestry.pending_bytes == 0
 
 
-@pytest.mark.parametrize("limit", ["count", "bytes"])
-def test_overflow_exports_oldest_and_required_ancestors(telemetry, monkeypatch, limit):
+@pytest.mark.parametrize(
+    "limit, exported", [("count", ["late", "middle"]), ("bytes", ["late"])]
+)
+def test_overflow_drops_oldest_pending_ancestors(
+    telemetry, monkeypatch, limit, exported
+):
     provider, exporter = telemetry
     monkeypatch.setattr(ancestry, "MAX_PENDING_SPANS", 1 if limit == "count" else 1024)
     monkeypatch.setattr(
@@ -103,13 +107,17 @@ def test_overflow_exports_oldest_and_required_ancestors(telemetry, monkeypatch, 
     assert len(router().ancestry.pending) <= ancestry.MAX_PENDING_SPANS
     c.set_attribute("gen_ai.operation.name", "chat")
     c.end()
+    # Oldest first: the dropped ancestors never export, even once "late" qualifies.
     rows = captured(exporter)
-    assert sorted(s.name for s in rows) == ["late", "middle", "root"]
-    assert len({s.context.span_id for s in rows}) == 3
+    assert sorted(s.name for s in rows) == exported
+    assert next(s for s in rows if s.name == "late").parent.span_id == (
+        b.get_span_context().span_id
+    )
+    assert not router().ancestry.nodes
 
 
 @pytest.mark.parametrize("shutdown", [False, True])
-def test_lifecycle_exports_pending_without_ending_child(telemetry, shutdown):
+def test_lifecycle_never_exports_unresolved_ancestors(telemetry, shutdown):
     provider, exporter = telemetry
     # InMemorySpanExporter clears on shutdown, so observe submitted batches too.
     batches = []
@@ -124,12 +132,13 @@ def test_lifecycle_exports_pending_without_ending_child(telemetry, shutdown):
         assert not rt.ancestry.nodes
     else:
         ct.flush()
+        assert len(rt.ancestry.pending) == 1
     assert child.is_recording()
-    assert [s.name for s in batches] == ["parent"]
+    assert batches == []
     child.end()
     if not shutdown:
         ct.flush()
-    assert [s.name for s in batches] == ["parent"]
+    assert batches == []
 
 
 def test_real_count_limit(telemetry):
@@ -142,19 +151,26 @@ def test_real_count_limit(telemetry):
     assert len(router().ancestry.pending) == 1024
     for child in children:
         child.end()
-    assert len(captured(exporter)) == 1
+    assert captured(exporter) == ()
     assert not router().ancestry.nodes
+    assert router().default.active == 0
 
 
-def test_zero_timeout_keeps_pending_for_next_flush(telemetry):
+@pytest.mark.parametrize("timeout", [0, 30000])
+def test_flush_holds_pending_until_a_descendant_qualifies(telemetry, timeout):
     provider, exporter = telemetry
     parent = start(provider, "parent")
     child = start(provider, "child", parent)
     parent.end()
-    assert router().force_flush(0) is False
+    router().force_flush(timeout)
     assert len(router().ancestry.pending) == 1
-    assert [s.name for s in captured(exporter)] == ["parent"]
+    assert captured(exporter) == ()
+    child.set_attribute("gen_ai.operation.name", "chat")
     child.end()
+    rows = captured(exporter)
+    assert [s.name for s in rows] == ["parent", "child"]
+    assert rows[1].parent.span_id == rows[0].context.span_id
+    assert not router().ancestry.nodes
 
 
 def test_pending_ancestor_survives_five_hour_descendant(telemetry):

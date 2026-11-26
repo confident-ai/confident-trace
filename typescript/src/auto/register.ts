@@ -13,6 +13,7 @@ import { attachVercel } from '@/auto/vercel';
 import { attachMastra } from '@/auto/mastra';
 import { attachAgents } from '@/auto/agents';
 import { attachLiveKit } from '@/auto/livekit';
+import { attachGoogleAdk } from '@/auto/google-adk';
 import type { InstrumentationName } from '@/auto/types';
 import type { Foreign } from '@/auto/patch';
 
@@ -30,6 +31,7 @@ const packages: Record<string, [InstrumentationName, string]> = {
   '@openai/agents-core': ['openai-agents', '>=0.17.0 <0.18'],
   '@openai/agents-openai': ['openai-agents', '>=0.17.0 <0.18'],
   '@livekit/agents': ['livekit', '>=1.9.0 <2'],
+  '@google/adk': ['google-adk', '>=2.5.0 <3'],
 };
 const packageRequire = createRequire(import.meta.url);
 const seen = new Map<string, boolean>();
@@ -74,6 +76,7 @@ function attach(
     else if (name === 'mastra')
       attachMastra(exports, packageRequire.resolve('@mastra/observability'));
     else if (name === 'livekit') attachLiveKit(exports, modulePath);
+    else if (name === 'google-adk') attachGoogleAdk();
     else attachAgents(exports);
   } catch (error) {
     failed(name, error);
@@ -83,9 +86,12 @@ if (!state.auto.registered) {
   const names = Object.keys(packages);
   const pattern =
     /\/node_modules\/(openai|ai|portkey-ai|@openrouter\/sdk|@anthropic-ai\/sdk|@google\/genai|@langchain\/(?:core|langgraph)|@mastra\/core|@openai\/agents(?:-core|-openai)?|@livekit\/agents)(?=\/)/;
+  // Nothing in ADK is patched; its entry module only signals that ADK loaded.
+  // Wrapping ADK's internal ESM modules deadlocks the import.
+  const adkEntry = /\/node_modules\/(@google\/adk)(?=\/dist\/esm\/index\.js$)/;
   addHook((url, exports) => {
     const path = fileURLToPath(url);
-    const match = pattern.exec(path);
+    const match = pattern.exec(path) ?? adkEntry.exec(path);
     if (!match) return;
     attach(
       exports,
@@ -128,7 +134,7 @@ if (!state.auto.registered) {
   });
   register(packageRequire.resolve('import-in-the-middle/hook.mjs'), {
     parentURL: import.meta.url,
-    data: { include: [pattern] },
+    data: { include: [pattern, adkEntry] },
   });
   state.auto.registered = true;
 }
