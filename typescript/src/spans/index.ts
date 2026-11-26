@@ -46,6 +46,7 @@ export type {
 import * as S from '@/semconv/generated';
 
 export type SpanType = 'agent' | 'llm' | 'retriever' | 'tool' | 'custom';
+export type SpanLevel = 'debug' | 'info';
 export interface SpanFields {
   metricCollection?: string;
   name?: string;
@@ -74,6 +75,7 @@ export type SpanOptions = SpanFields &
   ContentOptions & {
     attributes?: Attributes;
     tracer?: Tracer;
+    level?: SpanLevel;
   } & (
     | ({ type: 'llm' } & LlmFields)
     | ({ type?: Exclude<SpanType, 'llm'> } & { [K in keyof LlmFields]?: never })
@@ -90,6 +92,7 @@ const roles: readonly string[] = [
   'tool',
   'custom',
 ];
+const levels: readonly string[] = ['debug', 'info'];
 const contentKeys: Record<string, string> = {
   input: 'input',
   output: 'output',
@@ -132,6 +135,7 @@ const spanOptions = new Set([
   ...Object.keys(llmAttributes),
   'type',
   'attributes',
+  'level',
 ]);
 const turnOptions = new Set([...traceFields, ...configuration, 'previous']);
 const entryKey = createContextKey('confident-trace.entry-operation');
@@ -161,6 +165,12 @@ function validate(options: object, allowed: Set<string>): void {
     typeof options.name !== 'string'
   )
     throw new TypeError('Span name must be a string');
+  if (
+    'level' in options &&
+    options.level !== undefined &&
+    (typeof options.level !== 'string' || !levels.includes(options.level))
+  )
+    throw new TypeError(`Unsupported span level: ${String(options.level)}`);
 }
 function role(options: SpanOptions): SpanType {
   const value =
@@ -342,12 +352,22 @@ function update(
   );
 }
 /** Update the active OTel span. Explicit fields override automatic capture. */
-export function updateSpan(fields: SpanFields & LlmFields): void {
-  validate(fields, new Set([...spanFields, ...Object.keys(llmAttributes)]));
+export function updateSpan(
+  fields: SpanFields & LlmFields & { level?: SpanLevel },
+): void {
+  validate(
+    fields,
+    new Set([...spanFields, ...Object.keys(llmAttributes), 'level']),
+  );
   update(fields, 'span');
   if (isDisabled()) return;
   const current = trace.getSpan(context.active());
-  if (current) safe(() => updateLlmFields(current, fields));
+  if (!current) return;
+  safe(() => updateLlmFields(current, fields));
+  if (fields.level !== undefined && current.isRecording())
+    safe(() =>
+      current.setAttribute(S.ATTR_CONFIDENT_SPAN_LEVEL, fields.level!),
+    );
 }
 /** Update the package entry span, or the current OTel span if there is no entry. */
 export function updateTrace(fields: TraceFields): void {
@@ -486,6 +506,9 @@ class Operation {
     const attributes = {
       ...options.attributes,
       [S.ATTR_CONFIDENT_SPAN_TYPE]: role(options),
+      ...(options.level !== undefined
+        ? { [S.ATTR_CONFIDENT_SPAN_LEVEL]: options.level }
+        : {}),
     };
     if (role(options) === 'tool')
       Object.assign(attributes, {

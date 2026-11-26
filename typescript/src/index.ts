@@ -12,6 +12,7 @@ export {
   updateLlmSpan,
 } from '@/spans/index';
 export type {
+  SpanLevel,
   SpanType,
   LlmFields,
   ThreadFields,
