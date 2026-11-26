@@ -353,6 +353,21 @@ with trace_context(metric_collection="answer-checks", test_case_id="case-1", tur
         update_trace(metric_collection="updated-answer-checks")
 ```
 
+## Span levels
+
+Set `level="debug"` or `level="info"` on `span(...)` or `update_span(...)` to keep
+a span in the trace but out of evaluation. `debug` is for framework and
+infrastructure work (HTTP handlers, database calls), `info` for application steps
+that carry no AI data. Spans without a level are evaluated as usual, and Confident
+infers a level for spans that never set one. The value exports as
+`confident.span.level`; other values raise `ValueError`.
+
+```python
+@span(level="info")
+def handle_request(message):
+    return agent.run(message)
+```
+
 ## LiteLLM
 
 With LiteLLM already installed, run `pip install confident-trace`. Native LiteLLM

@@ -623,6 +623,31 @@ def test_collection_scopes_and_evaluation_ids(telemetry):
     assert result["turn"]["confident.trace.turn_id"] == "turn-2"
 
 
+def test_span_level_is_written_only_when_set(telemetry):
+    _, exporter = telemetry
+
+    @ct.span(name="wrapper", level="info")
+    def wrapper():
+        with ct.span("request"):
+            ct.update_span(level="debug")
+        with ct.span("step"):
+            pass
+
+    wrapper()
+    result = {s.name: s.attributes for s in spans(exporter)}
+    assert result["wrapper"]["confident.span.level"] == "info"
+    assert result["request"]["confident.span.level"] == "debug"
+    assert "confident.span.level" not in result["step"]
+
+
+@pytest.mark.parametrize("level", ["warn", "INFO", 1])
+def test_span_level_rejects_unknown_values(telemetry, level):
+    with pytest.raises(ValueError):
+        ct.span("step", level=level)
+    with pytest.raises(ValueError):
+        ct.update_span(level=level)
+
+
 @pytest.mark.parametrize(
     "explicit,confident,otel,expected",
     [

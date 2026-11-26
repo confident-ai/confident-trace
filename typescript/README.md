@@ -835,6 +835,20 @@ traceContext(
 );
 ```
 
+## Span levels
+
+Set `level: 'debug'` or `level: 'info'` on `withSpan`, `span`, or `updateSpan` to
+keep a span in the trace but out of evaluation. `debug` is for framework and
+infrastructure work (HTTP handlers, database calls), `info` for application steps
+that carry no AI data. Spans without a level are evaluated as usual, and Confident
+infers a level for spans that never set one. The value exports as
+`confident.span.level` (`ATTR_CONFIDENT_SPAN_LEVEL`); other values throw a
+`TypeError`.
+
+```ts
+withSpan({ name: 'handle-request', level: 'info' }, () => agent.run(message));
+```
+
 ## LiteLLM proxy
 
 Use the existing OpenAI SDK instrumentation with the exact LiteLLM client base URL:

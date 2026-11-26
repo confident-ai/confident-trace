@@ -423,6 +423,35 @@ it('inherits redaction and honors a global opt-out even for explicit helper fiel
   });
 });
 
+it('writes a span level only when one is set', async () => {
+  api.withSpan({ name: 'wrapper', level: 'info' }, () => {
+    api.withSpan({ name: 'request' }, () => {
+      api.updateSpan({ level: 'debug' });
+    });
+    api.withSpan({ name: 'step' }, () => {});
+  });
+  const result = await rows();
+  expect(result.wrapper!.attributes['confident.span.level']).toBe('info');
+  expect(result.request!.attributes['confident.span.level']).toBe('debug');
+  expect(result.step!.attributes['confident.span.level']).toBeUndefined();
+});
+
+it.each(['warn', 'INFO', 1])('rejects span level %s', (level) => {
+  const options = { name: 'step', level } as unknown as SpanOptions;
+  expect(() => api.withSpan(options, () => {})).toThrow(TypeError);
+  expect(() =>
+    api.updateSpan({ level } as unknown as Parameters<
+      typeof api.updateSpan
+    >[0]),
+  ).toThrow(TypeError);
+});
+
+it('keeps span level off trace fields', () => {
+  expect(() =>
+    api.updateTrace({ level: 'info' } as unknown as PublicApi.TraceFields),
+  ).toThrow(TypeError);
+});
+
 it('supports metric collection scopes and evaluation IDs', async () => {
   api.traceContext(
     {

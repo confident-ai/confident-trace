@@ -10,6 +10,7 @@
     "ATTR_CONFIDENT_SPAN_EXPECTED_TOOLS": "confident.span.expected_tools",
     "ATTR_CONFIDENT_SPAN_INPUT": "confident.span.input",
     "ATTR_CONFIDENT_SPAN_INTEGRATION": "confident.span.integration",
+    "ATTR_CONFIDENT_SPAN_LEVEL": "confident.span.level",
     "ATTR_CONFIDENT_SPAN_METADATA": "confident.span.metadata",
     "ATTR_CONFIDENT_SPAN_METRIC_COLLECTION": "confident.span.metric_collection",
     "ATTR_CONFIDENT_SPAN_OUTPUT": "confident.span.output",

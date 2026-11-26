@@ -98,7 +98,7 @@ _TRACE = (
     | {"test_case_id"}
     | set(confident.TRACE_ENTITY_FIELDS)
 )
-_SPAN = _CONTENT | {"name", "metric_collection"}
+_SPAN = _CONTENT | {"name", "metric_collection", "level"}
 _WRITES = WeakKeyDictionary()
 _ENTITY_KEYS = {
     "thread": frozenset(("id", "tags", "metadata")),
@@ -107,6 +107,8 @@ _ENTITY_KEYS = {
 }
 _TYPES = ("agent", "llm", "retriever", "tool", "custom")
 SpanType = Literal["agent", "llm", "retriever", "tool", "custom"]
+_LEVELS = ("debug", "info")
+SpanLevel = Literal["debug", "info"]
 _LLM = {
     "model": ai.GEN_AI_REQUEST_MODEL,
     "provider": ai.GEN_AI_PROVIDER_NAME,
@@ -121,6 +123,8 @@ def validate(values, allowed):
     unknown = set(values) - allowed
     if unknown:
         raise TypeError("Unknown tracing fields: " + ", ".join(sorted(unknown)))
+    if values.get("level") is not None and values["level"] not in _LEVELS:
+        raise ValueError("level accepts debug or info")
     for entity, accepted in _ENTITY_KEYS.items():
         value = values.get(entity)
         if value is None:

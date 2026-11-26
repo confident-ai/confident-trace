@@ -71,6 +71,7 @@ of the application. `confident.span.content_truncated` marks accumulator overflo
 | confident.span.input / output | JSON string for custom steps/tools |
 | confident.span.content_truncated | boolean |
 | confident.span.attachments | JSON object string: marker id to attachment |
+| confident.span.level | string: `debug` or `info` |
 
 Custom content fields (`confident.trace.*` and `confident.span.*` input, output,
 metadata, and the other content fields) may carry image and PDF markers,
@@ -120,6 +121,16 @@ Metadata never changes OTel parentage, starts a turn scope, or merges traces.
 Tool spans use `execute_tool`, a tool name, and the standard tool span naming
 convention. Custom tool arguments/results use Confident fields: the
 `gen_ai.tool.call.arguments/result` attributes cataloged in 1.41.0 are not emitted yet.
+
+## Span level
+
+`confident.span.level` marks a span the receiver keeps in the trace but leaves out
+of evaluation. The values borrow OpenTelemetry log severity names, since spans have
+no level of their own: `debug` for framework and infrastructure spans (HTTP, RPC,
+database, messaging), `info` for application spans that carry no AI data. Spans
+without a level are evaluated as usual. The SDK writes the attribute only when the
+application sets it; receivers infer a level for spans that do not carry one.
+Receivers ignore unknown values.
 
 ## Receiver handoff (implemented separately)
 
