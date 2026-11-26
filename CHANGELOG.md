@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Span levels
+
+- Python and TypeScript: spans accept a `level` of `debug` or `info`, exported as
+  `confident.span.level`. Confident keeps leveled spans in the trace but leaves
+  them out of evaluation, so framework spans (an HTTP handler, say) and
+  application wrappers with no AI data no longer crowd evaluation context.
+  Spans without a level are unchanged.
+
 ## Unreleased — Infrastructure spans without AI descendants are no longer exported
 
 - Python and TypeScript: an ended non-AI span (an HTTP request, say) held while
