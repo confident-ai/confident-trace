@@ -138,7 +138,8 @@ Future languages consume the same registry and vectors. SDK CI is independent of
 backend code, receiver deployment, and ClickHouse storage.
 
 Ancestor selection is monotonic. Ended unresolved ancestors remain eligible until
-their tracked subtree finishes. Payload pressure (1,024 spans / estimated 16 MiB)
-and explicit flush/shutdown conservatively export pending ancestors. Completed
+their tracked subtree finishes, across explicit flush. An ancestor is exported only
+once a descendant qualifies: payload pressure (1,024 spans / estimated 16 MiB)
+drops the oldest pending ancestors and shutdown drops all of them. Completed
 selected spans are never delayed for an active root. Export-all bypasses ancestry
 selection. No span identifiers, relationships, timestamps or payloads are rewritten.

@@ -538,10 +538,12 @@ tracked descendant finishes. Other exporters on the provider are unaffected.
 
 Pending ended payloads are limited per processor to 1,024 spans or 16 MiB of
 estimated payload, including attributes, events, links, resource and scope data.
-The estimate is conservative accounting, not a process RSS guarantee. Overflow
-exports the oldest pending ancestor and required ancestors instead of breaking
-relationships. Explicit flush and shutdown also export pending ancestors
-conservatively; these operations can therefore send extra infrastructure spans.
+The estimate is conservative accounting, not a process RSS guarantee. An
+infrastructure span is never exported unless a descendant becomes an AI span.
+Overflow drops the oldest pending ancestor; if one of its descendants later
+qualifies, it exports without that ancestor (its parent ID still names it).
+Explicit flush leaves pending ancestors pending, since a descendant can still
+qualify, and shutdown drops them, since none can.
 Shutdown never ends active application spans.
 
 Active ancestry bookkeeping has no age expiry and remains proportional to

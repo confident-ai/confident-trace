@@ -108,7 +108,7 @@ it('discards unresolved branches when descendants finish without AI', async () =
     await s.provider.shutdown();
   }
 });
-it('bounds pending spans and exports the oldest', async () => {
+it('bounds pending spans and drops the oldest', async () => {
   const s = setup();
   try {
     const children = [];
@@ -120,13 +120,13 @@ it('bounds pending spans and exports the oldest', async () => {
     expect(s.state.pending.size).toBe(1024);
     for (const c of children) c.end();
     await s.provider.forceFlush();
-    expect(s.exporter.getFinishedSpans()).toHaveLength(1);
+    expect(s.exporter.getFinishedSpans()).toHaveLength(0);
     expect(s.state.nodes.size).toBe(0);
   } finally {
     await s.provider.shutdown();
   }
 });
-it('bounds bytes including event data and preserves ancestor links', async () => {
+it('bounds bytes including event data by dropping pending payloads', async () => {
   const s = setup();
   try {
     const a = s.start('root'),
@@ -139,15 +139,17 @@ it('bounds bytes including event data and preserves ancestor links', async () =>
     c.setAttribute('gen_ai.operation.name', 'chat');
     c.end();
     await s.provider.forceFlush();
+    // Dropped ancestors never export, even once a descendant qualifies.
     const rows = s.exporter.getFinishedSpans();
-    expect(rows.map((x) => x.name).sort()).toEqual(['HTTP', 'late', 'root']);
-    expect(new Set(rows.map((x) => x.spanContext().spanId)).size).toBe(3);
+    expect(rows.map((x) => x.name)).toEqual(['late']);
+    expect(rows[0]!.parentSpanContext!.spanId).toBe(b.spanContext().spanId);
+    expect(s.state.nodes.size).toBe(0);
   } finally {
     await s.provider.shutdown();
   }
 });
 it.each([false, true])(
-  'lifecycle forwards pending data without ending work, shutdown=%s',
+  'lifecycle never exports unresolved ancestors, shutdown=%s',
   async (shutdown) => {
     const s = setup(),
       seen: string[] = [];
@@ -161,18 +163,44 @@ it.each([false, true])(
         b = s.start('child', a);
       a.end();
       if (shutdown) await s.provider.shutdown();
-      else await s.provider.forceFlush();
+      else {
+        await s.provider.forceFlush();
+        expect(s.state.pending.size).toBe(1);
+      }
       expect(b.isRecording()).toBe(true);
-      expect(seen).toEqual(['parent']);
+      expect(seen).toEqual([]);
       b.end();
       if (!shutdown) await s.provider.forceFlush();
-      expect(seen).toEqual(['parent']);
+      expect(seen).toEqual([]);
       expect(s.state.nodes.size).toBe(0);
     } finally {
       if (!shutdown) await s.provider.shutdown();
     }
   },
 );
+
+it('holds a pending ancestor across flush until a descendant qualifies', async () => {
+  const s = setup();
+  try {
+    const parent = s.start('parent');
+    const child = s.start('child', parent);
+    parent.end();
+    await s.provider.forceFlush();
+    expect(s.state.pending.size).toBe(1);
+    expect(s.exporter.getFinishedSpans()).toHaveLength(0);
+    child.setAttribute('gen_ai.operation.name', 'chat');
+    child.end();
+    await s.provider.forceFlush();
+    const rows = s.exporter.getFinishedSpans();
+    expect(rows.map((row) => row.name)).toEqual(['parent', 'child']);
+    expect(rows[1]!.parentSpanContext!.spanId).toBe(
+      rows[0]!.spanContext().spanId,
+    );
+    expect(s.state.nodes.size).toBe(0);
+  } finally {
+    await s.provider.shutdown();
+  }
+});
 
 it('keeps an unresolved ended parent across a five-hour descendant', async () => {
   const s = setup();

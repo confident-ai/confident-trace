@@ -2,7 +2,6 @@
 
 import logging
 import sys
-import time
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -113,12 +112,14 @@ class Ancestry:
             len(self.pending) > MAX_PENDING_SPANS
             or self.pending_bytes > MAX_PENDING_BYTES
         ):
-            log.debug("Ancestry buffer limit reached; exporting pending ancestors")
+            log.debug(
+                "Ancestry buffer limit reached; dropping oldest pending ancestors"
+            )
         while (
             len(self.pending) > MAX_PENDING_SPANS
             or self.pending_bytes > MAX_PENDING_BYTES
         ):
-            self.select(next(iter(self.pending)))
+            self._drop(next(iter(self.pending)))
 
     def _clean(self, key):
         while key in self.nodes:
@@ -132,12 +133,13 @@ class Ancestry:
             if key in self.nodes:
                 self.nodes[key].children -= 1
 
-    def flush_pending(self, deadline=None):
-        while self.pending:
-            if deadline is not None and time.monotonic() >= deadline:
-                return False
-            self.select(next(iter(self.pending)))
-        return True
+    def _drop(self, key):
+        """Discard a buffered payload that has no AI descendant yet.
+
+        The node stays tracked so its subtree's bookkeeping holds; if a descendant
+        qualifies later, selection passes through it to the ancestors still held.
+        """
+        self._release_payload(key, self.nodes[key])
 
     def clear(self):
         for node in self.nodes.values():

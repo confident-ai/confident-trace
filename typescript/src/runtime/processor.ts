@@ -191,7 +191,7 @@ class RoutingProcessor implements SpanProcessor, ProjectRouter {
   }
   async forceFlush(): Promise<void> {
     if (this.closed) return this.closing;
-    this.ancestry.flushPending();
+    // Pending ancestors are not ready: they wait for a descendant to qualify.
     await Promise.all(
       [this.fallback, ...this.routes.values()].map((r) => r.flush()),
     );
@@ -200,7 +200,7 @@ class RoutingProcessor implements SpanProcessor, ProjectRouter {
   }
   shutdown(): Promise<void> {
     if (!this.closing) {
-      this.ancestry.flushPending();
+      // No later descendant can qualify, so unresolved ancestors are dropped.
       this.ancestry.clear();
       this.spans.clear();
       this.closed = true;

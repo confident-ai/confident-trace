@@ -126,7 +126,9 @@ class RoutingProcessor:
     Only idle routes are bounded. Active requests and queued spans cannot be
     evicted. The standard batch processor retains its normal bounded queue.
     Unless export_non_ai_spans is set, only AI spans export, plus tracked local
-    ancestors, including ended ancestors with outstanding descendants.
+    ancestors, including ended ancestors whose descendants qualify later. An
+    ancestor no descendant qualified for is never exported: flush leaves it
+    pending, and shutdown or buffer pressure drop it.
     """
 
     def __init__(
@@ -256,8 +258,9 @@ class RoutingProcessor:
 
     def force_flush(self, timeout_millis=30000):
         deadline = time.monotonic() + timeout_millis / 1000
+        # Pending ancestors are not ready: they wait for a descendant to qualify.
+        result = True
         with self.lock:
-            result = self.ancestry.flush_pending(deadline)
             routes = [self.default, *self.routes.values()]
         for route in routes:
             with self.lock:
@@ -278,7 +281,7 @@ class RoutingProcessor:
         with self.lock:
             if self.closed:
                 return
-            self.ancestry.flush_pending()
+            # No later descendant can qualify, so unresolved ancestors are dropped.
             self.ancestry.clear()
             self.closed = True
             routes = [self.default, *self.routes.values()]
