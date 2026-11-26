@@ -172,6 +172,7 @@
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.124.0 <0.125",
     "@google/genai": ">=2.21.0 <3",
+    "@google/adk": ">=2.5.0 <3",
     "@langchain/core": ">=1.2.9 <2",
     "@langchain/langgraph": ">=1.4.14 <2",
     "@mastra/core": ">=1.64.0 <2",
@@ -203,6 +204,7 @@
     "@ai-sdk/openai": "^4.0.60",
     "@anthropic-ai/sdk": "^0.124.0",
     "@eslint/js": "^10.0.0",
+    "@google/adk": "^2.5.0",
     "@google/genai": "^2.21.0",
     "@grpc/proto-loader": "^0.8.0",
     "@langchain/core": "^1.2.9",
@@ -269,6 +271,9 @@
       "optional": true
     },
     "@livekit/agents": {
+      "optional": true
+    },
+    "@google/adk": {
       "optional": true
     }
   }

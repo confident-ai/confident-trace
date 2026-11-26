@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — Infrastructure spans without AI descendants are no longer exported
+
+- Python and TypeScript: an ended non-AI span (an HTTP request, say) held while
+  one of its children was still open used to be exported on `flush()`,
+  `shutdown()` or when the 1,024-span / 16 MiB buffer filled, even if no AI span
+  ever appeared under it. Long-running servers sent such spans as traces of their
+  own (health checks, for example), which then ran classifiers. Now flush leaves
+  them held, shutdown drops them, and a full buffer drops the oldest; they still
+  export with their AI descendants as before. A descendant that qualifies after
+  its ancestor was dropped from a full buffer exports without that ancestor.
+
+## Unreleased — Google ADK for TypeScript
+
+- TypeScript: support Google ADK (`@google/adk` >=2.5.0 <3) as the `google-adk`
+  automatic integration. ADK's native spans are labelled `Google ADK`, the Google
+  GenAI span inside ADK's model call is skipped so the call is recorded once, and
+  model and tool IO is put on ADK's spans the same way as in Python (below).
+
+## Unreleased — Google ADK IO on spans with ADK 2.14
+
+- Python: Google ADK 2.14 switched its default to the semconv-aligned telemetry
+  schema, which leaves model and tool input/output off spans unless
+  `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` names a span mode, so LLM
+  and tool spans arrived without IO. `init()` now sets it to `SPAN_ONLY` when
+  `capture_content` is on, ADK's spans reach Confident, and the application has
+  set neither it nor `ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=false`; `shutdown()`
+  removes it. The variable is process-wide, so other OpenTelemetry GenAI
+  instrumentations that read it record content on their spans too.
+
 ## Unreleased — Thinking on model spans
 
 - Capture the model's readable thinking as `reasoning` parts in

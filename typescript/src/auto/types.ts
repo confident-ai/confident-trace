@@ -10,6 +10,7 @@ export const instrumentationNames = [
   'mastra',
   'openai-agents',
   'livekit',
+  'google-adk',
 ] as const;
 export type InstrumentationName = (typeof instrumentationNames)[number];
 export type InstrumentationState =
