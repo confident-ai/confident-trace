@@ -4,6 +4,7 @@ import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 import type { AttributeValue } from '@opentelemetry/api';
 
 export const MAX_EXPORT_BYTES = 24 * 1024 * 1024;
+export const EXPORT_CONCURRENCY = 30;
 const SPAN_OVERHEAD = 1024;
 
 function valueSize(value: AttributeValue | undefined): number {
@@ -53,10 +54,55 @@ export function batches(
 }
 
 export class BoundedSpanExporter implements SpanExporter {
+  private pending: Promise<void> = Promise.resolve();
+  private readonly waiting = new Set<() => void>();
+  private active = 0;
+
   constructor(
     private readonly exporter: SpanExporter,
     private readonly maxBytes: number = MAX_EXPORT_BYTES,
-  ) {}
+    private readonly concurrency: number = EXPORT_CONCURRENCY,
+  ) {
+    if (!Number.isSafeInteger(concurrency) || concurrency < 1)
+      throw new RangeError('Export concurrency must be a positive integer');
+  }
+
+  private drain(): void {
+    while (this.active < this.concurrency && this.waiting.size) {
+      const send = this.waiting.values().next().value!;
+      this.waiting.delete(send);
+      send();
+    }
+  }
+
+  private request(chunk: ReadableSpan[]): Promise<ExportResult> {
+    return new Promise((resolve) => {
+      this.waiting.add(() => {
+        this.active++;
+        let completed = false;
+        const complete = (result: ExportResult) => {
+          if (completed) return;
+          completed = true;
+          // OTLP releases its in-flight slot after invoking the callback.
+          // Resume on the next turn, also avoiding recursive sync callbacks.
+          setImmediate(() => {
+            this.active--;
+            resolve(result);
+            this.drain();
+          });
+        };
+        try {
+          this.exporter.export(chunk, complete);
+        } catch (error) {
+          complete({
+            code: ExportResultCode.FAILED,
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+        }
+      });
+      this.drain();
+    });
+  }
 
   export(
     spans: ReadableSpan[],
@@ -67,21 +113,28 @@ export class BoundedSpanExporter implements SpanExporter {
       resultCallback({ code: ExportResultCode.SUCCESS });
       return;
     }
-    let pending = chunks.length;
     let failure: ExportResult | undefined;
-    for (const chunk of chunks)
-      this.exporter.export(chunk, (result) => {
-        if (result.code !== ExportResultCode.SUCCESS) failure ??= result;
-        if (--pending === 0)
-          resultCallback(failure ?? { code: ExportResultCode.SUCCESS });
-      });
+    const operation = Promise.all(
+      chunks.map((chunk) =>
+        this.request(chunk).then((result) => {
+          if (result.code !== ExportResultCode.SUCCESS) failure ??= result;
+        }),
+      ),
+    );
+    // One capacity budget per destination covers overlapping processor flushes.
+    this.pending = Promise.all([this.pending, operation]).then(() => {});
+    void operation.then(() =>
+      resultCallback(failure ?? { code: ExportResultCode.SUCCESS }),
+    );
   }
 
-  forceFlush(): Promise<void> {
-    return this.exporter.forceFlush?.() ?? Promise.resolve();
+  async forceFlush(): Promise<void> {
+    await this.pending;
+    await this.exporter.forceFlush?.();
   }
 
-  shutdown(): Promise<void> {
-    return this.exporter.shutdown();
+  async shutdown(): Promise<void> {
+    await this.pending;
+    await this.exporter.shutdown();
   }
 }
